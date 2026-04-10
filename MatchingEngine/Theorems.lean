@@ -1020,6 +1020,62 @@ theorem matchMeasure_skip_empty_level
   rw [ht, hoc, hlen]
   omega
 
+/-- `orderCount` equivalent of `totalRemaining_drop_head_order`:
+    dropping the head order from the head level decreases `orderCount` by 1. -/
+theorem orderCount_drop_head_order
+    (level : PriceLevel) (restLevels : List PriceLevel)
+    (resting : Order) (restOrders : List Order)
+    (hlevel : level.orders = resting :: restOrders) :
+    orderCount (if restOrders.isEmpty then restLevels
+                else { level with orders := restOrders } :: restLevels) + 1
+    = orderCount (level :: restLevels) := by
+  show _ + 1 = level.orders.length + orderCount restLevels
+  rw [hlevel]
+  by_cases h : restOrders.isEmpty
+  · simp [h]
+    have h2 : restOrders = [] := List.isEmpty_iff.mp h
+    rw [h2]; simp; omega
+  · simp [h]
+    show (restOrders.length + orderCount restLevels) + 1 = _
+    show _ = (resting :: restOrders).length + orderCount restLevels
+    simp; omega
+
+/-- `contra.length` non-increase under `drop_head_order`:
+    the head-level drop either keeps the length (restOrders non-empty) or
+    decreases by 1 (restOrders empty). -/
+theorem length_drop_head_order_le
+    (level : PriceLevel) (restLevels : List PriceLevel)
+    (restOrders : List Order) :
+    (if restOrders.isEmpty then restLevels
+     else { level with orders := restOrders } :: restLevels).length
+    ≤ (level :: restLevels).length := by
+  by_cases h : restOrders.isEmpty
+  · simp [h]
+  · simp [h]
+
+/-- **Main per-branch lemma**: dropping a head order strictly decreases
+    `matchMeasure`. The strict decrease comes from `orderCount` dropping by 1
+    (so `hpos` is not needed — the lemma holds for any dropped order). -/
+theorem matchMeasure_drop_head_order
+    (level : PriceLevel) (restLevels : List PriceLevel) (inc : Order)
+    (resting : Order) (restOrders : List Order)
+    (hlevel : level.orders = resting :: restOrders) :
+    matchMeasure (if restOrders.isEmpty then restLevels
+                  else { level with orders := restOrders } :: restLevels) inc
+    < matchMeasure (level :: restLevels) inc := by
+  unfold matchMeasure
+  have htot := totalRemaining_drop_head_order level restLevels resting restOrders hlevel
+  have hoc := orderCount_drop_head_order level restLevels resting restOrders hlevel
+  have hlen := length_drop_head_order_le level restLevels restOrders
+  -- Generalize to hide the if-expression
+  generalize hR : totalRemaining (if restOrders.isEmpty then restLevels
+                    else { level with orders := restOrders } :: restLevels) = R at htot
+  generalize hO : orderCount (if restOrders.isEmpty then restLevels
+                    else { level with orders := restOrders } :: restLevels) = O at hoc
+  generalize hL : (if restOrders.isEmpty then restLevels
+                    else { level with orders := restOrders } :: restLevels).length = L at hlen
+  omega
+
 /-- **Sub-lemma (task #4)**: the output of `doMatch` for a buy-side order
     on a sorted ask list is buy-stable. Proven via the progress-lemma approach
     (see comments above). Currently marked sorry — building proof incrementally. -/
