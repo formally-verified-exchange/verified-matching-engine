@@ -903,6 +903,12 @@ def buyMatchStable (inc : Order) (asks : List PriceLevel) : Prop :=
   inc.remainingQty = 0 ∨ inc.status = .cancelled ∨ asks = [] ∨
   (∀ hd ∈ asks.head?, (inc.price.getD 0) < hd.price)
 
+/-- Sell-side "stable" predicate (mirror of `buyMatchStable`). The 4th
+    disjunct flips: bid head price must be strictly BELOW `inc.price`. -/
+def sellMatchStable (inc : Order) (bids : List PriceLevel) : Prop :=
+  inc.remainingQty = 0 ∨ inc.status = .cancelled ∨ bids = [] ∨
+  (∀ hd ∈ bids.head?, hd.price < (inc.price.getD 0))
+
 /-- Trivial extraction: from a buy-stable state where incoming is still active,
     the no-cross conclusion follows. -/
 theorem doMatch_buy_noCross_of_stable
@@ -911,6 +917,19 @@ theorem doMatch_buy_noCross_of_stable
     (hqty : inc.remainingQty > 0)
     (hstatus : inc.status ≠ .cancelled) :
     asks = [] ∨ (∀ hd ∈ asks.head?, (inc.price.getD 0) < hd.price) := by
+  rcases hstable with h | h | h | h
+  · rw [h] at hqty; exact absurd hqty (by decide)
+  · exact absurd h hstatus
+  · exact Or.inl h
+  · exact Or.inr h
+
+/-- Sell mirror of `doMatch_buy_noCross_of_stable`. -/
+theorem doMatch_sell_noCross_of_stable
+    {inc : Order} {bids : List PriceLevel}
+    (hstable : sellMatchStable inc bids)
+    (hqty : inc.remainingQty > 0)
+    (hstatus : inc.status ≠ .cancelled) :
+    bids = [] ∨ (∀ hd ∈ bids.head?, hd.price < (inc.price.getD 0)) := by
   rcases hstable with h | h | h | h
   · rw [h] at hqty; exact absurd hqty (by decide)
   · exact absurd h hstatus
@@ -1709,6 +1728,555 @@ theorem doMatch_buy_noCross_after_match (fuel : Nat) (inc : Order)
   intro mr hqty hstatus
   have hstable := doMatch_buy_output_stable fuel inc bids asks trades tm hside hfuel
   exact doMatch_buy_noCross_of_stable hstable hqty hstatus
+
+/-- **Sell mirror of `doMatch_buy_output_stable`**: structural copy with
+    asks↔bids, .buy↔.sell, and strict-less direction flipped. -/
+theorem doMatch_sell_output_stable (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hside : inc.side = .sell)
+    (hfuel : fuel > matchMeasure bids inc) :
+    let mr := doMatch fuel inc bids asks trades tm
+    sellMatchStable mr.incoming mr.bids := by
+  induction fuel generalizing inc bids trades tm with
+  | zero =>
+    exact absurd hfuel (by omega)
+  | succ n ih =>
+    unfold doMatch
+    split
+    · -- Terminal
+      rename_i hdone
+      simp only [Bool.or_eq_true] at hdone
+      rcases hdone with hq | hs
+      · left
+        show inc.remainingQty = 0
+        simpa using hq
+      · right; left
+        show inc.status = .cancelled
+        cases hstat : inc.status
+        all_goals first | rfl | (rw [hstat] at hs; cases hs)
+    · rename_i hnotdone
+      have hinc_pos : inc.remainingQty > 0 := by
+        apply Nat.pos_of_ne_zero
+        intro h0
+        rw [h0] at hnotdone
+        simp at hnotdone
+      split
+      · -- buy branch: absurd since hside : inc.side = .sell
+        rename_i heq
+        rw [hside] at heq; exact absurd heq (by decide)
+      · -- sell branch (contra = bids)
+        cases hbid : bids with
+        | nil =>
+          right; right; left
+          rfl
+        | cons level restLevels =>
+          simp only
+          split
+          · -- !canMatchPrice inc level.price → terminal (fourth disjunct)
+            rename_i hnc
+            right; right; right
+            intro hd hmem
+            have hhd : hd = level := by
+              simp at hmem; exact hmem.symm
+            rw [hhd]
+            unfold canMatchPrice at hnc
+            cases hprice : inc.price with
+            | none =>
+              exfalso
+              rw [hprice] at hnc
+              simp at hnc
+            | some p =>
+              rw [hprice, hside] at hnc
+              simp at hnc
+              -- hnc : ¬ (p ≤ level.price), i.e., level.price < p
+              show level.price < (some p).getD 0
+              show level.price < p
+              omega
+          · cases horders : level.orders with
+            | nil =>
+              have hmdec : matchMeasure restLevels inc
+                         < matchMeasure (level :: restLevels) inc :=
+                matchMeasure_skip_empty_level level restLevels inc horders
+              have hfuel' : n > matchMeasure restLevels inc := by
+                have hprev : n + 1 > matchMeasure bids inc := hfuel
+                rw [hbid] at hprev
+                omega
+              exact ih inc restLevels trades tm hside hfuel'
+            | cons resting restOrders =>
+              simp only
+              cases hzv : (resting.visibleQty == 0 && !selfTradeConflict inc resting) with
+              | true =>
+                have hmdec :=
+                  matchMeasure_drop_head_order level restLevels inc
+                    resting restOrders horders
+                have hfuel' :
+                    n > matchMeasure
+                      (if restOrders.isEmpty then restLevels
+                       else { level with orders := restOrders } :: restLevels) inc := by
+                  have hprev : n + 1 > matchMeasure bids inc := hfuel
+                  rw [hbid] at hprev
+                  omega
+                exact ih inc _ _ _ hside hfuel'
+              | false =>
+                cases hstp : selfTradeConflict inc resting with
+                | true =>
+                  cases hpol : inc.stpPolicy.getD .cancelNewest with
+                  | cancelNewest =>
+                    right; left
+                    show OrderStatus.cancelled = OrderStatus.cancelled
+                    rfl
+                  | cancelOldest =>
+                    have hmdec :=
+                      matchMeasure_drop_head_order level restLevels inc
+                        resting restOrders horders
+                    have hfuel' :
+                        n > matchMeasure
+                          (if restOrders.isEmpty then restLevels
+                           else { level with orders := restOrders } :: restLevels) inc := by
+                      have hprev : n + 1 > matchMeasure bids inc := hfuel
+                      rw [hbid] at hprev
+                      omega
+                    exact ih inc _ _ _ hside hfuel'
+                  | cancelBoth =>
+                    right; left
+                    show OrderStatus.cancelled = OrderStatus.cancelled
+                    rfl
+                  | decrement =>
+                    cases hrz : (min inc.remainingQty resting.visibleQty == 0) with
+                    | true =>
+                      have hmdec :=
+                        matchMeasure_drop_head_order level restLevels inc
+                          resting restOrders horders
+                      have hfuel' :
+                          n > matchMeasure
+                            (if restOrders.isEmpty then restLevels
+                             else { level with orders := restOrders } :: restLevels) inc := by
+                        have hprev : n + 1 > matchMeasure bids inc := hfuel
+                        rw [hbid] at hprev
+                        omega
+                      exact ih inc _ _ _ hside hfuel'
+                    | false =>
+                      cases hrr : (resting.remainingQty - min inc.remainingQty resting.visibleQty == 0) with
+                      | true =>
+                        refine ih
+                          ({ inc with
+                            remainingQty := inc.remainingQty -
+                              min inc.remainingQty resting.visibleQty,
+                            status := if inc.remainingQty -
+                              min inc.remainingQty resting.visibleQty == 0 then
+                              .cancelled else inc.status })
+                          _ _ _ hside ?_
+                        have hmdec := matchMeasure_drop_head_order level restLevels
+                          ({ inc with
+                            remainingQty := inc.remainingQty -
+                              min inc.remainingQty resting.visibleQty,
+                            status := if inc.remainingQty -
+                              min inc.remainingQty resting.visibleQty == 0 then
+                              .cancelled else inc.status })
+                          resting restOrders horders
+                        rw [← hbid] at hmdec
+                        have h_mono :
+                            matchMeasure bids
+                              ({ inc with
+                                remainingQty := inc.remainingQty -
+                                  min inc.remainingQty resting.visibleQty,
+                                status := if inc.remainingQty -
+                                  min inc.remainingQty resting.visibleQty == 0 then
+                                  .cancelled else inc.status })
+                            ≤ matchMeasure bids inc := by
+                          unfold matchMeasure
+                          simp only
+                          have : inc.remainingQty -
+                                   min inc.remainingQty resting.visibleQty
+                                 ≤ inc.remainingQty := Nat.sub_le _ _
+                          omega
+                        omega
+                      | false =>
+                        cases hiv :
+                            ((resting.visibleQty - min inc.remainingQty resting.visibleQty == 0)
+                              && resting.displayQty.isSome) with
+                        | true =>
+                          -- STP decrement iceberg reload
+                          have hrz_pos : 0 < min inc.remainingQty resting.visibleQty := by
+                            apply Nat.pos_of_ne_zero
+                            intro he
+                            rw [he] at hrz
+                            simp at hrz
+                          have hrr_prop : resting.remainingQty -
+                                          min inc.remainingQty resting.visibleQty > 0 := by
+                            apply Nat.pos_of_ne_zero
+                            intro he
+                            rw [he] at hrr
+                            simp at hrr
+                          have hr_pos : 0 < resting.remainingQty := by
+                            apply Nat.pos_of_ne_zero
+                            intro he
+                            rw [he] at hrr_prop
+                            simp at hrr_prop
+                          have hne : ∀ (y : Order),
+                              (restOrders ++ [y]).isEmpty = false := by
+                            intro y; cases restOrders <;> rfl
+                          simp only [hne, if_false]
+                          have hmdec_lvl :
+                              matchMeasure ({ level with orders := restOrders ++
+                                  [({ resting with
+                                      visibleQty := min (resting.displayQty.getD 0)
+                                        (resting.remainingQty -
+                                          min inc.remainingQty resting.visibleQty),
+                                      remainingQty := resting.remainingQty -
+                                        min inc.remainingQty resting.visibleQty,
+                                      timestamp := tm,
+                                      status := OrderStatus.partiallyFilled } : Order)] }
+                                             :: restLevels)
+                                ({ inc with
+                                  remainingQty := inc.remainingQty -
+                                    min inc.remainingQty resting.visibleQty,
+                                  status := if inc.remainingQty -
+                                    min inc.remainingQty resting.visibleQty == 0 then
+                                    .cancelled else inc.status } : Order)
+                              < matchMeasure (level :: restLevels)
+                                ({ inc with
+                                  remainingQty := inc.remainingQty -
+                                    min inc.remainingQty resting.visibleQty,
+                                  status := if inc.remainingQty -
+                                    min inc.remainingQty resting.visibleQty == 0 then
+                                    .cancelled else inc.status } : Order) := by
+                            apply matchMeasure_modify_head_level_orders
+                            · rw [horders]
+                              simp
+                            · rw [horders, orderSum_append, orderSum_singleton]
+                              show orderSum restOrders +
+                                   (resting.remainingQty -
+                                     min inc.remainingQty resting.visibleQty)
+                                 < orderSum (resting :: restOrders)
+                              show orderSum restOrders +
+                                   (resting.remainingQty -
+                                     min inc.remainingQty resting.visibleQty)
+                                 < resting.remainingQty + orderSum restOrders
+                              have h_lt : resting.remainingQty -
+                                          min inc.remainingQty resting.visibleQty
+                                        < resting.remainingQty :=
+                                Nat.sub_lt hr_pos hrz_pos
+                              rw [Nat.add_comm resting.remainingQty (orderSum restOrders)]
+                              exact Nat.add_lt_add_left h_lt (orderSum restOrders)
+                          rw [← hbid] at hmdec_lvl
+                          have h_mono :
+                              matchMeasure bids
+                                ({ inc with
+                                  remainingQty := inc.remainingQty -
+                                    min inc.remainingQty resting.visibleQty,
+                                  status := if inc.remainingQty -
+                                    min inc.remainingQty resting.visibleQty == 0 then
+                                    .cancelled else inc.status } : Order)
+                              ≤ matchMeasure bids inc := by
+                            apply matchMeasure_mono_inc_le
+                            show inc.remainingQty - min inc.remainingQty resting.visibleQty
+                                 ≤ inc.remainingQty
+                            exact Nat.sub_le _ _
+                          refine ih
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty,
+                              status := if inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty == 0 then
+                                .cancelled else inc.status } : Order)
+                            _ _ _ hside ?_
+                          exact fuel_from_decrease n _ _ hfuel
+                            (Nat.lt_of_lt_of_le hmdec_lvl h_mono)
+                        | false =>
+                          -- STP decrement partial
+                          have hrz_pos : min inc.remainingQty resting.visibleQty > 0 := by
+                            apply Nat.pos_of_ne_zero
+                            intro he
+                            rw [he] at hrz
+                            simp at hrz
+                          have hmdec_lvl :
+                              matchMeasure
+                                ({ level with orders :=
+                                    ({ resting with
+                                        remainingQty := resting.remainingQty -
+                                          min inc.remainingQty resting.visibleQty,
+                                        visibleQty := resting.visibleQty -
+                                          min inc.remainingQty resting.visibleQty } : Order)
+                                    :: restOrders } :: restLevels)
+                                ({ inc with
+                                  remainingQty := inc.remainingQty -
+                                    min inc.remainingQty resting.visibleQty,
+                                  status := if inc.remainingQty -
+                                    min inc.remainingQty resting.visibleQty == 0 then
+                                    .cancelled else inc.status } : Order)
+                              < matchMeasure (level :: restLevels)
+                                ({ inc with
+                                  remainingQty := inc.remainingQty -
+                                    min inc.remainingQty resting.visibleQty,
+                                  status := if inc.remainingQty -
+                                    min inc.remainingQty resting.visibleQty == 0 then
+                                    .cancelled else inc.status } : Order) := by
+                            apply matchMeasure_modify_head_level_orders
+                            · rw [horders]; simp
+                            · rw [horders]
+                              show (resting.remainingQty -
+                                    min inc.remainingQty resting.visibleQty)
+                                  + orderSum restOrders
+                                  < resting.remainingQty + orderSum restOrders
+                              have hr_pos : 0 < resting.remainingQty := by
+                                apply Nat.pos_of_ne_zero
+                                intro he
+                                rw [he] at hrr
+                                simp at hrr
+                              have h_lt : resting.remainingQty -
+                                          min inc.remainingQty resting.visibleQty
+                                        < resting.remainingQty :=
+                                Nat.sub_lt hr_pos hrz_pos
+                              exact Nat.add_lt_add_right h_lt _
+                          rw [← hbid] at hmdec_lvl
+                          have h_mono :
+                              matchMeasure bids
+                                ({ inc with
+                                  remainingQty := inc.remainingQty -
+                                    min inc.remainingQty resting.visibleQty,
+                                  status := if inc.remainingQty -
+                                    min inc.remainingQty resting.visibleQty == 0 then
+                                    .cancelled else inc.status } : Order)
+                              ≤ matchMeasure bids inc := by
+                            apply matchMeasure_mono_inc_le
+                            show inc.remainingQty - min inc.remainingQty resting.visibleQty
+                                 ≤ inc.remainingQty
+                            exact Nat.sub_le _ _
+                          refine ih
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty,
+                              status := if inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty == 0 then
+                                .cancelled else inc.status } : Order)
+                            _ _ _ hside ?_
+                          exact fuel_from_decrease n _ _ hfuel (Nat.lt_of_lt_of_le hmdec_lvl h_mono)
+                | false =>
+                  -- Normal fill
+                  cases hff : (resting.remainingQty -
+                               min inc.remainingQty resting.visibleQty == 0) with
+                  | true =>
+                    have hmdec := matchMeasure_drop_head_order level restLevels
+                      ({ inc with
+                        remainingQty := inc.remainingQty -
+                          min inc.remainingQty resting.visibleQty } : Order)
+                      resting restOrders horders
+                    rw [← hbid] at hmdec
+                    have h_mono :
+                        matchMeasure bids
+                          ({ inc with
+                            remainingQty := inc.remainingQty -
+                              min inc.remainingQty resting.visibleQty } : Order)
+                        ≤ matchMeasure bids inc := by
+                      unfold matchMeasure
+                      simp only
+                      have : inc.remainingQty - min inc.remainingQty resting.visibleQty
+                             ≤ inc.remainingQty := Nat.sub_le _ _
+                      omega
+                    refine ih
+                      ({ inc with
+                        remainingQty := inc.remainingQty -
+                          min inc.remainingQty resting.visibleQty } : Order)
+                      _ _ _ hside ?_
+                    omega
+                  | false =>
+                    cases hir :
+                        ((resting.visibleQty - min inc.remainingQty resting.visibleQty == 0)
+                          && resting.displayQty.isSome) with
+                    | true =>
+                      -- Normal fill iceberg reload
+                      have hvis_pos : resting.visibleQty > 0 := by
+                        apply Nat.pos_of_ne_zero
+                        intro hv
+                        rw [hv] at hzv
+                        simp [hstp] at hzv
+                      have hfill_pos : 0 < min inc.remainingQty resting.visibleQty :=
+                        Nat.lt_min.mpr ⟨hinc_pos, hvis_pos⟩
+                      have hff_prop : resting.remainingQty -
+                                      min inc.remainingQty resting.visibleQty > 0 := by
+                        apply Nat.pos_of_ne_zero
+                        intro he
+                        rw [he] at hff
+                        simp at hff
+                      have hr_pos : 0 < resting.remainingQty := by
+                        apply Nat.pos_of_ne_zero
+                        intro he
+                        rw [he] at hff_prop
+                        simp at hff_prop
+                      have h_qty_lt : resting.remainingQty -
+                                      min inc.remainingQty resting.visibleQty
+                                    < resting.remainingQty :=
+                        Nat.sub_lt hr_pos hfill_pos
+                      have hmdec_lvl :
+                          matchMeasure ({ level with orders := restOrders ++
+                              [({ resting with
+                                  visibleQty := min (resting.displayQty.getD 0)
+                                    (resting.remainingQty -
+                                      min inc.remainingQty resting.visibleQty),
+                                  remainingQty := resting.remainingQty -
+                                    min inc.remainingQty resting.visibleQty,
+                                  timestamp := tm,
+                                  status := OrderStatus.partiallyFilled } : Order)] }
+                                         :: restLevels)
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty } : Order)
+                          < matchMeasure (level :: restLevels)
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty } : Order) := by
+                        apply matchMeasure_modify_head_level_orders
+                        · rw [horders]
+                          simp
+                        · rw [horders, orderSum_append, orderSum_singleton]
+                          show orderSum restOrders +
+                               (resting.remainingQty - min inc.remainingQty resting.visibleQty)
+                             < orderSum (resting :: restOrders)
+                          show orderSum restOrders +
+                               (resting.remainingQty - min inc.remainingQty resting.visibleQty)
+                             < resting.remainingQty + orderSum restOrders
+                          have h_lt : resting.remainingQty -
+                                      min inc.remainingQty resting.visibleQty
+                                    < resting.remainingQty :=
+                            Nat.sub_lt hr_pos hfill_pos
+                          rw [Nat.add_comm resting.remainingQty (orderSum restOrders)]
+                          exact Nat.add_lt_add_left h_lt (orderSum restOrders)
+                      rw [← hbid] at hmdec_lvl
+                      have h_mono :
+                          matchMeasure bids
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty } : Order)
+                          ≤ matchMeasure bids inc := by
+                        apply matchMeasure_mono_inc_le
+                        show inc.remainingQty - min inc.remainingQty resting.visibleQty
+                             ≤ inc.remainingQty
+                        exact Nat.sub_le _ _
+                      refine ih
+                        ({ inc with
+                          remainingQty := inc.remainingQty -
+                            min inc.remainingQty resting.visibleQty } : Order)
+                        _ _ _ hside ?_
+                      exact fuel_from_decrease n _ _ hfuel (Nat.lt_of_lt_of_le hmdec_lvl h_mono)
+                    | false =>
+                      -- Partial fill
+                      have hvis_pos : resting.visibleQty > 0 := by
+                        apply Nat.pos_of_ne_zero
+                        intro hv
+                        rw [hv] at hzv
+                        simp [hstp] at hzv
+                      have hfill_pos : 0 < min inc.remainingQty resting.visibleQty :=
+                        Nat.lt_min.mpr ⟨hinc_pos, hvis_pos⟩
+                      have hff_prop : resting.remainingQty -
+                                      min inc.remainingQty resting.visibleQty > 0 := by
+                        apply Nat.pos_of_ne_zero
+                        intro he
+                        rw [he] at hff
+                        simp at hff
+                      have hmdec_lvl :
+                          matchMeasure
+                            ({ level with orders :=
+                                ({ resting with
+                                    visibleQty := resting.visibleQty -
+                                      min inc.remainingQty resting.visibleQty,
+                                    remainingQty := resting.remainingQty -
+                                      min inc.remainingQty resting.visibleQty,
+                                    status := OrderStatus.partiallyFilled } : Order)
+                                :: restOrders } :: restLevels)
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty } : Order)
+                          < matchMeasure (level :: restLevels)
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty } : Order) := by
+                        apply matchMeasure_modify_head_level_orders
+                        · rw [horders]; simp
+                        · rw [horders]
+                          show (resting.remainingQty -
+                                min inc.remainingQty resting.visibleQty)
+                              + orderSum restOrders
+                              < resting.remainingQty + orderSum restOrders
+                          rcases Nat.le_total inc.remainingQty resting.visibleQty with hle | hle
+                          · rw [Nat.min_eq_left hle] at hff_prop hfill_pos ⊢
+                            have hr_pos : 0 < resting.remainingQty := by
+                              apply Nat.pos_of_ne_zero
+                              intro he
+                              rw [he] at hff_prop
+                              simp at hff_prop
+                            have h_lt : resting.remainingQty - inc.remainingQty
+                                      < resting.remainingQty :=
+                              Nat.sub_lt hr_pos hinc_pos
+                            exact Nat.add_lt_add_right h_lt _
+                          · rw [Nat.min_eq_right hle] at hff_prop hfill_pos ⊢
+                            have hr_pos : 0 < resting.remainingQty := by
+                              apply Nat.pos_of_ne_zero
+                              intro he
+                              rw [he] at hff_prop
+                              simp at hff_prop
+                            have h_lt : resting.remainingQty - resting.visibleQty
+                                      < resting.remainingQty :=
+                              Nat.sub_lt hr_pos hvis_pos
+                            exact Nat.add_lt_add_right h_lt _
+                      rw [← hbid] at hmdec_lvl
+                      have h_mono :
+                          matchMeasure bids
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty } : Order)
+                          ≤ matchMeasure bids inc := by
+                        unfold matchMeasure
+                        simp only
+                        have : inc.remainingQty - min inc.remainingQty resting.visibleQty
+                               ≤ inc.remainingQty := Nat.sub_le _ _
+                        omega
+                      refine ih
+                        ({ inc with
+                          remainingQty := inc.remainingQty -
+                            min inc.remainingQty resting.visibleQty } : Order)
+                        _ _ _ hside ?_
+                      omega
+
+/-- Sell no-cross-after-match (mirror of buy version). -/
+theorem doMatch_sell_noCross_after_match (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hside : inc.side = .sell)
+    (hfuel : fuel > matchMeasure bids inc) :
+    let mr := doMatch fuel inc bids asks trades tm
+    mr.incoming.remainingQty > 0 →
+    mr.incoming.status ≠ .cancelled →
+    mr.bids = [] ∨ (∀ hd ∈ mr.bids.head?, hd.price < (mr.incoming.price.getD 0)) := by
+  intro mr hqty hstatus
+  have hstable := doMatch_sell_output_stable fuel inc bids asks trades tm hside hfuel
+  exact doMatch_sell_noCross_of_stable hstable hqty hstatus
+
+-- ============================================================================
+-- Unified (side-parameterized) fuel sufficiency
+-- ============================================================================
+
+/-- Side-parameterized "stable" predicate. -/
+def matchStable (side : Side) (inc : Order) (contra : List PriceLevel) : Prop :=
+  match side with
+  | .buy  => buyMatchStable inc contra
+  | .sell => sellMatchStable inc contra
+
+/-- **Unified side-parameterized**: `doMatch` with sufficient fuel produces
+    a stable output (either incoming consumed/cancelled, contra empty, or
+    head non-crossing). Dispatches to buy/sell via `cases side`. -/
+theorem doMatch_output_stable (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (side : Side) (hside : inc.side = side)
+    (hfuel : fuel > matchMeasure (contraInput side bids asks) inc) :
+    let mr := doMatch fuel inc bids asks trades tm
+    matchStable side mr.incoming (MatchResult.contraSide side mr) := by
+  cases side with
+  | buy =>
+    show buyMatchStable _ _
+    exact doMatch_buy_output_stable fuel inc bids asks trades tm hside hfuel
+  | sell =>
+    show sellMatchStable _ _
+    exact doMatch_sell_output_stable fuel inc bids asks trades tm hside hfuel
 
 -- ============================================================================
 -- doMatch passive price rule (price-time priority)
