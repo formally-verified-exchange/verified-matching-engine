@@ -959,12 +959,16 @@ def orderCount : List PriceLevel → Nat
   | [] => 0
   | l :: rest => l.orders.length + orderCount rest
 
-/-- Well-founded measure for `doMatch` progress. Includes
-    `totalRemaining + orderCount + contra.length + inc.remainingQty` so
-    that EVERY non-terminal recursive step strictly decreases it. Matches
-    the structure of `computeMatchFuel`. -/
-def matchMeasure (contra : List PriceLevel) (inc : Order) : Nat :=
-  totalRemaining contra + orderCount contra + contra.length + inc.remainingQty
+/-- Well-founded measure for `doMatch` progress:
+    `totalRemaining + orderCount + contra.length`. Every non-terminal
+    recursive step strictly decreases at least one component, so this is
+    sufficient without any incoming-order component. Matches
+    `computeMatchFuel` exactly: `computeMatchFuel b side = matchMeasure contra + 1`.
+
+    The `_inc` parameter is retained in the signature for backward compatibility
+    with existing lemma call sites but is unused — the measure ignores it. -/
+def matchMeasure (contra : List PriceLevel) (_inc : Order) : Nat :=
+  totalRemaining contra + orderCount contra + contra.length
 
 /-- Helper: arithmetic chain `fuel > old_measure ∧ new_measure < old_measure → fuel' > new_measure`
     expressed on plain `Nat` so omega can close it without struggling with
@@ -990,14 +994,13 @@ theorem orderSum_append (xs ys : List Order) :
 theorem orderSum_singleton (o : Order) : orderSum [o] = o.remainingQty := rfl
 
 /-- Monotonicity of `matchMeasure` in the incoming order's `remainingQty`:
-    if `inc'.remainingQty ≤ inc.remainingQty`, then the measure is `≤`. -/
+    after refactoring matchMeasure to ignore `inc`, this is trivially equality,
+    but retained for backward compatibility with existing callers. -/
 private theorem matchMeasure_mono_inc_le
     (contra : List PriceLevel) (inc' inc : Order)
-    (h : inc'.remainingQty ≤ inc.remainingQty) :
-    matchMeasure contra inc' ≤ matchMeasure contra inc := by
-  show totalRemaining contra + orderCount contra + contra.length + inc'.remainingQty
-     ≤ totalRemaining contra + orderCount contra + contra.length + inc.remainingQty
-  exact Nat.add_le_add_left h _
+    (_h : inc'.remainingQty ≤ inc.remainingQty) :
+    matchMeasure contra inc' ≤ matchMeasure contra inc :=
+  Nat.le.refl
 
 /-- Dropping the head order from the head level (with the "remove level if
     empty" pattern used by `doMatch`) decreases `totalRemaining` by exactly
@@ -1336,12 +1339,8 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
                                   min inc.remainingQty resting.visibleQty == 0 then
                                   .cancelled else inc.status })
                             ≤ matchMeasure asks inc := by
-                          unfold matchMeasure
-                          simp only  -- reduce record projection to the field value
-                          have : inc.remainingQty -
-                                   min inc.remainingQty resting.visibleQty
-                                 ≤ inc.remainingQty := Nat.sub_le _ _
-                          omega
+                          -- matchMeasure ignores inc, so this is reflexivity
+                          exact Nat.le.refl
                         omega
                       | false =>
                         -- STP decrement, restRem > 0: iceberg reload OR partial decrement
@@ -1531,11 +1530,7 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
                             remainingQty := inc.remainingQty -
                               min inc.remainingQty resting.visibleQty } : Order)
                         ≤ matchMeasure asks inc := by
-                      unfold matchMeasure
-                      simp only
-                      have : inc.remainingQty - min inc.remainingQty resting.visibleQty
-                             ≤ inc.remainingQty := Nat.sub_le _ _
-                      omega
+                      exact Nat.le.refl
                     refine ih
                       ({ inc with
                         remainingQty := inc.remainingQty -
@@ -1698,11 +1693,7 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
                               remainingQty := inc.remainingQty -
                                 min inc.remainingQty resting.visibleQty } : Order)
                           ≤ matchMeasure asks inc := by
-                        unfold matchMeasure
-                        simp only
-                        have : inc.remainingQty - min inc.remainingQty resting.visibleQty
-                               ≤ inc.remainingQty := Nat.sub_le _ _
-                        omega
+                        exact Nat.le.refl
                       refine ih
                         ({ inc with
                           remainingQty := inc.remainingQty -
@@ -1884,12 +1875,7 @@ theorem doMatch_sell_output_stable (fuel : Nat) (inc : Order)
                                   min inc.remainingQty resting.visibleQty == 0 then
                                   .cancelled else inc.status })
                             ≤ matchMeasure bids inc := by
-                          unfold matchMeasure
-                          simp only
-                          have : inc.remainingQty -
-                                   min inc.remainingQty resting.visibleQty
-                                 ≤ inc.remainingQty := Nat.sub_le _ _
-                          omega
+                          exact Nat.le.refl
                         omega
                       | false =>
                         cases hiv :
@@ -2069,11 +2055,7 @@ theorem doMatch_sell_output_stable (fuel : Nat) (inc : Order)
                             remainingQty := inc.remainingQty -
                               min inc.remainingQty resting.visibleQty } : Order)
                         ≤ matchMeasure bids inc := by
-                      unfold matchMeasure
-                      simp only
-                      have : inc.remainingQty - min inc.remainingQty resting.visibleQty
-                             ≤ inc.remainingQty := Nat.sub_le _ _
-                      omega
+                      exact Nat.le.refl
                     refine ih
                       ({ inc with
                         remainingQty := inc.remainingQty -
@@ -2226,11 +2208,7 @@ theorem doMatch_sell_output_stable (fuel : Nat) (inc : Order)
                               remainingQty := inc.remainingQty -
                                 min inc.remainingQty resting.visibleQty } : Order)
                           ≤ matchMeasure bids inc := by
-                        unfold matchMeasure
-                        simp only
-                        have : inc.remainingQty - min inc.remainingQty resting.visibleQty
-                               ≤ inc.remainingQty := Nat.sub_le _ _
-                        omega
+                        exact Nat.le.refl
                       refine ih
                         ({ inc with
                           remainingQty := inc.remainingQty -
