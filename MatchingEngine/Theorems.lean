@@ -1168,21 +1168,41 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
               show (some p).getD 0 < level.price
               show p < level.price
               omega
-          · match horders : level.orders with
-            | [] =>
+          · cases horders : level.orders with
+            | nil =>
               -- Empty level skip — apply IH with matchMeasure_skip_empty_level
-              -- Recursive call: doMatch n inc bids restLevels trades tm
               have hmdec : matchMeasure restLevels inc
                          < matchMeasure (level :: restLevels) inc :=
                 matchMeasure_skip_empty_level level restLevels inc horders
-              -- fuel sufficient for the recursive call: n > matchMeasure restLevels inc
               have hfuel' : n > matchMeasure restLevels inc := by
                 have hprev : n + 1 > matchMeasure asks inc := hfuel
                 rw [hask] at hprev
                 omega
               exact ih inc restLevels trades tm hside hfuel'
-            | resting :: restOrders =>
-              sorry
+            | cons resting restOrders =>
+              simp only
+              cases hzv : (resting.visibleQty == 0 && !selfTradeConflict inc resting) with
+              | true =>
+                -- Zero-visible skip: head order removed from level.
+                -- Recursive: doMatch n inc bids (if restOrders.isEmpty then restLevels else ...) trades tm
+                -- Apply matchMeasure_drop_head_order to get the decrease, then IH.
+                have hmdec :=
+                  matchMeasure_drop_head_order level restLevels inc
+                    resting restOrders horders
+                have hfuel' :
+                    n > matchMeasure
+                      (if restOrders.isEmpty then restLevels
+                       else { level with orders := restOrders } :: restLevels) inc := by
+                  have hprev : n + 1 > matchMeasure asks inc := hfuel
+                  rw [hask] at hprev
+                  omega
+                exact ih inc _ _ _ hside hfuel'
+              | false =>
+                cases hstp : selfTradeConflict inc resting with
+                | true =>
+                  sorry
+                | false =>
+                  sorry
       · -- sell branch is absurd since hside : inc.side = .buy
         rename_i heq
         rw [hside] at heq; exact absurd heq (by decide)
