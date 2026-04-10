@@ -832,6 +832,66 @@ theorem doMatch_buy_preserves_uncrossed (fuel : Nat) (inc : Order) (b : BookStat
         -- resAsk is in the result asks
         exact h_res_asks resAsk (by rw [h_resAsks]; exact List.mem_cons_self)
 
+/-- **Mirror (sell side)**: symmetric to `doMatch_buy_preserves_uncrossed`. -/
+theorem doMatch_sell_preserves_uncrossed (fuel : Nat) (inc : Order) (b : BookState)
+    (tm : Timestamp) (hside : inc.side = .sell) (h : AllInv b) :
+    BookUncrossed { b with
+      bids := (doMatch fuel inc b.bids b.asks [] tm).bids,
+      asks := (doMatch fuel inc b.bids b.asks [] tm).asks } := by
+  have hasks_eq : (doMatch fuel inc b.bids b.asks [] tm).asks = b.asks :=
+    doMatch_sell_preserves_asks fuel inc b.bids b.asks [] tm hside
+  unfold BookUncrossed bestBidPrice bestAskPrice
+  simp only
+  -- Case on the RESULT lists
+  cases h_resAsks : (doMatch fuel inc b.bids b.asks [] tm).asks with
+  | nil => simp
+  | cons resAsk resAskRest =>
+    cases h_resBids : (doMatch fuel inc b.bids b.asks [] tm).bids with
+    | nil => simp
+    | cons resBid resBidRest =>
+      simp only [List.head?_cons, Option.map_some]
+      -- Goal: resBid.price < resAsk.price
+      -- From hasks_eq + h_resAsks: b.asks = resAsk :: resAskRest
+      have hb_asks : b.asks = resAsk :: resAskRest := by
+        rw [← hasks_eq]; exact h_resAsks
+      cases hbid : b.bids with
+      | nil =>
+        exfalso
+        have hfalse := doMatch_sell_result_bids_acc fuel inc b.bids b.asks []
+          tm (fun _ => False) hside (by intro l hl; rw [hbid] at hl; cases hl)
+        exact hfalse resBid (by rw [h_resBids]; exact List.mem_cons_self)
+      | cons bHead bRest =>
+        -- From AllInv: bHead.price < resAsk.price
+        have huc : bHead.price < resAsk.price := by
+          have := h.1
+          unfold BookUncrossed bestBidPrice bestAskPrice at this
+          rw [hbid, hb_asks] at this
+          simp only [List.head?_cons, Option.map_some] at this
+          exact this
+        -- From sortedness: all of b.bids ≤ bHead.price, so all < resAsk.price
+        have h_orig_bids : ∀ l ∈ b.bids, l.price < resAsk.price := by
+          intro l hl
+          have hsorted := h.2.1
+          rw [hbid] at hsorted
+          have hmax := bidsSortedDescB_head_max bHead bRest hsorted l
+            (by rw [hbid] at hl; exact hl)
+          exact Nat.lt_of_le_of_lt hmax huc
+        -- Apply accumulator to get the predicate on result bids
+        have h_res_bids := doMatch_sell_result_bids_acc fuel inc b.bids b.asks []
+          tm (fun p => p < resAsk.price) hside h_orig_bids
+        exact h_res_bids resBid (by rw [h_resBids]; exact List.mem_cons_self)
+
+/-- **Unified side-parameterized**: doMatch on a sorted+uncrossed book
+    preserves `BookUncrossed`. -/
+theorem doMatch_preserves_uncrossed (fuel : Nat) (inc : Order) (b : BookState)
+    (tm : Timestamp) (side : Side) (hside : inc.side = side) (h : AllInv b) :
+    BookUncrossed { b with
+      bids := (doMatch fuel inc b.bids b.asks [] tm).bids,
+      asks := (doMatch fuel inc b.bids b.asks [] tm).asks } := by
+  cases side with
+  | buy  => exact doMatch_buy_preserves_uncrossed fuel inc b tm hside h
+  | sell => exact doMatch_sell_preserves_uncrossed fuel inc b tm hside h
+
 -- ============================================================================
 -- doMatch buy-side no-cross after matching
 -- ============================================================================
