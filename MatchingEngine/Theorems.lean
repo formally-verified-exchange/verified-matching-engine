@@ -953,6 +953,23 @@ def matchMeasure (contra : List PriceLevel) (inc : Order) : Nat :=
 private theorem fuel_from_decrease (n old new : Nat)
     (h_fuel : n + 1 > old) (h_dec : new < old) : n > new := by omega
 
+/-- `orderSum` distributes over `List.append`. Used by iceberg reload cases
+    where the new order queue is `restOrders ++ [reloaded]`. -/
+theorem orderSum_append (xs ys : List Order) :
+    orderSum (xs ++ ys) = orderSum xs + orderSum ys := by
+  induction xs with
+  | nil => show orderSum ys = 0 + orderSum ys; omega
+  | cons x xs' ih =>
+    calc orderSum ((x :: xs') ++ ys)
+        = x.remainingQty + orderSum (xs' ++ ys) := rfl
+      _ = x.remainingQty + (orderSum xs' + orderSum ys) := by rw [ih]
+      _ = (x.remainingQty + orderSum xs') + orderSum ys :=
+        (Nat.add_assoc _ _ _).symm
+      _ = orderSum (x :: xs') + orderSum ys := rfl
+
+/-- `orderSum [o] = o.remainingQty`. -/
+theorem orderSum_singleton (o : Order) : orderSum [o] = o.remainingQty := rfl
+
 /-- Monotonicity of `matchMeasure` in the incoming order's `remainingQty`:
     if `inc'.remainingQty ≤ inc.remainingQty`, then the measure is `≤`. -/
 private theorem matchMeasure_mono_inc_le
