@@ -921,18 +921,77 @@ theorem doMatch_buy_noCross_of_stable
 -- doMatch termination — progress lemma approach
 -- ============================================================================
 
-/-- Total remaining quantity across all orders on all price levels.
-    This is the primary component of the termination measure. -/
-def totalRemaining (levels : List PriceLevel) : Nat :=
-  levels.foldl (fun acc l =>
-    acc + l.orders.foldl (fun a o => a + o.remainingQty) 0) 0
+/-- Sum of `remainingQty` over a list of orders (direct recursion for
+    easier proof unfolding). -/
+def orderSum : List Order → Nat
+  | [] => 0
+  | o :: rest => o.remainingQty + orderSum rest
 
-/-- Well-founded measure for `doMatch` progress. Lexicographic in
-    `(totalRemaining contra, inc.remainingQty)`: each recursive call
-    either reduces the total contra remaining (a fill/skip/remove) or
-    reduces the incoming's remaining quantity (a partial fill).  -/
+/-- Total remaining quantity across all orders on all price levels.
+    Primary component of the termination measure. -/
+def totalRemaining : List PriceLevel → Nat
+  | [] => 0
+  | l :: rest => orderSum l.orders + totalRemaining rest
+
+/-- Well-founded measure for `doMatch` progress: lexicographic in
+    `(totalRemaining contra, inc.remainingQty)`. Encoded as a sum
+    for simplicity of composition with `Nat` ordering. -/
 def matchMeasure (contra : List PriceLevel) (inc : Order) : Nat :=
   totalRemaining contra + inc.remainingQty
+
+/-- Dropping the head order from the head level (with the "remove level if
+    empty" pattern used by `doMatch`) decreases `totalRemaining` by exactly
+    the dropped order's `remainingQty`. -/
+theorem totalRemaining_drop_head_order
+    (level : PriceLevel) (restLevels : List PriceLevel)
+    (resting : Order) (restOrders : List Order)
+    (hlevel : level.orders = resting :: restOrders) :
+    totalRemaining (if restOrders.isEmpty then restLevels
+                    else { level with orders := restOrders } :: restLevels)
+      + resting.remainingQty
+    = totalRemaining (level :: restLevels) := by
+  -- Unfold totalRemaining on `level :: restLevels`
+  show _ + resting.remainingQty =
+    orderSum level.orders + totalRemaining restLevels
+  rw [hlevel]
+  show _ + resting.remainingQty =
+    orderSum (resting :: restOrders) + totalRemaining restLevels
+  show _ + resting.remainingQty =
+    (resting.remainingQty + orderSum restOrders) + totalRemaining restLevels
+  by_cases h : restOrders.isEmpty
+  · -- restOrders empty → result = restLevels
+    simp [h]
+    have h2 : restOrders = [] := List.isEmpty_iff.mp h
+    rw [h2]
+    show totalRemaining restLevels + resting.remainingQty =
+      (resting.remainingQty + orderSum []) + totalRemaining restLevels
+    show totalRemaining restLevels + resting.remainingQty =
+      (resting.remainingQty + 0) + totalRemaining restLevels
+    omega
+  · -- restOrders non-empty → result = {level with orders := restOrders} :: restLevels
+    simp [h]
+    show orderSum restOrders + totalRemaining restLevels + resting.remainingQty =
+      (resting.remainingQty + orderSum restOrders) + totalRemaining restLevels
+    omega
+
+/-- Strict-decrease corollary: if the dropped order had positive remaining
+    quantity, `totalRemaining` strictly decreases. -/
+theorem totalRemaining_drop_head_order_lt
+    (level : PriceLevel) (restLevels : List PriceLevel)
+    (resting : Order) (restOrders : List Order)
+    (hlevel : level.orders = resting :: restOrders)
+    (hpos : resting.remainingQty > 0) :
+    totalRemaining (if restOrders.isEmpty then restLevels
+                    else { level with orders := restOrders } :: restLevels)
+    < totalRemaining (level :: restLevels) := by
+  have heq := totalRemaining_drop_head_order level restLevels resting restOrders hlevel
+  calc totalRemaining (if restOrders.isEmpty then restLevels
+                        else { level with orders := restOrders } :: restLevels)
+      < totalRemaining (if restOrders.isEmpty then restLevels
+                        else { level with orders := restOrders } :: restLevels)
+        + resting.remainingQty := by
+          exact Nat.lt_add_of_pos_right hpos
+    _ = totalRemaining (level :: restLevels) := heq
 
 /-- **Sub-lemma (task #4)**: the output of `doMatch` for a buy-side order
     on a sorted ask list is buy-stable. Proven via the progress-lemma approach
