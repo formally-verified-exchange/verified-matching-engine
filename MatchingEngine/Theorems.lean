@@ -21,6 +21,30 @@ hypotheses.
 -/
 
 -- ============================================================================
+-- Side abstraction helpers — enable symmetric (buy/sell) lemma statements
+-- ============================================================================
+
+/-- Input same-side list: buy → bids, sell → asks. -/
+@[inline] def sameInput (s : Side) (bids asks : List PriceLevel) : List PriceLevel :=
+  match s with | .buy => bids | .sell => asks
+
+/-- Input contra-side list: buy → asks, sell → bids. -/
+@[inline] def contraInput (s : Side) (bids asks : List PriceLevel) : List PriceLevel :=
+  match s with | .buy => asks | .sell => bids
+
+/-- MatchResult same-side list (the side of the incoming order). -/
+@[inline] def MatchResult.sameSide (s : Side) (mr : MatchResult) : List PriceLevel :=
+  match s with | .buy => mr.bids | .sell => mr.asks
+
+/-- MatchResult contra-side list (opposite of the incoming order side). -/
+@[inline] def MatchResult.contraSide (s : Side) (mr : MatchResult) : List PriceLevel :=
+  match s with | .buy => mr.asks | .sell => mr.bids
+
+/-- Sortedness predicate for the contra side (asc for buy's asks, desc for sell's bids). -/
+@[inline] def contraSorted (s : Side) (lvls : List PriceLevel) : Bool :=
+  match s with | .buy => asksSortedAscB lvls | .sell => bidsSortedDescB lvls
+
+-- ============================================================================
 -- Combined book invariant: uncrossed + sorted price levels
 -- ============================================================================
 
@@ -136,6 +160,22 @@ theorem doMatch_sell_preserves_asks (fuel : Nat) (inc : Order)
                 · split
                   · exact ih _ _ _ _ (by first | rfl | exact hside)
                   · exact ih _ _ _ _ (by first | rfl | exact hside)
+
+/-- **Unified side-parameterized**: `doMatch` never modifies the same-side list
+    (buy preserves bids, sell preserves asks). Mechanical merge of the two
+    side-specific lemmas via case analysis. -/
+theorem doMatch_preserves_sameSide (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (side : Side) (hside : inc.side = side) :
+    MatchResult.sameSide side (doMatch fuel inc bids asks trades tm) =
+    sameInput side bids asks := by
+  cases side with
+  | buy =>
+    show (doMatch fuel inc bids asks trades tm).bids = bids
+    exact doMatch_buy_preserves_bids fuel inc bids asks trades tm hside
+  | sell =>
+    show (doMatch fuel inc bids asks trades tm).asks = asks
+    exact doMatch_sell_preserves_asks fuel inc bids asks trades tm hside
 
 -- ============================================================================
 -- BookUncrossed metadata-irrelevance lemmas
@@ -748,9 +788,12 @@ theorem doMatch_passive_price (fuel : Nat) (inc : Order) (bids asks : List Price
 -- Main theorem (STUB: reduces to processOrder_preserves_uncrossed)
 -- ============================================================================
 
-/-- SORRY: processOrder preserves `BookUncrossed`. This is the core obligation
-    that will be proven via mutual induction over processOrder / processCascade
-    / processTriggeredStops, with case analysis on the pipeline phases. -/
+-- ============================================================================
+-- Main theorem (STUB: reduces to processOrder_preserves_uncrossed)
+-- ============================================================================
+
+/-- SORRY: processOrder preserves `BookUncrossed`. Pending side-parameterized
+    refactor of `doMatch_preserves_uncrossed` and `insertOrder_preserves_uncrossed`. -/
 theorem processOrder_preserves_uncrossed (fuel : Nat) (o : Order) (b : BookState)
     (_h : AllInv b) :
     BookUncrossed (processOrder fuel o b).book := by
