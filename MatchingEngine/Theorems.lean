@@ -337,6 +337,77 @@ theorem insertOrder_buy_preserves_uncrossed (b : BookState) (o : Order)
             simp [h1, h3]
             exact hhd
 
+/-- **Mirror (sell side)**: symmetric to `insertOrder_buy_preserves_uncrossed`.
+    Sell insert preserves uncrossed if `bestBidPrice < o.price` (or no bids). -/
+theorem insertOrder_sell_preserves_uncrossed (b : BookState) (o : Order)
+    (hasTrades : Bool) (hside : o.side = .sell) (h : BookUncrossed b)
+    (hprice : ∀ bidP ∈ bestBidPrice b, bidP < (o.price.getD 0)) :
+    BookUncrossed (insertOrder b o hasTrades) := by
+  unfold BookUncrossed
+  -- bids side unchanged
+  have hbids : (insertOrder b o hasTrades).bids = b.bids :=
+    insertOrder_sell_preserves_bids b o hasTrades hside
+  rw [show bestBidPrice (insertOrder b o hasTrades) = bestBidPrice b from by
+        unfold bestBidPrice; rw [hbids]]
+  -- asks side: insertAsc
+  unfold insertOrder
+  match hsd : o.side with
+  | .buy => exact absurd (hside.symm.trans hsd) (by decide)
+  | .sell =>
+    simp only
+    -- Split on bestBidPrice b
+    cases hbid : bestBidPrice b with
+    | none =>
+      -- `none` is the first match arg; any asks gives True.
+      trivial
+    | some bidP =>
+      have hprice' : bidP < (o.price.getD 0) := hprice bidP (by
+        rw [hbid]; exact Option.mem_some_iff.mpr rfl)
+      -- Goal: bidP < best ask of new book
+      unfold bestAskPrice
+      match hasks : b.asks with
+      | [] =>
+        unfold insertAsc
+        simp
+        exact hprice'
+      | lhd :: lrest =>
+        -- Original uncrossed: bidP < lhd.price
+        have hhd : bidP < lhd.price := by
+          have h' := h
+          unfold BookUncrossed at h'
+          rw [hbid,
+              show bestAskPrice b = some lhd.price by
+                unfold bestAskPrice; rw [hasks]; rfl] at h'
+          exact h'
+        -- insertAsc head is min q lhd.price; bidP < both
+        unfold insertAsc
+        by_cases h1 : (o.price.getD 0) < lhd.price
+        · simp [h1]
+          exact hprice'
+        · by_cases h2 : (o.price.getD 0) = lhd.price
+          · simp [h1, h2]
+            exact hhd
+          · have h3 : ¬ ((o.price.getD 0) == lhd.price) = true := by
+              intro heq
+              have : (o.price.getD 0) = lhd.price := by
+                simpa [beq_iff_eq] using heq
+              exact h2 this
+            simp [h1, h3]
+            exact hhd
+
+/-- **Unified side-parameterized**: insert preserves uncrossed when the
+    order's price is strictly on the non-crossing side of the opposite book. -/
+theorem insertOrder_preserves_uncrossed (b : BookState) (o : Order)
+    (hasTrades : Bool) (side : Side) (hside : o.side = side)
+    (h : BookUncrossed b)
+    (hprice : match side with
+      | .buy  => ∀ askP ∈ bestAskPrice b, (o.price.getD 0) < askP
+      | .sell => ∀ bidP ∈ bestBidPrice b, bidP < (o.price.getD 0)) :
+    BookUncrossed (insertOrder b o hasTrades) := by
+  cases side with
+  | buy  => exact insertOrder_buy_preserves_uncrossed b o hasTrades hside h hprice
+  | sell => exact insertOrder_sell_preserves_uncrossed b o hasTrades hside h hprice
+
 -- ============================================================================
 -- Level-modification helpers for asks/bids modification patterns in doMatch
 -- ============================================================================
