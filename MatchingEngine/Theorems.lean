@@ -947,6 +947,22 @@ def orderCount : List PriceLevel → Nat
 def matchMeasure (contra : List PriceLevel) (inc : Order) : Nat :=
   totalRemaining contra + orderCount contra + contra.length + inc.remainingQty
 
+/-- Helper: arithmetic chain `fuel > old_measure ∧ new_measure < old_measure → fuel' > new_measure`
+    expressed on plain `Nat` so omega can close it without struggling with
+    opaque `matchMeasure` atoms. -/
+private theorem fuel_from_decrease (n old new : Nat)
+    (h_fuel : n + 1 > old) (h_dec : new < old) : n > new := by omega
+
+/-- Monotonicity of `matchMeasure` in the incoming order's `remainingQty`:
+    if `inc'.remainingQty ≤ inc.remainingQty`, then the measure is `≤`. -/
+private theorem matchMeasure_mono_inc_le
+    (contra : List PriceLevel) (inc' inc : Order)
+    (h : inc'.remainingQty ≤ inc.remainingQty) :
+    matchMeasure contra inc' ≤ matchMeasure contra inc := by
+  show totalRemaining contra + orderCount contra + contra.length + inc'.remainingQty
+     ≤ totalRemaining contra + orderCount contra + contra.length + inc.remainingQty
+  exact Nat.add_le_add_left h _
+
 /-- Dropping the head order from the head level (with the "remove level if
     empty" pattern used by `doMatch`) decreases `totalRemaining` by exactly
     the dropped order's `remainingQty`. -/
@@ -1135,7 +1151,13 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
         show inc.status = .cancelled
         cases hstat : inc.status
         all_goals first | rfl | (rw [hstat] at hs; cases hs)
-    · -- Not terminal: split on inc.side
+    · -- Not terminal: extract the negated condition
+      rename_i hnotdone
+      have hinc_pos : inc.remainingQty > 0 := by
+        apply Nat.pos_of_ne_zero
+        intro h0
+        rw [h0] at hnotdone
+        simp at hnotdone
       split
       · -- buy branch (contra = asks)
         cases hask : asks with
@@ -1318,7 +1340,94 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
                       _ _ _ hside ?_
                     omega
                   | false =>
-                    sorry
+                    -- Partial fill or iceberg reload: further split on vis==0 && displayQty
+                    cases hir :
+                        ((resting.visibleQty - min inc.remainingQty resting.visibleQty == 0)
+                          && resting.displayQty.isSome) with
+                    | true =>
+                      -- Iceberg reload — save for last
+                      sorry
+                    | false =>
+                      -- Partial fill: level.orders = resting :: restOrders becomes
+                      -- updRest :: restOrders where updRest.remainingQty < resting.remainingQty.
+                      have hvis_pos : resting.visibleQty > 0 := by
+                        apply Nat.pos_of_ne_zero
+                        intro hv
+                        rw [hv] at hzv
+                        simp [hstp] at hzv
+                      have hfill_pos : 0 < min inc.remainingQty resting.visibleQty :=
+                        Nat.lt_min.mpr ⟨hinc_pos, hvis_pos⟩
+                      have hff_prop : resting.remainingQty -
+                                      min inc.remainingQty resting.visibleQty > 0 := by
+                        apply Nat.pos_of_ne_zero
+                        intro he
+                        rw [he] at hff
+                        simp at hff
+                      -- Strict decrease via matchMeasure_modify_head_level_orders
+                      have hmdec_lvl :
+                          matchMeasure
+                            ({ level with orders :=
+                                ({ resting with
+                                    visibleQty := resting.visibleQty -
+                                      min inc.remainingQty resting.visibleQty,
+                                    remainingQty := resting.remainingQty -
+                                      min inc.remainingQty resting.visibleQty,
+                                    status := OrderStatus.partiallyFilled } : Order)
+                                :: restOrders } :: restLevels)
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty } : Order)
+                          < matchMeasure (level :: restLevels)
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty } : Order) := by
+                        apply matchMeasure_modify_head_level_orders
+                        · rw [horders]; simp
+                        · rw [horders]
+                          show (resting.remainingQty -
+                                min inc.remainingQty resting.visibleQty)
+                              + orderSum restOrders
+                              < resting.remainingQty + orderSum restOrders
+                          -- Case-split on min to eliminate it for omega
+                          rcases Nat.le_total inc.remainingQty resting.visibleQty with hle | hle
+                          · rw [Nat.min_eq_left hle] at hff_prop hfill_pos ⊢
+                            have hr_pos : 0 < resting.remainingQty := by
+                              apply Nat.pos_of_ne_zero
+                              intro he
+                              rw [he] at hff_prop
+                              simp at hff_prop
+                            have h_lt : resting.remainingQty - inc.remainingQty
+                                      < resting.remainingQty :=
+                              Nat.sub_lt hr_pos hinc_pos
+                            exact Nat.add_lt_add_right h_lt _
+                          · rw [Nat.min_eq_right hle] at hff_prop hfill_pos ⊢
+                            have hr_pos : 0 < resting.remainingQty := by
+                              apply Nat.pos_of_ne_zero
+                              intro he
+                              rw [he] at hff_prop
+                              simp at hff_prop
+                            have h_lt : resting.remainingQty - resting.visibleQty
+                                      < resting.remainingQty :=
+                              Nat.sub_lt hr_pos hvis_pos
+                            exact Nat.add_lt_add_right h_lt _
+                      rw [← hask] at hmdec_lvl
+                      have h_mono :
+                          matchMeasure asks
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty } : Order)
+                          ≤ matchMeasure asks inc := by
+                        unfold matchMeasure
+                        simp only
+                        have : inc.remainingQty - min inc.remainingQty resting.visibleQty
+                               ≤ inc.remainingQty := Nat.sub_le _ _
+                        omega
+                      refine ih
+                        ({ inc with
+                          remainingQty := inc.remainingQty -
+                            min inc.remainingQty resting.visibleQty } : Order)
+                        _ _ _ hside ?_
+                      omega
       · -- sell branch is absurd since hside : inc.side = .buy
         rename_i heq
         rw [hside] at heq; exact absurd heq (by decide)
