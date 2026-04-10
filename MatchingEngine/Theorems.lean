@@ -2296,6 +2296,77 @@ private theorem processOrder_stopRest_preserves
     BookUncrossed { b with stops := b.stops ++ [o] } :=
   (BookUncrossed_with_stops b (b.stops ++ [o])).mp h
 
+-- ============================================================================
+-- Fuel bridge: computeMatchFuel b side > matchMeasure (contraLevels b side) inc
+-- ============================================================================
+
+/-- Accumulator-generalized form of `totalRemaining` equalling its `foldl` shape. -/
+private theorem totalRemaining_foldl_acc (init : Nat) (lvls : List PriceLevel) :
+    lvls.foldl (fun acc lvl =>
+      acc + lvl.orders.foldl (fun a o => a + o.remainingQty) 0) init
+    = init + totalRemaining lvls := by
+  induction lvls generalizing init with
+  | nil => show init = init + 0; omega
+  | cons l rest ih =>
+    show (rest.foldl
+            (fun acc lvl => acc + lvl.orders.foldl (fun a o => a + o.remainingQty) 0)
+            (init + l.orders.foldl (fun a o => a + o.remainingQty) 0))
+      = init + (orderSum l.orders + totalRemaining rest)
+    rw [ih]
+    have h1 : l.orders.foldl (fun a o => a + o.remainingQty) 0 = orderSum l.orders := by
+      have hgen : ∀ (init : Nat) (os : List Order),
+          os.foldl (fun a o => a + o.remainingQty) init = init + orderSum os := by
+        intro init os
+        induction os generalizing init with
+        | nil => show init = init + 0; omega
+        | cons o rest' ih' =>
+          show rest'.foldl (fun a o => a + o.remainingQty) (init + o.remainingQty)
+             = init + (o.remainingQty + orderSum rest')
+          rw [ih']; omega
+      have := hgen 0 l.orders
+      omega
+    rw [h1]; omega
+
+/-- Accumulator-generalized form of `orderCount` equalling its `foldl` shape. -/
+private theorem orderCount_foldl_acc (init : Nat) (lvls : List PriceLevel) :
+    lvls.foldl (fun acc lvl => acc + lvl.orders.length) init
+    = init + orderCount lvls := by
+  induction lvls generalizing init with
+  | nil => show init = init + 0; omega
+  | cons l rest ih =>
+    show (rest.foldl (fun acc lvl => acc + lvl.orders.length) (init + l.orders.length))
+       = init + (l.orders.length + orderCount rest)
+    rw [ih]; omega
+
+/-- **Fuel bridge**: `computeMatchFuel b side` equals `matchMeasure + 1`, so
+    is strictly greater than `matchMeasure (contraLevels b side) inc`. -/
+theorem computeMatchFuel_gt_matchMeasure
+    (b : BookState) (inc : Order) (side : Side) :
+    computeMatchFuel b side > matchMeasure (contraLevels b side) inc := by
+  unfold computeMatchFuel matchMeasure
+  simp only
+  rw [totalRemaining_foldl_acc, orderCount_foldl_acc]
+  omega
+
+-- ============================================================================
+-- Cascade preservation stubs (mutual induction obligation)
+-- ============================================================================
+
+/-- STUB: `processCascade` preserves `BookUncrossed`. Via mutual induction
+    with `processOrder_preserves_uncrossed` and `processTriggeredStops_...`.
+    Deferred pending sortedness-preservation lemmas for doMatch + insertOrder,
+    which strengthen the IH to `AllInv → AllInv`. -/
+theorem processCascade_preserves_uncrossed (fuel : Nat) (trades : List Trade)
+    (b : BookState) (_h : AllInv b) :
+    BookUncrossed (processCascade fuel trades b).book := by
+  sorry
+
+/-- STUB: `processTriggeredStops` preserves `BookUncrossed`. -/
+theorem processTriggeredStops_preserves_uncrossed (fuel : Nat) (orders : List Order)
+    (b : BookState) (_h : AllInv b) :
+    BookUncrossed (processTriggeredStops fuel orders b).book := by
+  sorry
+
 /-- Post-only precondition extractor: if `wouldCross o b = false` AND the
     order's price is defined AND the book's side has a best price, extract
     the strict non-crossing inequality needed by `insertOrder_preserves_uncrossed`. -/
