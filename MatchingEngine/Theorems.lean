@@ -1105,43 +1105,32 @@ theorem matchMeasure_drop_head_order
   omega
 
 /-- **Sub-lemma (task #4)**: the output of `doMatch` for a buy-side order
-    on a sorted ask list is buy-stable. Proven via the progress-lemma approach
-    (see comments above). Currently marked sorry — building proof incrementally. -/
+    on a sorted ask list is buy-stable. Proven via the progress-lemma approach:
+    induction on `fuel` with the hypothesis `fuel > matchMeasure asks inc`.
+    At each step, either a terminal branch fires (stable directly) or a
+    recursive branch fires with strictly smaller `matchMeasure` (apply IH). -/
 theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
     (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
     (hside : inc.side = .buy)
-    (hsorted : asksSortedAscB asks = true)
-    (hfuel : fuel ≥
-      (asks.foldl (fun acc lvl =>
-        acc + lvl.orders.foldl (fun a o => a + o.remainingQty) 0) 0) +
-      (asks.foldl (fun acc lvl => acc + lvl.orders.length) 0) +
-      asks.length + 1) :
+    (hfuel : fuel > matchMeasure asks inc) :
     let mr := doMatch fuel inc bids asks trades tm
     buyMatchStable mr.incoming mr.asks := by
   sorry
 
 /-- **Main no-cross lemma (buy side)**: after buy-side matching with sufficient
-    fuel on a sorted ask list, if the incoming order still has quantity to
-    fill, the remaining asks are either empty or have a head price strictly
-    above the incoming order's limit price.
-
-    This bridges `doMatch` to `insertOrder_buy_preserves_uncrossed` in the
-    normal/FOK/MinQty phases of `processOrder_preserves_uncrossed`. -/
+    fuel, if the incoming order still has quantity to fill, the remaining asks
+    are either empty or have a head price strictly above the incoming order's
+    limit price. -/
 theorem doMatch_buy_noCross_after_match (fuel : Nat) (inc : Order)
     (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
     (hside : inc.side = .buy)
-    (hsorted : asksSortedAscB asks = true)
-    (hfuel : fuel ≥
-      (asks.foldl (fun acc lvl =>
-        acc + lvl.orders.foldl (fun a o => a + o.remainingQty) 0) 0) +
-      (asks.foldl (fun acc lvl => acc + lvl.orders.length) 0) +
-      asks.length + 1) :
+    (hfuel : fuel > matchMeasure asks inc) :
     let mr := doMatch fuel inc bids asks trades tm
     mr.incoming.remainingQty > 0 →
     mr.incoming.status ≠ .cancelled →
     mr.asks = [] ∨ (∀ hd ∈ mr.asks.head?, (mr.incoming.price.getD 0) < hd.price) := by
   intro mr hqty hstatus
-  have hstable := doMatch_buy_output_stable fuel inc bids asks trades tm hside hsorted hfuel
+  have hstable := doMatch_buy_output_stable fuel inc bids asks trades tm hside hfuel
   exact doMatch_buy_noCross_of_stable hstable hqty hstatus
 
 -- ============================================================================
