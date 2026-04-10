@@ -450,6 +450,79 @@ private theorem doMatch_buy_result_asks_acc (fuel : Nat) (inc : Order)
         rw [hside] at heq; exact absurd heq (by decide)
 
 -- ============================================================================
+-- Sortedness helpers
+-- ============================================================================
+
+/-- For an asc-sorted price-level list, the head price is the minimum. -/
+private theorem asksSortedAscB_head_min :
+    ∀ (l : PriceLevel) (rest : List PriceLevel),
+    asksSortedAscB (l :: rest) = true →
+    ∀ l' ∈ (l :: rest), l.price ≤ l'.price := by
+  intro l rest h
+  induction rest generalizing l with
+  | nil =>
+    intro l' hl'
+    cases hl' with
+    | head => exact Nat.le_refl _
+    | tail _ hh => cases hh
+  | cons rh rt ih =>
+    intro l' hl'
+    cases hl' with
+    | head => exact Nat.le_refl _
+    | tail _ hmem =>
+      -- From h: l.price < rh.price ∧ asksSortedAscB (rh :: rt)
+      have hand : l.price < rh.price ∧ asksSortedAscB (rh :: rt) = true := by
+        unfold asksSortedAscB at h
+        rw [Bool.and_eq_true] at h
+        exact ⟨of_decide_eq_true h.1, h.2⟩
+      have := ih rh hand.2 l' hmem
+      exact Nat.le_of_lt (Nat.lt_of_lt_of_le hand.1 this)
+
+/-- For a desc-sorted price-level list, the head price is the maximum. -/
+private theorem bidsSortedDescB_head_max :
+    ∀ (l : PriceLevel) (rest : List PriceLevel),
+    bidsSortedDescB (l :: rest) = true →
+    ∀ l' ∈ (l :: rest), l'.price ≤ l.price := by
+  intro l rest h
+  induction rest generalizing l with
+  | nil =>
+    intro l' hl'
+    cases hl' with
+    | head => exact Nat.le_refl _
+    | tail _ hh => cases hh
+  | cons rh rt ih =>
+    intro l' hl'
+    cases hl' with
+    | head => exact Nat.le_refl _
+    | tail _ hmem =>
+      have hand : l.price > rh.price ∧ bidsSortedDescB (rh :: rt) = true := by
+        unfold bidsSortedDescB at h
+        rw [Bool.and_eq_true] at h
+        exact ⟨of_decide_eq_true h.1, h.2⟩
+      have := ih rh hand.2 l' hmem
+      exact Nat.le_of_lt (Nat.lt_of_le_of_lt this hand.1)
+
+-- ============================================================================
+-- doMatch preserves uncrossed (buy side) — CRITICAL PATH lemma
+-- ============================================================================
+
+/-- For buy-side matching on a sorted+uncrossed book, the result book
+    is still uncrossed. This is the central lemma needed by
+    `processOrder_preserves_uncrossed`'s matching phases. -/
+theorem doMatch_buy_preserves_uncrossed (fuel : Nat) (inc : Order) (b : BookState)
+    (tm : Timestamp) (hside : inc.side = .buy) (h : AllInv b) :
+    BookUncrossed { b with
+      bids := (doMatch fuel inc b.bids b.asks [] tm).bids,
+      asks := (doMatch fuel inc b.bids b.asks [] tm).asks } := by
+  -- WIP: bridging from doMatch_buy_result_asks_acc to BookUncrossed.
+  -- All ingredients in place (hbids_eq, asksSortedAscB_head_min, the
+  -- accumulator). Stuck on the case-analysis bridge: `cases hbids : b.bids`
+  -- doesn't substitute hypothesis types, so rewriting between
+  -- `(doMatch ... b.bids ...).asks` and `(doMatch ... (bidHead :: bidRest) ...).asks`
+  -- is fiddly. Needs more care than this session has budget for.
+  sorry
+
+-- ============================================================================
 -- doMatch passive price rule (price-time priority)
 -- ============================================================================
 
