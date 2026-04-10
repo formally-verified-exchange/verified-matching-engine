@@ -1289,7 +1289,36 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
                         -- iceberg reload OR partial decrement — split on visible
                         sorry
                 | false =>
-                  sorry
+                  -- Normal fill
+                  cases hff : (resting.remainingQty -
+                               min inc.remainingQty resting.visibleQty == 0) with
+                  | true =>
+                    -- Full fill: drop_head_order with inc' (qty reduced)
+                    have hmdec := matchMeasure_drop_head_order level restLevels
+                      ({ inc with
+                        remainingQty := inc.remainingQty -
+                          min inc.remainingQty resting.visibleQty } : Order)
+                      resting restOrders horders
+                    rw [← hask] at hmdec
+                    have h_mono :
+                        matchMeasure asks
+                          ({ inc with
+                            remainingQty := inc.remainingQty -
+                              min inc.remainingQty resting.visibleQty } : Order)
+                        ≤ matchMeasure asks inc := by
+                      unfold matchMeasure
+                      simp only
+                      have : inc.remainingQty - min inc.remainingQty resting.visibleQty
+                             ≤ inc.remainingQty := Nat.sub_le _ _
+                      omega
+                    refine ih
+                      ({ inc with
+                        remainingQty := inc.remainingQty -
+                          min inc.remainingQty resting.visibleQty } : Order)
+                      _ _ _ hside ?_
+                    omega
+                  | false =>
+                    sorry
       · -- sell branch is absurd since hside : inc.side = .buy
         rename_i heq
         rw [hside] at heq; exact absurd heq (by decide)
