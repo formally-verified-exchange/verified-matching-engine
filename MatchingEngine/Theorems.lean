@@ -1002,15 +1002,126 @@ theorem doMatch_passive_price (fuel : Nat) (inc : Order) (bids asks : List Price
 -- ============================================================================
 
 -- ============================================================================
--- Main theorem (STUB: reduces to processOrder_preserves_uncrossed)
+-- processOrder phase-by-phase helpers
 -- ============================================================================
 
-/-- SORRY: processOrder preserves `BookUncrossed`. Pending side-parameterized
-    refactor of `doMatch_preserves_uncrossed` and `insertOrder_preserves_uncrossed`. -/
+/-- Phase 1b: stop order that does NOT trigger. Appended to stops; bids/asks
+    unchanged. -/
+private theorem processOrder_stopRest_preserves
+    (o : Order) (b : BookState) (h : BookUncrossed b) :
+    BookUncrossed { b with stops := b.stops ++ [o] } :=
+  (BookUncrossed_with_stops b (b.stops ++ [o])).mp h
+
+/-- Post-only precondition extractor: if `wouldCross o b = false` AND the
+    order's price is defined AND the book's side has a best price, extract
+    the strict non-crossing inequality needed by `insertOrder_preserves_uncrossed`. -/
+private theorem wouldCross_false_nonCross
+    (o : Order) (b : BookState) (side : Side) (hside : o.side = side)
+    (hp : o.price.isSome = true)
+    (hnc : wouldCross o b = false) :
+    match side with
+    | .buy  => ∀ askP ∈ bestAskPrice b, (o.price.getD 0) < askP
+    | .sell => ∀ bidP ∈ bestBidPrice b, bidP < (o.price.getD 0) := by
+  unfold wouldCross at hnc
+  cases hpv : o.price with
+  | none => rw [hpv] at hp; cases hp
+  | some p =>
+    rw [hpv] at hnc
+    rw [hside] at hnc
+    cases side with
+    | buy =>
+      intro askP haskP
+      cases hask : bestAskPrice b with
+      | none => rw [hask] at haskP; cases haskP
+      | some askP' =>
+        rw [hask] at hnc
+        rw [hask] at haskP
+        have heq : askP' = askP := Option.mem_some_iff.mp haskP
+        simp at hnc
+        have hlt : p < askP' := by omega
+        rw [heq] at hlt
+        exact hlt
+    | sell =>
+      intro bidP hbidP
+      cases hbid : bestBidPrice b with
+      | none => rw [hbid] at hbidP; cases hbidP
+      | some bidP' =>
+        rw [hbid] at hnc
+        rw [hbid] at hbidP
+        have heq : bidP' = bidP := Option.mem_some_iff.mp hbidP
+        simp at hnc
+        have hlt : bidP' < p := by omega
+        rw [heq] at hlt
+        exact hlt
+
+-- ============================================================================
+-- Main theorem (scaffold with per-phase sorries)
+-- ============================================================================
+
+/-- SORRY: processOrder preserves `BookUncrossed`. Scaffold with closed easy
+    phases and sorries for phases that require fuel sufficiency or mutual
+    induction with the cascade. -/
 theorem processOrder_preserves_uncrossed (fuel : Nat) (o : Order) (b : BookState)
-    (_h : AllInv b) :
+    (h : AllInv b) :
     BookUncrossed (processOrder fuel o b).book := by
-  sorry
+  induction fuel generalizing o b with
+  | zero =>
+    -- fuel=0: returns b unchanged
+    show BookUncrossed b
+    exact h.1
+  | succ n ih =>
+    unfold processOrder
+    simp only
+    split
+    · -- Phase 1: Stop order
+      split
+      · -- Triggered: recurse with converted stop + updated clock.
+        -- Needs AllInv on clock-updated book (straightforward via AllInv.with_clock),
+        -- and IH. But IH has AllInv as precondition — currently AllInv includes
+        -- sortedness, which is preserved by clock update. Apply IH.
+        apply ih
+        exact AllInv.with_clock b (b.clock + 1) h
+      · -- Not triggered: append to stops
+        show BookUncrossed { b with stops := b.stops ++ [o] }
+        exact processOrder_stopRest_preserves o b h.1
+    · split
+      · -- Phase 2: Post-only
+        split
+        · -- wouldCross true: return b unchanged
+          show BookUncrossed b
+          exact h.1
+        · -- wouldCross false: insertOrder b o false
+          show BookUncrossed (insertOrder b o false)
+          rename_i _ hwc
+          have hnc : wouldCross o b = false := by
+            cases hwcv : wouldCross o b with
+            | true => exact absurd hwcv hwc
+            | false => rfl
+          -- Need to know o.price.isSome for the post-only phase.
+          -- Post-only orders without price are a spec edge case; sorry for now.
+          sorry
+      · split
+        · -- Phase 3: FOK
+          split
+          · -- !fokCheck: return b unchanged
+            show BookUncrossed b
+            exact h.1
+          · -- fokCheck: match + dispose + cascade
+            -- Needs fuel sufficiency (no-cross after match) + cascade IH.
+            sorry
+        · split
+          · -- Phase 3b: MinQty
+            split
+            · -- !minQtyCheck: return b unchanged
+              show BookUncrossed b
+              exact h.1
+            · -- minQtyCheck: match + dispose + cascade
+              sorry
+          · split
+            · -- Phase 4: MTL
+              sorry
+            · -- Phase 5: Normal matching
+              sorry
 
 /-- Main theorem: `process` preserves `BookUncrossed`. Reduces to
     `processOrder_preserves_uncrossed` since `process` only adds metadata
