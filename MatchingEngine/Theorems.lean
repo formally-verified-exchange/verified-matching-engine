@@ -627,6 +627,88 @@ private theorem doMatch_buy_result_asks_acc (fuel : Nat) (inc : Order)
       · rename_i heq
         rw [hside] at heq; exact absurd heq (by decide)
 
+/-- **Mirror (sell side)**: any predicate `S` that holds on all input bids
+    levels also holds on all output bids levels after sell-side matching. -/
+private theorem doMatch_sell_result_bids_acc (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (S : Price → Prop) (hside : inc.side = .sell)
+    (hbids : ∀ l ∈ bids, S l.price) :
+    ∀ l ∈ (doMatch fuel inc bids asks trades tm).bids, S l.price := by
+  induction fuel generalizing inc bids trades tm with
+  | zero => unfold doMatch; exact hbids
+  | succ n ih =>
+    unfold doMatch
+    split
+    · exact hbids
+    · split
+      · -- buy branch: absurd (hside : inc.side = .sell)
+        rename_i heq
+        rw [hside] at heq; exact absurd heq (by decide)
+      · -- sell branch
+        cases hbid : bids with
+        | nil =>
+          -- bids = [] so result bids is also []
+          intro l hl
+          exact absurd hl (by simp)
+        | cons level restLevels =>
+          simp only
+          rw [hbid] at hbids
+          have hlp : S level.price := hbids level (List.mem_cons_self)
+          have hrp : ∀ l ∈ restLevels, S l.price := fun l hl =>
+            hbids l (List.mem_cons_of_mem _ hl)
+          split
+          · exact hbids  -- !canMatchPrice
+          · split
+            · -- level.orders = [] → recurse with restLevels
+              exact ih _ _ _ _ hside hrp
+            · -- level.orders = resting :: restOrders
+              rename_i _ resting restOrders _
+              split
+              · -- zero-visible true
+                split
+                · exact ih _ _ _ _ hside hrp
+                · exact ih _ _ _ _ hside (consLevelPrices hlp hrp _)
+              · split
+                · -- STP conflict
+                  split
+                  · exact hbids  -- cancelNewest: bids unchanged
+                  · -- cancelOldest
+                    split
+                    · exact ih _ _ _ _ hside hrp
+                    · exact ih _ _ _ _ hside (consLevelPrices hlp hrp _)
+                  · -- cancelBoth: terminal but bids IS modified to level'
+                    exact modLevelPrices hlp hrp _
+                  · -- decrement
+                    split
+                    · exact ih _ _ _ _ hside (modLevelPrices hlp hrp _)
+                    · split
+                      · exact ih _ _ _ _ hside (modLevelPrices hlp hrp _)
+                      · split
+                        · exact ih _ _ _ _ hside (modLevelPrices hlp hrp _)
+                        · exact ih _ _ _ _ hside (consLevelPrices hlp hrp _)
+                · -- normal fill
+                  split
+                  · exact ih _ _ _ _ hside (modLevelPrices hlp hrp _)
+                  · split
+                    · exact ih _ _ _ _ hside (consLevelPrices hlp hrp _)
+                    · exact ih _ _ _ _ hside (consLevelPrices hlp hrp _)
+
+/-- **Unified side-parameterized**: predicate on contra-side levels is
+    preserved by `doMatch`. -/
+theorem doMatch_result_contra_acc (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (S : Price → Prop) (side : Side) (hside : inc.side = side)
+    (hcontra : ∀ l ∈ contraInput side bids asks, S l.price) :
+    ∀ l ∈ MatchResult.contraSide side (doMatch fuel inc bids asks trades tm),
+      S l.price := by
+  cases side with
+  | buy =>
+    show ∀ l ∈ (doMatch fuel inc bids asks trades tm).asks, S l.price
+    exact doMatch_buy_result_asks_acc fuel inc bids asks trades tm S hside hcontra
+  | sell =>
+    show ∀ l ∈ (doMatch fuel inc bids asks trades tm).bids, S l.price
+    exact doMatch_sell_result_bids_acc fuel inc bids asks trades tm S hside hcontra
+
 -- ============================================================================
 -- Sortedness helpers
 -- ============================================================================
