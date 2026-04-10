@@ -1436,8 +1436,86 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
                         ((resting.visibleQty - min inc.remainingQty resting.visibleQty == 0)
                           && resting.displayQty.isSome) with
                     | true =>
-                      -- Iceberg reload — save for last
-                      sorry
+                      -- Normal fill iceberg reload: newQueue = restOrders ++ [reloaded]
+                      -- Length unchanged, orderSum decreases by fillQty > 0.
+                      have hvis_pos : resting.visibleQty > 0 := by
+                        apply Nat.pos_of_ne_zero
+                        intro hv
+                        rw [hv] at hzv
+                        simp [hstp] at hzv
+                      have hfill_pos : 0 < min inc.remainingQty resting.visibleQty :=
+                        Nat.lt_min.mpr ⟨hinc_pos, hvis_pos⟩
+                      have hff_prop : resting.remainingQty -
+                                      min inc.remainingQty resting.visibleQty > 0 := by
+                        apply Nat.pos_of_ne_zero
+                        intro he
+                        rw [he] at hff
+                        simp at hff
+                      have hr_pos : 0 < resting.remainingQty := by
+                        apply Nat.pos_of_ne_zero
+                        intro he
+                        rw [he] at hff_prop
+                        simp at hff_prop
+                      -- Apply modify_head_level_orders with the reloaded queue.
+                      -- Key fact: orderSum (restOrders ++ [reloaded]) < orderSum (resting :: restOrders)
+                      -- Since reloaded.remainingQty = resting.remainingQty - fillQty < resting.remainingQty.
+                      have h_qty_lt : resting.remainingQty -
+                                      min inc.remainingQty resting.visibleQty
+                                    < resting.remainingQty :=
+                        Nat.sub_lt hr_pos hfill_pos
+                      have hmdec_lvl :
+                          matchMeasure ({ level with orders := restOrders ++
+                              [({ resting with
+                                  visibleQty := min (resting.displayQty.getD 0)
+                                    (resting.remainingQty -
+                                      min inc.remainingQty resting.visibleQty),
+                                  remainingQty := resting.remainingQty -
+                                    min inc.remainingQty resting.visibleQty,
+                                  timestamp := tm,
+                                  status := OrderStatus.partiallyFilled } : Order)] }
+                                         :: restLevels)
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty } : Order)
+                          < matchMeasure (level :: restLevels)
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty } : Order) := by
+                        apply matchMeasure_modify_head_level_orders
+                        · rw [horders]
+                          simp
+                        · rw [horders, orderSum_append, orderSum_singleton]
+                          show orderSum restOrders +
+                               (resting.remainingQty - min inc.remainingQty resting.visibleQty)
+                             < orderSum (resting :: restOrders)
+                          show orderSum restOrders +
+                               (resting.remainingQty - min inc.remainingQty resting.visibleQty)
+                             < resting.remainingQty + orderSum restOrders
+                          -- Goal: orderSum restOrders + (resting.remainingQty - min _ _)
+                          --     < resting.remainingQty + orderSum restOrders
+                          have h_lt : resting.remainingQty -
+                                      min inc.remainingQty resting.visibleQty
+                                    < resting.remainingQty :=
+                            Nat.sub_lt hr_pos hfill_pos
+                          rw [Nat.add_comm resting.remainingQty (orderSum restOrders)]
+                          exact Nat.add_lt_add_left h_lt (orderSum restOrders)
+                      rw [← hask] at hmdec_lvl
+                      have h_mono :
+                          matchMeasure asks
+                            ({ inc with
+                              remainingQty := inc.remainingQty -
+                                min inc.remainingQty resting.visibleQty } : Order)
+                          ≤ matchMeasure asks inc := by
+                        apply matchMeasure_mono_inc_le
+                        show inc.remainingQty - min inc.remainingQty resting.visibleQty
+                             ≤ inc.remainingQty
+                        exact Nat.sub_le _ _
+                      refine ih
+                        ({ inc with
+                          remainingQty := inc.remainingQty -
+                            min inc.remainingQty resting.visibleQty } : Order)
+                        _ _ _ hside ?_
+                      exact fuel_from_decrease n _ _ hfuel (Nat.lt_of_lt_of_le hmdec_lvl h_mono)
                     | false =>
                       -- Partial fill: level.orders = resting :: restOrders becomes
                       -- updRest :: restOrders where updRest.remainingQty < resting.remainingQty.
