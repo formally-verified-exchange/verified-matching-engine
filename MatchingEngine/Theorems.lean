@@ -514,13 +514,63 @@ theorem doMatch_buy_preserves_uncrossed (fuel : Nat) (inc : Order) (b : BookStat
     BookUncrossed { b with
       bids := (doMatch fuel inc b.bids b.asks [] tm).bids,
       asks := (doMatch fuel inc b.bids b.asks [] tm).asks } := by
-  -- WIP: bridging from doMatch_buy_result_asks_acc to BookUncrossed.
-  -- All ingredients in place (hbids_eq, asksSortedAscB_head_min, the
-  -- accumulator). Stuck on the case-analysis bridge: `cases hbids : b.bids`
-  -- doesn't substitute hypothesis types, so rewriting between
-  -- `(doMatch ... b.bids ...).asks` and `(doMatch ... (bidHead :: bidRest) ...).asks`
-  -- is fiddly. Needs more care than this session has budget for.
-  sorry
+  have hbids_eq : (doMatch fuel inc b.bids b.asks [] tm).bids = b.bids :=
+    doMatch_buy_preserves_bids fuel inc b.bids b.asks [] tm hside
+  unfold BookUncrossed bestBidPrice bestAskPrice
+  simp only
+  -- Case on the RESULT lists (not the input). This avoids the pain of
+  -- input-list substitution not propagating into result-list expressions.
+  cases h_resBids : (doMatch fuel inc b.bids b.asks [] tm).bids with
+  | nil => simp
+  | cons resBid resBidRest =>
+    cases h_resAsks : (doMatch fuel inc b.bids b.asks [] tm).asks with
+    | nil => simp
+    | cons resAsk resAskRest =>
+      simp only [List.head?_cons, Option.map_some]
+      -- Goal: resBid.price < resAsk.price
+      -- From hbids_eq + h_resBids: b.bids = resBid :: resBidRest
+      have hb_bids : b.bids = resBid :: resBidRest := by
+        rw [← hbids_eq]; exact h_resBids
+      -- From original BookUncrossed: resBid.price < bestAsk(b)
+      -- We need to know b.asks is non-empty (else uncrossed is vacuously true and
+      -- we'd be in a contradiction since result asks is non-empty but doMatch
+      -- can't add asks to empty input)
+      cases hask : b.asks with
+      | nil =>
+        -- b.asks = []; doMatch with empty contra returns asks unchanged = []
+        -- But we have h_resAsks : (doMatch ...).asks = resAsk :: resAskRest
+        -- Need to derive a contradiction
+        exfalso
+        -- We need to show (doMatch fuel inc b.bids [] [] tm).asks = []
+        -- This is the contra-empty case of doMatch.
+        -- Easier: instantiate the asks accumulator with S := False
+        -- Premise: ∀ l ∈ [], False — vacuous
+        -- Conclusion: ∀ l ∈ result.asks, False
+        -- Apply to resAsk to get False
+        have hfalse := doMatch_buy_result_asks_acc fuel inc b.bids b.asks []
+          tm (fun _ => False) hside (by intro l hl; rw [hask] at hl; cases hl)
+        exact hfalse resAsk (by rw [h_resAsks]; exact List.mem_cons_self)
+      | cons aHead aRest =>
+        -- b.bids = resBid :: ..., b.asks = aHead :: ...
+        -- From AllInv: resBid.price < aHead.price
+        have huc : resBid.price < aHead.price := by
+          have := h.1
+          unfold BookUncrossed bestBidPrice bestAskPrice at this
+          rw [hb_bids, hask] at this
+          simp only [List.head?_cons, Option.map_some] at this
+          exact this
+        -- From sortedness: all of b.asks ≥ aHead.price
+        have h_orig_asks : ∀ l ∈ b.asks, resBid.price < l.price := by
+          intro l hl
+          have hsorted := h.2.2
+          rw [hask] at hsorted
+          have hmin := asksSortedAscB_head_min aHead aRest hsorted l (by rw [hask] at hl; exact hl)
+          exact Nat.lt_of_lt_of_le huc hmin
+        -- Apply accumulator to get the predicate on result asks
+        have h_res_asks := doMatch_buy_result_asks_acc fuel inc b.bids b.asks []
+          tm (fun p => resBid.price < p) hside h_orig_asks
+        -- resAsk is in the result asks
+        exact h_res_asks resAsk (by rw [h_resAsks]; exact List.mem_cons_self)
 
 -- ============================================================================
 -- doMatch passive price rule (price-time priority)
