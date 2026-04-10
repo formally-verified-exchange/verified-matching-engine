@@ -1226,7 +1226,68 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
                     show OrderStatus.cancelled = OrderStatus.cancelled
                     rfl
                   | decrement =>
-                    sorry
+                    cases hrz : (min inc.remainingQty resting.visibleQty == 0) with
+                    | true =>
+                      -- reduceQty = 0: stranded remove (drop_head_order, same inc)
+                      have hmdec :=
+                        matchMeasure_drop_head_order level restLevels inc
+                          resting restOrders horders
+                      have hfuel' :
+                          n > matchMeasure
+                            (if restOrders.isEmpty then restLevels
+                             else { level with orders := restOrders } :: restLevels) inc := by
+                        have hprev : n + 1 > matchMeasure asks inc := hfuel
+                        rw [hask] at hprev
+                        omega
+                      exact ih inc _ _ _ hside hfuel'
+                    | false =>
+                      cases hrr : (resting.remainingQty - min inc.remainingQty resting.visibleQty == 0) with
+                      | true =>
+                        -- restRem = 0: drop_head_order with inc' (inc with reduced qty)
+                        -- Open the new inc inline to avoid let-unfolding quirks.
+                        refine ih
+                          ({ inc with
+                            remainingQty := inc.remainingQty -
+                              min inc.remainingQty resting.visibleQty,
+                            status := if inc.remainingQty -
+                              min inc.remainingQty resting.visibleQty == 0 then
+                              .cancelled else inc.status })
+                          _ _ _ hside ?_
+                        -- Goal: n > matchMeasure (if ...) inc'
+                        -- Chain: hmdec gives < matchMeasure (level :: restLevels) inc'
+                        --        which = matchMeasure asks inc' (by hask)
+                        --        which ≤ matchMeasure asks inc (since remainingQty decreased)
+                        --        which < n + 1 (hfuel)
+                        have hmdec := matchMeasure_drop_head_order level restLevels
+                          ({ inc with
+                            remainingQty := inc.remainingQty -
+                              min inc.remainingQty resting.visibleQty,
+                            status := if inc.remainingQty -
+                              min inc.remainingQty resting.visibleQty == 0 then
+                              .cancelled else inc.status })
+                          resting restOrders horders
+                        -- Rewrite hmdec to use `asks` instead of `(level :: restLevels)`
+                        rw [← hask] at hmdec
+                        -- Show matchMeasure asks inc' ≤ matchMeasure asks inc
+                        have h_mono :
+                            matchMeasure asks
+                              ({ inc with
+                                remainingQty := inc.remainingQty -
+                                  min inc.remainingQty resting.visibleQty,
+                                status := if inc.remainingQty -
+                                  min inc.remainingQty resting.visibleQty == 0 then
+                                  .cancelled else inc.status })
+                            ≤ matchMeasure asks inc := by
+                          unfold matchMeasure
+                          simp only  -- reduce record projection to the field value
+                          have : inc.remainingQty -
+                                   min inc.remainingQty resting.visibleQty
+                                 ≤ inc.remainingQty := Nat.sub_le _ _
+                          omega
+                        omega
+                      | false =>
+                        -- iceberg reload OR partial decrement — split on visible
+                        sorry
                 | false =>
                   sorry
       · -- sell branch is absurd since hside : inc.side = .buy
