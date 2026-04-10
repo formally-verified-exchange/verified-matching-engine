@@ -1200,7 +1200,33 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
               | false =>
                 cases hstp : selfTradeConflict inc resting with
                 | true =>
-                  sorry
+                  -- STP conflict: policy match
+                  cases hpol : inc.stpPolicy.getD .cancelNewest with
+                  | cancelNewest =>
+                    -- Terminal: inc.status becomes .cancelled
+                    right; left
+                    show OrderStatus.cancelled = OrderStatus.cancelled
+                    rfl
+                  | cancelOldest =>
+                    -- Recursive: drop head order, same inc
+                    have hmdec :=
+                      matchMeasure_drop_head_order level restLevels inc
+                        resting restOrders horders
+                    have hfuel' :
+                        n > matchMeasure
+                          (if restOrders.isEmpty then restLevels
+                           else { level with orders := restOrders } :: restLevels) inc := by
+                      have hprev : n + 1 > matchMeasure asks inc := hfuel
+                      rw [hask] at hprev
+                      omega
+                    exact ih inc _ _ _ hside hfuel'
+                  | cancelBoth =>
+                    -- Terminal: inc.status becomes .cancelled
+                    right; left
+                    show OrderStatus.cancelled = OrderStatus.cancelled
+                    rfl
+                  | decrement =>
+                    sorry
                 | false =>
                   sorry
       · -- sell branch is absurd since hside : inc.side = .buy
