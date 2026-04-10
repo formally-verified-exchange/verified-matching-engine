@@ -640,6 +640,86 @@ theorem doMatch_buy_preserves_uncrossed (fuel : Nat) (inc : Order) (b : BookStat
         exact h_res_asks resAsk (by rw [h_resAsks]; exact List.mem_cons_self)
 
 -- ============================================================================
+-- doMatch buy-side no-cross after matching
+-- ============================================================================
+
+/-- Buy-side "stable" predicate: doMatch has nothing more to do. Either the
+    incoming is consumed/cancelled, or the contra side is empty, or the head
+    of the contra side is non-crossing (price strictly above `inc.price`). -/
+def buyMatchStable (inc : Order) (asks : List PriceLevel) : Prop :=
+  inc.remainingQty = 0 ∨ inc.status = .cancelled ∨ asks = [] ∨
+  (∀ hd ∈ asks.head?, (inc.price.getD 0) < hd.price)
+
+/-- Trivial extraction: from a buy-stable state where incoming is still active,
+    the no-cross conclusion follows. -/
+theorem doMatch_buy_noCross_of_stable
+    {inc : Order} {asks : List PriceLevel}
+    (hstable : buyMatchStable inc asks)
+    (hqty : inc.remainingQty > 0)
+    (hstatus : inc.status ≠ .cancelled) :
+    asks = [] ∨ (∀ hd ∈ asks.head?, (inc.price.getD 0) < hd.price) := by
+  rcases hstable with h | h | h | h
+  · rw [h] at hqty; exact absurd hqty (by decide)
+  · exact absurd h hstatus
+  · exact Or.inl h
+  · exact Or.inr h
+
+/-- **Sub-lemma (task #4)**: the output of `doMatch` for a buy-side order
+    on a sorted ask list is buy-stable. This is the fuel-sufficiency obligation.
+
+    Proof sketch: induction on `fuel`. Base case: `fuel = 0` means the result
+    equals the input, which — by the measure hypothesis — is already in a
+    stable state (via case analysis on whether the head crosses). Inductive
+    case: `doMatch` either immediately exits (stable by construction) or
+    recursively calls with asks whose measure `asksMeasure` is strictly
+    smaller, and the IH applies.
+
+    The measure is `Σ remainingQty + orderCount + levelCount + 1`, which
+    matches `computeMatchFuel`. Each doMatch step strictly decreases it:
+    fill steps reduce sum of remainingQty; skip/STP/decrement steps reduce
+    order count; empty-level skip reduces level count.
+
+    **Currently marked `sorry`** — proving the measure-decrease for each
+    doMatch branch is substantial work (~15 branches) and is isolated here
+    so the rest of the pipeline can proceed. -/
+theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hside : inc.side = .buy)
+    (hsorted : asksSortedAscB asks = true)
+    (hfuel : fuel ≥
+      (asks.foldl (fun acc lvl =>
+        acc + lvl.orders.foldl (fun a o => a + o.remainingQty) 0) 0) +
+      (asks.foldl (fun acc lvl => acc + lvl.orders.length) 0) +
+      asks.length + 1) :
+    let mr := doMatch fuel inc bids asks trades tm
+    buyMatchStable mr.incoming mr.asks := by
+  sorry
+
+/-- **Main no-cross lemma (buy side)**: after buy-side matching with sufficient
+    fuel on a sorted ask list, if the incoming order still has quantity to
+    fill, the remaining asks are either empty or have a head price strictly
+    above the incoming order's limit price.
+
+    This bridges `doMatch` to `insertOrder_buy_preserves_uncrossed` in the
+    normal/FOK/MinQty phases of `processOrder_preserves_uncrossed`. -/
+theorem doMatch_buy_noCross_after_match (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hside : inc.side = .buy)
+    (hsorted : asksSortedAscB asks = true)
+    (hfuel : fuel ≥
+      (asks.foldl (fun acc lvl =>
+        acc + lvl.orders.foldl (fun a o => a + o.remainingQty) 0) 0) +
+      (asks.foldl (fun acc lvl => acc + lvl.orders.length) 0) +
+      asks.length + 1) :
+    let mr := doMatch fuel inc bids asks trades tm
+    mr.incoming.remainingQty > 0 →
+    mr.incoming.status ≠ .cancelled →
+    mr.asks = [] ∨ (∀ hd ∈ mr.asks.head?, (mr.incoming.price.getD 0) < hd.price) := by
+  intro mr hqty hstatus
+  have hstable := doMatch_buy_output_stable fuel inc bids asks trades tm hside hsorted hfuel
+  exact doMatch_buy_noCross_of_stable hstable hqty hstatus
+
+-- ============================================================================
 -- doMatch passive price rule (price-time priority)
 -- ============================================================================
 
