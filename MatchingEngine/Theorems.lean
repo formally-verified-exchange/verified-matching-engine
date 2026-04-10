@@ -231,6 +231,73 @@ theorem dispose_preserves_stops (inc : Order) (b : BookState) (trades : List Tra
   exact insertOrder_preserves_stops b inc _
 
 -- ============================================================================
+-- insertOrder head-price preservation
+-- ============================================================================
+
+/-- For a buy-side insert: if the book is uncrossed and the new buy order's
+    price is strictly less than `bestAskPrice` (or asks are empty), then
+    `insertOrder b o hasTrades` preserves `BookUncrossed`. -/
+theorem insertOrder_buy_preserves_uncrossed (b : BookState) (o : Order)
+    (hasTrades : Bool) (hside : o.side = .buy) (h : BookUncrossed b)
+    (hprice : ∀ askP ∈ bestAskPrice b, (o.price.getD 0) < askP) :
+    BookUncrossed (insertOrder b o hasTrades) := by
+  unfold BookUncrossed
+  -- asks side unchanged
+  have hasks : (insertOrder b o hasTrades).asks = b.asks :=
+    insertOrder_buy_preserves_asks b o hasTrades hside
+  rw [show bestAskPrice (insertOrder b o hasTrades) = bestAskPrice b from by
+        unfold bestAskPrice; rw [hasks]]
+  -- bids side: insertDesc
+  unfold insertOrder
+  match hsd : o.side with
+  | .sell => exact absurd (hside.symm.trans hsd) (by decide)
+  | .buy =>
+    simp only
+    -- Split on bestAskPrice b
+    cases hask : bestAskPrice b with
+    | none =>
+      -- `none` is already substituted by the cases tactic; reduce match.
+      cases h_bb : bestBidPrice {
+        bids := insertDesc b.bids _ (o.price.getD 0),
+        asks := b.asks, stops := b.stops,
+        lastTradePrice := b.lastTradePrice,
+        nextId := b.nextId, clock := b.clock } <;> trivial
+    | some askP =>
+      have hprice' : (o.price.getD 0) < askP := hprice askP (by
+        rw [hask]; exact Option.mem_some_iff.mpr rfl)
+      -- Goal: best bid of new book < askP
+      unfold bestBidPrice
+      match hbids : b.bids with
+      | [] =>
+        unfold insertDesc
+        simp
+        exact hprice'
+      | lhd :: lrest =>
+        -- Original uncrossed: lhd.price < askP
+        have hhd : lhd.price < askP := by
+          have h' := h
+          unfold BookUncrossed at h'
+          rw [show bestBidPrice b = some lhd.price by
+                unfold bestBidPrice; rw [hbids]; rfl,
+              hask] at h'
+          exact h'
+        -- insertDesc head is max p lhd.price (both < askP)
+        unfold insertDesc
+        by_cases h1 : (o.price.getD 0) > lhd.price
+        · simp [h1]
+          exact hprice'
+        · by_cases h2 : (o.price.getD 0) = lhd.price
+          · simp [h1, h2]
+            exact hhd
+          · have h3 : ¬ ((o.price.getD 0) == lhd.price) = true := by
+              intro heq
+              have : (o.price.getD 0) = lhd.price := by
+                simpa [beq_iff_eq] using heq
+              exact h2 this
+            simp [h1, h3]
+            exact hhd
+
+-- ============================================================================
 -- Level-modification helpers for asks/bids modification patterns in doMatch
 -- ============================================================================
 
