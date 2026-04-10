@@ -379,6 +379,77 @@ private theorem doMatch_passive_price_buy_acc (fuel : Nat) (inc : Order)
         exact absurd heq (by decide)
 
 -- ============================================================================
+-- doMatch result-asks accumulator (buy side)
+-- ============================================================================
+
+/-- For buy-side matching: any predicate `S` that holds on all input asks
+    levels also holds on all output asks levels. Intuition: doMatch only
+    modifies asks by removing/modifying levels (and adding reloaded
+    icebergs at the same price), never by introducing a new price. -/
+private theorem doMatch_buy_result_asks_acc (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (S : Price → Prop) (hside : inc.side = .buy)
+    (hasks : ∀ l ∈ asks, S l.price) :
+    ∀ l ∈ (doMatch fuel inc bids asks trades tm).asks, S l.price := by
+  induction fuel generalizing inc asks trades tm with
+  | zero => unfold doMatch; exact hasks
+  | succ n ih =>
+    unfold doMatch
+    split
+    · exact hasks
+    · split
+      · -- buy branch
+        cases hask : asks with
+        | nil =>
+          -- asks = [] so result asks is also []; predicate is vacuous
+          intro l hl
+          exact absurd hl (by simp)
+        | cons level restLevels =>
+          simp only
+          rw [hask] at hasks
+          have hlp : S level.price := hasks level (List.mem_cons_self)
+          have hrp : ∀ l ∈ restLevels, S l.price := fun l hl =>
+            hasks l (List.mem_cons_of_mem _ hl)
+          split
+          · exact hasks  -- !canMatchPrice
+          · split
+            · -- level.orders = [] → recurse with restLevels
+              exact ih _ _ _ _ hside hrp
+            · -- level.orders = resting :: restOrders
+              rename_i _ resting restOrders _
+              split
+              · -- zero-visible true
+                split
+                · exact ih _ _ _ _ hside hrp
+                · exact ih _ _ _ _ hside (consLevelPrices hlp hrp _)
+              · split
+                · -- STP conflict
+                  split
+                  · exact hasks  -- cancelNewest: asks unchanged
+                  · -- cancelOldest
+                    split
+                    · exact ih _ _ _ _ hside hrp
+                    · exact ih _ _ _ _ hside (consLevelPrices hlp hrp _)
+                  · -- cancelBoth: terminal but asks IS modified to level'
+                    exact modLevelPrices hlp hrp _
+                  · -- decrement
+                    split
+                    · exact ih _ _ _ _ hside (modLevelPrices hlp hrp _)
+                    · split
+                      · exact ih _ _ _ _ hside (modLevelPrices hlp hrp _)
+                      · split
+                        · exact ih _ _ _ _ hside (modLevelPrices hlp hrp _)
+                        · exact ih _ _ _ _ hside (consLevelPrices hlp hrp _)
+                · -- normal fill
+                  split
+                  · exact ih _ _ _ _ hside (modLevelPrices hlp hrp _)
+                  · split
+                    · exact ih _ _ _ _ hside (consLevelPrices hlp hrp _)
+                    · exact ih _ _ _ _ hside (consLevelPrices hlp hrp _)
+      · rename_i heq
+        rw [hside] at heq; exact absurd heq (by decide)
+
+-- ============================================================================
 -- doMatch passive price rule (price-time priority)
 -- ============================================================================
 
