@@ -2888,6 +2888,48 @@ theorem computeMatchFuel_gt_matchMeasure
 -- Cascade preservation stubs (mutual induction obligation)
 -- ============================================================================
 
+/-- Post-only precondition extractor: if `wouldCross o b = false` AND the
+    order's price is defined, extract the strict non-crossing inequality
+    needed by `insertOrder_preserves_uncrossed`. -/
+private theorem wouldCross_false_nonCross_pre
+    (o : Order) (b : BookState) (side : Side) (hside : o.side = side)
+    (hp : o.price.isSome = true)
+    (hnc : wouldCross o b = false) :
+    match side with
+    | .buy  => ∀ askP ∈ bestAskPrice b, (o.price.getD 0) < askP
+    | .sell => ∀ bidP ∈ bestBidPrice b, bidP < (o.price.getD 0) := by
+  unfold wouldCross at hnc
+  cases hpv : o.price with
+  | none => rw [hpv] at hp; cases hp
+  | some p =>
+    rw [hpv] at hnc
+    rw [hside] at hnc
+    cases side with
+    | buy =>
+      intro askP haskP
+      cases hask : bestAskPrice b with
+      | none => rw [hask] at haskP; cases haskP
+      | some askP' =>
+        rw [hask] at hnc
+        rw [hask] at haskP
+        have heq : askP' = askP := Option.mem_some_iff.mp haskP
+        simp at hnc
+        have hlt : p < askP' := by omega
+        rw [heq] at hlt
+        exact hlt
+    | sell =>
+      intro bidP hbidP
+      cases hbid : bestBidPrice b with
+      | none => rw [hbid] at hbidP; cases hbidP
+      | some bidP' =>
+        rw [hbid] at hnc
+        rw [hbid] at hbidP
+        have heq : bidP' = bidP := Option.mem_some_iff.mp hbidP
+        simp at hnc
+        have hlt : bidP' < p := by omega
+        rw [heq] at hlt
+        exact hlt
+
 /-- Joint AllInv preservation for the three mutually recursive functions.
     Proved by induction on fuel, with phase analysis for each function. -/
 theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
@@ -2916,7 +2958,62 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
     obtain ⟨ih_po, ih_pc, ih_pts⟩ := ih
     refine ⟨?_, ?_, ?_⟩
     · -- processOrder fuel'+1 preservation
-      sorry
+      intro o b h
+      unfold processOrder
+      simp only
+      split
+      · -- Phase 1: Stop order
+        split
+        · -- Triggered: recurse via ih_po on clock-updated book
+          exact ih_po _ _ (AllInv.with_clock b (b.clock + 1) h)
+        · -- Not triggered: append to stops
+          exact AllInv.with_stops b _ h
+      · split
+        · -- Phase 2: Post-only
+          split
+          · -- wouldCross true: return b unchanged
+            exact h
+          · -- wouldCross false: insertOrder b o false
+            rename_i _ hwc
+            have hnc : wouldCross o b = false := by
+              cases hwcv : wouldCross o b with
+              | true => exact absurd hwcv hwc
+              | false => rfl
+            cases hp : o.price with
+            | none =>
+              -- Spec edge case: post-only with no price. Deferred.
+              sorry
+            | some p =>
+              have hps : o.price.isSome = true := by rw [hp]; rfl
+              refine insertOrder_preserves_AllInv b o false h ?_
+              cases hs : o.side with
+              | buy =>
+                show ∀ askP ∈ bestAskPrice b, (o.price.getD 0) < askP
+                have := wouldCross_false_nonCross_pre o b .buy hs hps hnc
+                exact this
+              | sell =>
+                show ∀ bidP ∈ bestBidPrice b, bidP < (o.price.getD 0)
+                have := wouldCross_false_nonCross_pre o b .sell hs hps hnc
+                exact this
+        · split
+          · -- Phase 3: FOK
+            split
+            · -- !fokCheck: b unchanged
+              exact h
+            · -- fokCheck: match + dispose + cascade
+              sorry
+          · split
+            · -- Phase 3b: MinQty
+              split
+              · -- !minQtyCheck: b unchanged
+                exact h
+              · -- minQtyCheck: match + dispose + cascade
+                sorry
+            · split
+              · -- Phase 4: MTL
+                sorry
+              · -- Phase 5: Normal matching
+                sorry
     · -- processCascade fuel'+1 preservation
       intro ts b h
       unfold processCascade
