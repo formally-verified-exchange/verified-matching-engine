@@ -1115,7 +1115,33 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
     (hfuel : fuel > matchMeasure asks inc) :
     let mr := doMatch fuel inc bids asks trades tm
     buyMatchStable mr.incoming mr.asks := by
-  sorry
+  induction fuel generalizing inc asks trades tm with
+  | zero =>
+    -- 0 > matchMeasure asks inc is impossible (matchMeasure ≥ 0 in Nat)
+    exact absurd hfuel (by omega)
+  | succ n ih =>
+    unfold doMatch
+    split
+    · -- Terminal: inc.remainingQty == 0 || inc.status == .cancelled
+      rename_i hdone
+      simp only [Bool.or_eq_true] at hdone
+      rcases hdone with hq | hs
+      · -- inc.remainingQty == 0 = true
+        left
+        show inc.remainingQty = 0
+        simpa using hq
+      · -- inc.status == .cancelled = true
+        right; left
+        show inc.status = .cancelled
+        cases hstat : inc.status
+        all_goals first | rfl | (rw [hstat] at hs; cases hs)
+    · -- Not terminal: split on inc.side
+      split
+      · -- buy branch (contra = asks)
+        sorry
+      · -- sell branch is absurd since hside : inc.side = .buy
+        rename_i heq
+        rw [hside] at heq; exact absurd heq (by decide)
 
 /-- **Main no-cross lemma (buy side)**: after buy-side matching with sufficient
     fuel, if the incoming order still has quantity to fill, the remaining asks
