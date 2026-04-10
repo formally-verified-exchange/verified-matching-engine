@@ -379,6 +379,31 @@ private theorem doMatch_passive_price_buy_acc (fuel : Nat) (inc : Order)
         exact absurd heq (by decide)
 
 -- ============================================================================
+-- doMatch passive price rule (price-time priority)
+-- ============================================================================
+
+/-- Every trade produced by `doMatch` has price equal to the price of some
+    resting level (either a bid or an ask). This is the price-time priority
+    rule: aggressors trade at the resting (passive) order's price.
+
+    **Note**: only the buy side is proven via the accumulator lemma.
+    The sell side requires a symmetric `doMatch_passive_price_sell_acc`
+    that mirrors the buy proof — deferred per the symmetry simplification. -/
+theorem doMatch_passive_price (fuel : Nat) (inc : Order) (bids asks : List PriceLevel)
+    (tm : Timestamp) :
+    ∀ t ∈ (doMatch fuel inc bids asks [] tm).trades,
+      ∃ l, (l ∈ bids ∨ l ∈ asks) ∧ t.price = l.price := by
+  cases hs : inc.side with
+  | buy =>
+    exact doMatch_passive_price_buy_acc fuel inc bids asks [] tm
+      (fun p => ∃ l, (l ∈ bids ∨ l ∈ asks) ∧ p = l.price) hs
+      (fun _ h => absurd h List.not_mem_nil)
+      (fun l hl => ⟨l, Or.inr hl, rfl⟩)
+  | sell =>
+    -- Symmetric to buy via doMatch_passive_price_sell_acc; deferred.
+    sorry
+
+-- ============================================================================
 -- Main theorem (STUB: reduces to processOrder_preserves_uncrossed)
 -- ============================================================================
 
