@@ -264,15 +264,26 @@ private theorem consLevelPrices {level : PriceLevel} {restLevels : List PriceLev
   | tail _ hmem => exact hrest l hmem
 
 -- ============================================================================
--- Minimal reproducer for the Lean 4.26 `simp only [hside]` issue
+-- doMatch passive price accumulator (buy side)
 -- ============================================================================
 
-/-- **REPRO**: This is the minimal shape that fails. It's identical to
-    `doMatch_buy_preserves_bids` except the conclusion is a `∀ t ∈ ...`
-    over trades with an abstract predicate `S`. The exact same
-    `unfold doMatch; simp only [hside]` tactic works for the bids equality
-    goal but fails here with `maximum number of steps exceeded`. -/
-private theorem repro_simp_fails (fuel : Nat) (inc : Order)
+/-- **The accumulator lemma for buy-side matching**.
+
+    Given a predicate `S` on prices, if `S` holds on all existing trade
+    prices and on all asks level prices, then after `doMatch` for a buy
+    order, `S` holds on all trade prices in the result.
+
+    **Implementation note**: avoids the Lean 4.26 `simp only [hside]; split`
+    interaction that causes "maximum number of steps exceeded" errors. The
+    workaround is to (1) skip `simp only [hside]` entirely, (2) use plain
+    `split` to handle the inc-done check, (3) `split` again on the inc.side
+    match (closing the sell branch by `rename_i heq; rw [hside] at heq;
+    exact absurd heq (by decide)`), (4) `cases hask : asks with` for the
+    contra match, (5) `rw [hask] at hasks` to align the hypothesis, (6)
+    `simp only` (no args) for intermediate let/match reduction, then
+    standard splits + IH applications use the helper lemmas
+    `modLevelPrices` / `consLevelPrices`. -/
+private theorem doMatch_passive_price_buy_acc (fuel : Nat) (inc : Order)
     (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
     (S : Price → Prop) (hside : inc.side = .buy)
     (hacc : ∀ t ∈ trades, S t.price)
@@ -303,8 +314,66 @@ private theorem repro_simp_fails (fuel : Nat) (inc : Order)
               exact ih _ _ _ _ hside hacc hrp
             · -- level.orders = resting :: restOrders
               rename_i _ resting restOrders _
+              -- resting.visibleQty == 0 && !selfTradeConflict (zero-visible skip)
               split
-              all_goals sorry
+              · -- zero-visible true
+                split  -- restOrders.isEmpty
+                · -- true: asks' = restLevels
+                  exact ih _ _ _ _ hside hacc hrp
+                · -- false: asks' = {level with orders := restOrders} :: restLevels
+                  exact ih _ _ _ _ hside hacc (consLevelPrices hlp hrp _)
+              · -- zero-visible false: check STP conflict
+                split
+                · -- STP conflict: split on policy (4 branches)
+                  split
+                  · exact hacc  -- cancelNewest: returns unchanged
+                  · -- cancelOldest: recurse with modified asks
+                    split  -- restOrders.isEmpty
+                    · exact ih _ _ _ _ hside hacc hrp
+                    · exact ih _ _ _ _ hside hacc (consLevelPrices hlp hrp _)
+                  · exact hacc  -- cancelBoth: returns unchanged
+                  · -- decrement: 4 sub-cases
+                    split  -- reduceQty == 0
+                    · -- reduceQty = 0: stranded, remove
+                      exact ih _ _ _ _ hside hacc (modLevelPrices hlp hrp _)
+                    · -- reduceQty > 0
+                      split  -- restRem == 0
+                      · -- restRem = 0: fully decremented, remove
+                        exact ih _ _ _ _ hside hacc (modLevelPrices hlp hrp _)
+                      · -- restRem > 0
+                        split  -- restVis == 0 && displayQty.isSome (iceberg reload)
+                        · -- iceberg reload
+                          exact ih _ _ _ _ hside hacc (modLevelPrices hlp hrp _)
+                        · -- partial decrement
+                          exact ih _ _ _ _ hside hacc (consLevelPrices hlp hrp _)
+                · -- No STP: normal fill (3 sub-cases, each adds a new trade)
+                  -- The new trade has price = level.price, so S level.price = hlp
+                  -- gives us S on the new trade.
+                  have hacc' : ∀ t ∈ trades ++ [{
+                      price := level.price,
+                      qty := min inc.remainingQty resting.visibleQty,
+                      aggressorId := inc.id,
+                      passiveId := resting.id,
+                      aggressorSide := inc.side,
+                      aggPostOnly := inc.postOnly,
+                      aggStpGroup := inc.stpGroup,
+                      pasStpGroup := resting.stpGroup }], S t.price := by
+                    intro t ht
+                    rw [List.mem_append] at ht
+                    cases ht with
+                    | inl h => exact hacc t h
+                    | inr h =>
+                      simp only [List.mem_singleton] at h
+                      subst h
+                      exact hlp
+                  split  -- rest'.remainingQty == 0 (fully filled)
+                  · -- fully filled: remove resting
+                    exact ih _ _ _ _ hside hacc' (modLevelPrices hlp hrp _)
+                  · split  -- rest'.visibleQty == 0 && displayQty.isSome (iceberg)
+                    · -- iceberg reload
+                      exact ih _ _ _ _ hside hacc' (consLevelPrices hlp hrp _)
+                    · -- partial fill
+                      exact ih _ _ _ _ hside hacc' (consLevelPrices hlp hrp _)
       · rename_i heq
         rw [hside] at heq
         exact absurd heq (by decide)
