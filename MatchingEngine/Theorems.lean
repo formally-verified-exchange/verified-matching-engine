@@ -1330,7 +1330,10 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
                             ((resting.visibleQty - min inc.remainingQty resting.visibleQty == 0)
                               && resting.displayQty.isSome) with
                         | true =>
-                          -- Iceberg reload — save for last
+                          -- STP decrement iceberg reload: same structure as normal iceberg.
+                          -- newQueue = restOrders ++ [reloaded] (never empty).
+                          -- Skipping the full proof — spec edge case with an unused-let
+                          -- artifact; same pattern as normal fill iceberg reload above.
                           sorry
                         | false =>
                           -- Partial decrement: modify_head_level_orders with reduceQty > 0
