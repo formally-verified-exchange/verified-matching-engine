@@ -257,9 +257,21 @@ private theorem repro_simp_fails (fuel : Nat) (inc : Order)
         | nil => exact hacc
         | cons level restLevels =>
           simp only
+          -- level is the head of asks; level.price satisfies S
+          rw [hask] at hasks
+          have hlp : S level.price := hasks level (List.mem_cons_self)
+          have hrp : ∀ l ∈ restLevels, S l.price := fun l hl =>
+            hasks l (List.mem_cons_of_mem _ hl)
           split
           · exact hacc  -- !canMatchPrice: returns with trades unchanged
-          · sorry
+          · -- canMatchPrice: split on level.orders
+            split
+            · -- level.orders = []: skip to restLevels
+              exact ih _ _ _ _ hside hacc hrp
+            · -- level.orders = resting :: restOrders
+              rename_i _ resting restOrders _
+              split
+              all_goals sorry
       · rename_i heq
         rw [hside] at heq
         exact absurd heq (by decide)
