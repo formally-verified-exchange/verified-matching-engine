@@ -53,6 +53,89 @@ theorem BookUncrossed_with_meta (b : BookState) (nid : OrderId) (clk : Timestamp
   BookUncrossed_of_bids_asks_eq rfl rfl
 
 -- ============================================================================
+-- doMatch side isolation: buy preserves bids, sell preserves asks
+-- ============================================================================
+
+/-- For a buy order, `doMatch` never modifies the bids list. The contra side
+    is asks, and doMatch only touches the contra side. -/
+theorem doMatch_buy_preserves_bids (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hside : inc.side = .buy) :
+    (doMatch fuel inc bids asks trades tm).bids = bids := by
+  induction fuel generalizing inc asks trades tm with
+  | zero => rfl
+  | succ n ih =>
+    unfold doMatch; simp only [hside]
+    split
+    · rfl
+    · split
+      · rfl
+      · rename_i level restLevels
+        split
+        · rfl
+        · split
+          · exact ih _ _ _ _ (by first | rfl | exact hside)
+          · rename_i _ resting restOrders _
+            split
+            · split <;> (first | exact ih _ _ _ _ (by first | rfl | exact hside) | rfl)
+            · split
+              · split
+                · rfl
+                · exact ih _ _ _ _ (by first | rfl | exact hside)
+                · rfl
+                · split
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+                  · split
+                    · exact ih _ _ _ _ (by first | rfl | exact hside)
+                    · split
+                      · exact ih _ _ _ _ (by first | rfl | exact hside)
+                      · exact ih _ _ _ _ (by first | rfl | exact hside)
+              · split
+                · exact ih _ _ _ _ (by first | rfl | exact hside)
+                · split
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+
+/-- Symmetric: for a sell order, `doMatch` never modifies the asks list. -/
+theorem doMatch_sell_preserves_asks (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hside : inc.side = .sell) :
+    (doMatch fuel inc bids asks trades tm).asks = asks := by
+  induction fuel generalizing inc bids trades tm with
+  | zero => rfl
+  | succ n ih =>
+    unfold doMatch; simp only [hside]
+    split
+    · rfl
+    · split
+      · rfl
+      · rename_i level restLevels
+        split
+        · rfl
+        · split
+          · exact ih _ _ _ _ (by first | rfl | exact hside)
+          · rename_i _ resting restOrders _
+            split
+            · split <;> (first | exact ih _ _ _ _ (by first | rfl | exact hside) | rfl)
+            · split
+              · split
+                · rfl
+                · exact ih _ _ _ _ (by first | rfl | exact hside)
+                · rfl
+                · split
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+                  · split
+                    · exact ih _ _ _ _ (by first | rfl | exact hside)
+                    · split
+                      · exact ih _ _ _ _ (by first | rfl | exact hside)
+                      · exact ih _ _ _ _ (by first | rfl | exact hside)
+              · split
+                · exact ih _ _ _ _ (by first | rfl | exact hside)
+                · split
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+
+-- ============================================================================
 -- Main theorem (STUB: reduces to processOrder_preserves_uncrossed)
 -- ============================================================================
 
