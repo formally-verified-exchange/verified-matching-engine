@@ -1349,6 +1349,85 @@ theorem doMatch_preserves_uncrossed (fuel : Nat) (inc : Order) (b : BookState)
   | buy  => exact doMatch_buy_preserves_uncrossed fuel inc b tm hside h
   | sell => exact doMatch_sell_preserves_uncrossed fuel inc b tm hside h
 
+/-- `doMatch` preserves bids sortedness regardless of side. -/
+theorem doMatch_preserves_bids_sorted (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hsorted : bidsSortedDescB bids = true) :
+    bidsSortedDescB (doMatch fuel inc bids asks trades tm).bids = true := by
+  cases hs : inc.side with
+  | buy =>
+    rw [doMatch_buy_preserves_bids fuel inc bids asks trades tm hs]
+    exact hsorted
+  | sell =>
+    exact doMatch_sell_preserves_bids_sorted fuel inc bids asks trades tm hs hsorted
+
+/-- `doMatch` preserves asks sortedness regardless of side. -/
+theorem doMatch_preserves_asks_sorted (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hsorted : asksSortedAscB asks = true) :
+    asksSortedAscB (doMatch fuel inc bids asks trades tm).asks = true := by
+  cases hs : inc.side with
+  | buy =>
+    exact doMatch_buy_preserves_asks_sorted fuel inc bids asks trades tm hs hsorted
+  | sell =>
+    rw [doMatch_sell_preserves_asks fuel inc bids asks trades tm hs]
+    exact hsorted
+
+/-- `doMatch` preserves the full `AllInv` (uncrossed + both sides sorted). -/
+theorem doMatch_preserves_AllInv (fuel : Nat) (inc : Order) (b : BookState)
+    (tm : Timestamp) (side : Side) (hside : inc.side = side) (h : AllInv b) :
+    AllInv { b with
+      bids := (doMatch fuel inc b.bids b.asks [] tm).bids,
+      asks := (doMatch fuel inc b.bids b.asks [] tm).asks,
+      clock := (doMatch fuel inc b.bids b.asks [] tm).clock } := by
+  refine ⟨?_, ?_, ?_⟩
+  · -- BookUncrossed: metadata (clock) doesn't matter
+    have := doMatch_preserves_uncrossed fuel inc b tm side hside h
+    exact (BookUncrossed_with_clock _ _).mp this
+  · -- bids sorted
+    exact doMatch_preserves_bids_sorted fuel inc b.bids b.asks [] tm h.2.1
+  · -- asks sorted
+    exact doMatch_preserves_asks_sorted fuel inc b.bids b.asks [] tm h.2.2
+
+/-- `insertOrder` preserves `AllInv`, given the non-crossing precondition. -/
+theorem insertOrder_preserves_AllInv (b : BookState) (o : Order) (hasTrades : Bool)
+    (h : AllInv b)
+    (hprice : match o.side with
+      | .buy  => ∀ askP ∈ bestAskPrice b, (o.price.getD 0) < askP
+      | .sell => ∀ bidP ∈ bestBidPrice b, bidP < (o.price.getD 0)) :
+    AllInv (insertOrder b o hasTrades) := by
+  refine ⟨?_, ?_, ?_⟩
+  · cases hs : o.side with
+    | buy =>
+      have hp : ∀ askP ∈ bestAskPrice b, (o.price.getD 0) < askP := by
+        have := hprice
+        rw [hs] at this; exact this
+      exact insertOrder_buy_preserves_uncrossed b o hasTrades hs h.1 hp
+    | sell =>
+      have hp : ∀ bidP ∈ bestBidPrice b, bidP < (o.price.getD 0) := by
+        have := hprice
+        rw [hs] at this; exact this
+      exact insertOrder_sell_preserves_uncrossed b o hasTrades hs h.1 hp
+  · exact (insertOrder_preserves_sortedness b o hasTrades h.2.1 h.2.2).1
+  · exact (insertOrder_preserves_sortedness b o hasTrades h.2.1 h.2.2).2
+
+/-- `dispose` preserves `AllInv`, given the non-crossing precondition for
+    the `insertOrder` case. -/
+theorem dispose_preserves_AllInv (inc : Order) (b : BookState) (trades : List Trade)
+    (h : AllInv b)
+    (hprice : match inc.side with
+      | .buy  => ∀ askP ∈ bestAskPrice b, (inc.price.getD 0) < askP
+      | .sell => ∀ bidP ∈ bestBidPrice b, bidP < (inc.price.getD 0)) :
+    AllInv (dispose inc b trades) := by
+  unfold dispose
+  split
+  · exact h
+  split
+  · exact h
+  split
+  · exact h
+  · exact insertOrder_preserves_AllInv b inc _ h hprice
+
 -- ============================================================================
 -- doMatch buy-side no-cross after matching
 -- ============================================================================
