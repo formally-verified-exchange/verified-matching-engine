@@ -1147,7 +1147,27 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
           simp only
           split
           · -- !canMatchPrice inc level.price → terminal (fourth disjunct)
-            sorry
+            rename_i hnc
+            right; right; right
+            intro hd hmem
+            have hhd : hd = level := by
+              simp at hmem; exact hmem.symm
+            rw [hhd]
+            -- Now show: inc.price.getD 0 < level.price
+            unfold canMatchPrice at hnc
+            cases hprice : inc.price with
+            | none =>
+              -- canMatchPrice = true, so !canMatch = false — contradiction
+              exfalso
+              rw [hprice] at hnc
+              simp at hnc
+            | some p =>
+              rw [hprice, hside] at hnc
+              simp at hnc
+              -- hnc : ¬ (level.price ≤ p)
+              show (some p).getD 0 < level.price
+              show p < level.price
+              omega
           · match horders : level.orders with
             | [] =>
               -- Empty level skip — apply IH with matchMeasure_skip_empty_level
