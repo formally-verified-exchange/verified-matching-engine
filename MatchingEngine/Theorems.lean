@@ -763,6 +763,276 @@ private theorem bidsSortedDescB_head_max :
       exact Nat.le_of_lt (Nat.lt_of_le_of_lt this hand.1)
 
 -- ============================================================================
+-- Sortedness modification helpers
+-- ============================================================================
+
+/-- Tail of an asc-sorted asks list is asc-sorted. -/
+private theorem asksSortedAscB_tail (l : PriceLevel) (rest : List PriceLevel)
+    (h : asksSortedAscB (l :: rest) = true) :
+    asksSortedAscB rest = true := by
+  cases rest with
+  | nil => rfl
+  | cons r rs =>
+    unfold asksSortedAscB at h
+    rw [Bool.and_eq_true] at h
+    exact h.2
+
+/-- Tail of a desc-sorted bids list is desc-sorted. -/
+private theorem bidsSortedDescB_tail (l : PriceLevel) (rest : List PriceLevel)
+    (h : bidsSortedDescB (l :: rest) = true) :
+    bidsSortedDescB rest = true := by
+  cases rest with
+  | nil => rfl
+  | cons r rs =>
+    unfold bidsSortedDescB at h
+    rw [Bool.and_eq_true] at h
+    exact h.2
+
+/-- Modifying the head level's orders (not its price) preserves asc sortedness. -/
+private theorem asksSortedAscB_modify_head (level : PriceLevel)
+    (restLevels : List PriceLevel) (newOrders : List Order)
+    (h : asksSortedAscB (level :: restLevels) = true) :
+    asksSortedAscB ({ level with orders := newOrders } :: restLevels) = true := by
+  cases restLevels with
+  | nil => rfl
+  | cons r rs =>
+    unfold asksSortedAscB
+    unfold asksSortedAscB at h
+    rw [Bool.and_eq_true] at h ⊢
+    show (decide ({ level with orders := newOrders }.price < r.price) = true) ∧ _
+    show (decide (level.price < r.price) = true) ∧ _
+    exact h
+
+/-- Modifying the head level's orders (not its price) preserves desc sortedness. -/
+private theorem bidsSortedDescB_modify_head (level : PriceLevel)
+    (restLevels : List PriceLevel) (newOrders : List Order)
+    (h : bidsSortedDescB (level :: restLevels) = true) :
+    bidsSortedDescB ({ level with orders := newOrders } :: restLevels) = true := by
+  cases restLevels with
+  | nil => rfl
+  | cons r rs =>
+    unfold bidsSortedDescB
+    unfold bidsSortedDescB at h
+    rw [Bool.and_eq_true] at h ⊢
+    show (decide ({ level with orders := newOrders }.price > r.price) = true) ∧ _
+    show (decide (level.price > r.price) = true) ∧ _
+    exact h
+
+/-- The doMatch "drop head order (possibly drop level)" pattern preserves
+    asc sortedness. -/
+private theorem asksSortedAscB_drop_head_pattern (level : PriceLevel)
+    (restLevels : List PriceLevel) (restOrders : List Order)
+    (h : asksSortedAscB (level :: restLevels) = true) :
+    asksSortedAscB (if restOrders.isEmpty then restLevels
+                    else { level with orders := restOrders } :: restLevels) = true := by
+  by_cases hio : restOrders.isEmpty
+  · simp [hio]
+    exact asksSortedAscB_tail level restLevels h
+  · simp [hio]
+    exact asksSortedAscB_modify_head level restLevels restOrders h
+
+/-- The doMatch "drop head order (possibly drop level)" pattern preserves
+    desc sortedness. -/
+private theorem bidsSortedDescB_drop_head_pattern (level : PriceLevel)
+    (restLevels : List PriceLevel) (restOrders : List Order)
+    (h : bidsSortedDescB (level :: restLevels) = true) :
+    bidsSortedDescB (if restOrders.isEmpty then restLevels
+                    else { level with orders := restOrders } :: restLevels) = true := by
+  by_cases hio : restOrders.isEmpty
+  · simp [hio]
+    exact bidsSortedDescB_tail level restLevels h
+  · simp [hio]
+    exact bidsSortedDescB_modify_head level restLevels restOrders h
+
+-- ============================================================================
+-- doMatch preserves contra-side sortedness
+-- ============================================================================
+
+/-- **Buy side**: `doMatch` preserves `asksSortedAscB` on the contra side. -/
+theorem doMatch_buy_preserves_asks_sorted (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hside : inc.side = .buy)
+    (hsorted : asksSortedAscB asks = true) :
+    asksSortedAscB (doMatch fuel inc bids asks trades tm).asks = true := by
+  induction fuel generalizing inc asks trades tm with
+  | zero => unfold doMatch; exact hsorted
+  | succ n ih =>
+    unfold doMatch
+    split
+    · exact hsorted
+    · split
+      · -- buy branch (contra = asks)
+        cases hask : asks with
+        | nil =>
+          -- asks = [] → output.asks = []
+          rfl
+        | cons level restLevels =>
+          simp only
+          rw [hask] at hsorted
+          split
+          · -- !canMatchPrice: unchanged
+            exact hsorted
+          · cases horders : level.orders with
+            | nil =>
+              -- Empty level skip: recurse with restLevels
+              exact ih _ _ _ _ hside (asksSortedAscB_tail level restLevels hsorted)
+            | cons resting restOrders =>
+              simp only
+              cases hzv : (resting.visibleQty == 0 && !selfTradeConflict inc resting) with
+              | true =>
+                -- Zero-vis skip: drop head order pattern
+                exact ih _ _ _ _ hside
+                  (asksSortedAscB_drop_head_pattern level restLevels restOrders hsorted)
+              | false =>
+                cases hstp : selfTradeConflict inc resting with
+                | true =>
+                  cases hpol : inc.stpPolicy.getD .cancelNewest with
+                  | cancelNewest =>
+                    -- Terminal: output.asks = asks = level :: restLevels
+                    exact hsorted
+                  | cancelOldest =>
+                    exact ih _ _ _ _ hside
+                      (asksSortedAscB_drop_head_pattern level restLevels restOrders hsorted)
+                  | cancelBoth =>
+                    -- Terminal: output.asks = drop_head_order pattern
+                    exact asksSortedAscB_drop_head_pattern level restLevels restOrders hsorted
+                  | decrement =>
+                    cases hrz : (min inc.remainingQty resting.visibleQty == 0) with
+                    | true =>
+                      -- reduceQty=0 stranded: drop_head_order
+                      exact ih _ _ _ _ hside
+                        (asksSortedAscB_drop_head_pattern level restLevels restOrders hsorted)
+                    | false =>
+                      cases hrr : (resting.remainingQty - min inc.remainingQty resting.visibleQty == 0) with
+                      | true =>
+                        -- restRem=0: drop_head_order
+                        exact ih _ _ _ _ hside
+                          (asksSortedAscB_drop_head_pattern level restLevels restOrders hsorted)
+                      | false =>
+                        cases hiv :
+                            ((resting.visibleQty - min inc.remainingQty resting.visibleQty == 0)
+                              && resting.displayQty.isSome) with
+                        | true =>
+                          -- STP decrement iceberg reload: modify head orders
+                          have hne : ∀ (y : Order),
+                              (restOrders ++ [y]).isEmpty = false := by
+                            intro y; cases restOrders <;> rfl
+                          simp only [hne, if_false]
+                          exact ih _ _ _ _ hside
+                            (asksSortedAscB_modify_head level restLevels _ hsorted)
+                        | false =>
+                          -- Partial decrement: modify head orders
+                          exact ih _ _ _ _ hside
+                            (asksSortedAscB_modify_head level restLevels _ hsorted)
+                | false =>
+                  -- Normal fill
+                  cases hff : (resting.remainingQty -
+                               min inc.remainingQty resting.visibleQty == 0) with
+                  | true =>
+                    -- Full fill: drop_head_order
+                    exact ih _ _ _ _ hside
+                      (asksSortedAscB_drop_head_pattern level restLevels restOrders hsorted)
+                  | false =>
+                    cases hir :
+                        ((resting.visibleQty - min inc.remainingQty resting.visibleQty == 0)
+                          && resting.displayQty.isSome) with
+                    | true =>
+                      -- Iceberg reload: modify head orders
+                      exact ih _ _ _ _ hside
+                        (asksSortedAscB_modify_head level restLevels _ hsorted)
+                    | false =>
+                      -- Partial fill: modify head orders
+                      exact ih _ _ _ _ hside
+                        (asksSortedAscB_modify_head level restLevels _ hsorted)
+      · -- sell branch: absurd
+        rename_i heq
+        rw [hside] at heq; exact absurd heq (by decide)
+
+/-- **Sell side**: `doMatch` preserves `bidsSortedDescB` on the contra side. -/
+theorem doMatch_sell_preserves_bids_sorted (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hside : inc.side = .sell)
+    (hsorted : bidsSortedDescB bids = true) :
+    bidsSortedDescB (doMatch fuel inc bids asks trades tm).bids = true := by
+  induction fuel generalizing inc bids trades tm with
+  | zero => unfold doMatch; exact hsorted
+  | succ n ih =>
+    unfold doMatch
+    split
+    · exact hsorted
+    · split
+      · -- buy branch: absurd
+        rename_i heq
+        rw [hside] at heq; exact absurd heq (by decide)
+      · -- sell branch (contra = bids)
+        cases hbid : bids with
+        | nil => rfl
+        | cons level restLevels =>
+          simp only
+          rw [hbid] at hsorted
+          split
+          · exact hsorted
+          · cases horders : level.orders with
+            | nil =>
+              exact ih _ _ _ _ hside (bidsSortedDescB_tail level restLevels hsorted)
+            | cons resting restOrders =>
+              simp only
+              cases hzv : (resting.visibleQty == 0 && !selfTradeConflict inc resting) with
+              | true =>
+                exact ih _ _ _ _ hside
+                  (bidsSortedDescB_drop_head_pattern level restLevels restOrders hsorted)
+              | false =>
+                cases hstp : selfTradeConflict inc resting with
+                | true =>
+                  cases hpol : inc.stpPolicy.getD .cancelNewest with
+                  | cancelNewest => exact hsorted
+                  | cancelOldest =>
+                    exact ih _ _ _ _ hside
+                      (bidsSortedDescB_drop_head_pattern level restLevels restOrders hsorted)
+                  | cancelBoth =>
+                    exact bidsSortedDescB_drop_head_pattern level restLevels restOrders hsorted
+                  | decrement =>
+                    cases hrz : (min inc.remainingQty resting.visibleQty == 0) with
+                    | true =>
+                      exact ih _ _ _ _ hside
+                        (bidsSortedDescB_drop_head_pattern level restLevels restOrders hsorted)
+                    | false =>
+                      cases hrr : (resting.remainingQty - min inc.remainingQty resting.visibleQty == 0) with
+                      | true =>
+                        exact ih _ _ _ _ hside
+                          (bidsSortedDescB_drop_head_pattern level restLevels restOrders hsorted)
+                      | false =>
+                        cases hiv :
+                            ((resting.visibleQty - min inc.remainingQty resting.visibleQty == 0)
+                              && resting.displayQty.isSome) with
+                        | true =>
+                          have hne : ∀ (y : Order),
+                              (restOrders ++ [y]).isEmpty = false := by
+                            intro y; cases restOrders <;> rfl
+                          simp only [hne, if_false]
+                          exact ih _ _ _ _ hside
+                            (bidsSortedDescB_modify_head level restLevels _ hsorted)
+                        | false =>
+                          exact ih _ _ _ _ hside
+                            (bidsSortedDescB_modify_head level restLevels _ hsorted)
+                | false =>
+                  cases hff : (resting.remainingQty -
+                               min inc.remainingQty resting.visibleQty == 0) with
+                  | true =>
+                    exact ih _ _ _ _ hside
+                      (bidsSortedDescB_drop_head_pattern level restLevels restOrders hsorted)
+                  | false =>
+                    cases hir :
+                        ((resting.visibleQty - min inc.remainingQty resting.visibleQty == 0)
+                          && resting.displayQty.isSome) with
+                    | true =>
+                      exact ih _ _ _ _ hside
+                        (bidsSortedDescB_modify_head level restLevels _ hsorted)
+                    | false =>
+                      exact ih _ _ _ _ hside
+                        (bidsSortedDescB_modify_head level restLevels _ hsorted)
+
+-- ============================================================================
 -- doMatch preserves uncrossed (buy side) — CRITICAL PATH lemma
 -- ============================================================================
 
