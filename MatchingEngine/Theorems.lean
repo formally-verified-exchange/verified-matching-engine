@@ -2918,9 +2918,40 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
     · -- processOrder fuel'+1 preservation
       sorry
     · -- processCascade fuel'+1 preservation
-      sorry
+      intro ts b h
+      unfold processCascade
+      match ts with
+      | [] => exact h
+      | t :: rest =>
+        simp only
+        split
+        · -- triggered is empty: recurse with updated LTP
+          have h1 : AllInv { b with lastTradePrice := some t.price } :=
+            AllInv.with_ltp b (some t.price) h
+          exact ih_pc rest _ h1
+        · -- triggered non-empty
+          simp only
+          have h1 : AllInv { b with
+              stops := (b.stops.partition (fun s => shouldTrigger s (some t.price))).2 } :=
+            AllInv.with_stops b _ h
+          have hb' : AllInv { b with
+              stops := (b.stops.partition (fun s => shouldTrigger s (some t.price))).2,
+              lastTradePrice := some t.price } :=
+            AllInv.with_ltp _ (some t.price) h1
+          exact ih_pc rest _ (ih_pts _ _ hb')
     · -- processTriggeredStops fuel'+1 preservation
-      sorry
+      intro os b h
+      unfold processTriggeredStops
+      match os with
+      | [] => exact h
+      | stop :: rest =>
+        simp only
+        have hb' : AllInv { b with clock := b.clock + 1 } :=
+          AllInv.with_clock b (b.clock + 1) h
+        have hres : AllInv (processOrder n (convertStop stop b.clock)
+                            { b with clock := b.clock + 1 }).book :=
+          ih_po _ _ hb'
+        exact ih_pts rest _ hres
 
 /-- Corollary: `processOrder` preserves `AllInv`. -/
 theorem processOrder_preserves_AllInv (fuel : Nat) (o : Order) (b : BookState)
