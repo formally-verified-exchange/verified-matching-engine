@@ -1053,6 +1053,34 @@ theorem length_drop_head_order_le
   · simp [h]
   · simp [h]
 
+/-- Modifying the head level's orders (keeping count the same) strictly
+    decreases `matchMeasure` iff the new `orderSum` is less. Covers partial
+    fills, STP decrement partial, and iceberg reload (where the reloaded
+    order replaces the head at the tail of the queue — same length). -/
+theorem matchMeasure_modify_head_level_orders
+    (level : PriceLevel) (restLevels : List PriceLevel) (inc : Order)
+    (newOrders : List Order)
+    (hlen : newOrders.length = level.orders.length)
+    (hdec : orderSum newOrders < orderSum level.orders) :
+    matchMeasure ({ level with orders := newOrders } :: restLevels) inc
+    < matchMeasure (level :: restLevels) inc := by
+  unfold matchMeasure
+  -- Unfold totalRemaining on both sides
+  have ht_new : totalRemaining ({ level with orders := newOrders } :: restLevels)
+    = orderSum newOrders + totalRemaining restLevels := rfl
+  have ht_old : totalRemaining (level :: restLevels)
+    = orderSum level.orders + totalRemaining restLevels := rfl
+  -- Unfold orderCount on both sides
+  have ho_new : orderCount ({ level with orders := newOrders } :: restLevels)
+    = newOrders.length + orderCount restLevels := rfl
+  have ho_old : orderCount (level :: restLevels)
+    = level.orders.length + orderCount restLevels := rfl
+  -- Lengths are equal
+  have hl : ({ level with orders := newOrders } :: restLevels).length
+    = (level :: restLevels).length := by simp
+  rw [ht_new, ht_old, ho_new, ho_old, hl]
+  omega
+
 /-- **Main per-branch lemma**: dropping a head order strictly decreases
     `matchMeasure`. The strict decrease comes from `orderCount` dropping by 1
     (so `hpos` is not needed — the lemma holds for any dropped order). -/
