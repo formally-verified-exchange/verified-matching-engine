@@ -1138,7 +1138,31 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
     · -- Not terminal: split on inc.side
       split
       · -- buy branch (contra = asks)
-        sorry
+        cases hask : asks with
+        | nil =>
+          -- asks is empty → third disjunct of buyMatchStable
+          right; right; left
+          rfl
+        | cons level restLevels =>
+          simp only
+          split
+          · -- !canMatchPrice inc level.price → terminal (fourth disjunct)
+            sorry
+          · match horders : level.orders with
+            | [] =>
+              -- Empty level skip — apply IH with matchMeasure_skip_empty_level
+              -- Recursive call: doMatch n inc bids restLevels trades tm
+              have hmdec : matchMeasure restLevels inc
+                         < matchMeasure (level :: restLevels) inc :=
+                matchMeasure_skip_empty_level level restLevels inc horders
+              -- fuel sufficient for the recursive call: n > matchMeasure restLevels inc
+              have hfuel' : n > matchMeasure restLevels inc := by
+                have hprev : n + 1 > matchMeasure asks inc := hfuel
+                rw [hask] at hprev
+                omega
+              exact ih inc restLevels trades tm hside hfuel'
+            | resting :: restOrders =>
+              sorry
       · -- sell branch is absurd since hside : inc.side = .buy
         rename_i heq
         rw [hside] at heq; exact absurd heq (by decide)
