@@ -189,6 +189,48 @@ theorem AllInv.with_clock (b : BookState) (c : Timestamp)
   ⟨(BookUncrossed_with_clock b c).mp h.1, h.2.1, h.2.2⟩
 
 -- ============================================================================
+-- insertOrder side isolation
+-- ============================================================================
+
+/-- For a buy order, `insertOrder` only modifies bids. -/
+theorem insertOrder_buy_preserves_asks (b : BookState) (o : Order) (hasTrades : Bool)
+    (hside : o.side = .buy) :
+    (insertOrder b o hasTrades).asks = b.asks := by
+  unfold insertOrder
+  match hsd : o.side with
+  | .buy  => simp
+  | .sell => exact absurd (hside.symm.trans hsd) (by decide)
+
+/-- For a sell order, `insertOrder` only modifies asks. -/
+theorem insertOrder_sell_preserves_bids (b : BookState) (o : Order) (hasTrades : Bool)
+    (hside : o.side = .sell) :
+    (insertOrder b o hasTrades).bids = b.bids := by
+  unfold insertOrder
+  match hsd : o.side with
+  | .buy  => exact absurd (hside.symm.trans hsd) (by decide)
+  | .sell => simp
+
+/-- `insertOrder` never modifies stops. -/
+theorem insertOrder_preserves_stops (b : BookState) (o : Order) (hasTrades : Bool) :
+    (insertOrder b o hasTrades).stops = b.stops := by
+  unfold insertOrder
+  match o.side with
+  | .buy  => rfl
+  | .sell => rfl
+
+/-- `dispose` never modifies stops. -/
+theorem dispose_preserves_stops (inc : Order) (b : BookState) (trades : List Trade) :
+    (dispose inc b trades).stops = b.stops := by
+  unfold dispose
+  split
+  · rfl
+  split
+  · rfl
+  split
+  · rfl
+  exact insertOrder_preserves_stops b inc _
+
+-- ============================================================================
 -- Main theorem (STUB: reduces to processOrder_preserves_uncrossed)
 -- ============================================================================
 
