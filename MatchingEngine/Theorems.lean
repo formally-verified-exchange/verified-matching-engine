@@ -1,0 +1,77 @@
+import MatchingEngine.Process
+import MatchingEngine.Invariants
+
+/-!
+# Matching Engine — Invariant Preservation Theorems (Fresh Start)
+
+This file is being rebuilt from scratch after we discovered that prior
+versions were never being type-checked (the build target did not include
+this file). Everything here must compile cleanly.
+
+Key theorem: `process_preserves_uncrossed` — after processing an order,
+the resulting book remains uncrossed.
+
+**Note**: `BookUncrossed` checks only head prices. For the theorem to be
+true, we also need the book's price levels to be sorted (otherwise
+`doMatch` could consume a high head ask and advance to a lower one,
+lowering `bestAsk` below `bestBid`). So the theorem takes sortedness
+hypotheses.
+-/
+
+-- ============================================================================
+-- Combined book invariant: uncrossed + sorted price levels
+-- ============================================================================
+
+/-- Combined book invariant: the book is uncrossed and its price levels
+    are sorted on both sides. Both conditions are needed — `BookUncrossed`
+    alone is not preserved by `doMatch` on unsorted books. -/
+def AllInv (b : BookState) : Prop :=
+  BookUncrossed b ∧
+  bidsSortedDescB b.bids = true ∧
+  asksSortedAscB b.asks = true
+
+theorem AllInv.uncrossed {b : BookState} (h : AllInv b) : BookUncrossed b := h.1
+theorem AllInv.bids_sorted {b : BookState} (h : AllInv b) :
+    bidsSortedDescB b.bids = true := h.2.1
+theorem AllInv.asks_sorted {b : BookState} (h : AllInv b) :
+    asksSortedAscB b.asks = true := h.2.2
+
+-- ============================================================================
+-- BookUncrossed depends only on bids and asks
+-- ============================================================================
+
+/-- Two books with the same bids and asks have the same `BookUncrossed` value. -/
+theorem BookUncrossed_of_bids_asks_eq {b1 b2 : BookState}
+    (hb : b1.bids = b2.bids) (ha : b1.asks = b2.asks) :
+    BookUncrossed b1 ↔ BookUncrossed b2 := by
+  unfold BookUncrossed bestBidPrice bestAskPrice
+  rw [hb, ha]
+
+/-- Updating metadata fields preserves `BookUncrossed`. -/
+theorem BookUncrossed_with_meta (b : BookState) (nid : OrderId) (clk : Timestamp) :
+    BookUncrossed b ↔ BookUncrossed { b with nextId := nid, clock := clk } :=
+  BookUncrossed_of_bids_asks_eq rfl rfl
+
+-- ============================================================================
+-- Main theorem (STUB: reduces to processOrder_preserves_uncrossed)
+-- ============================================================================
+
+/-- SORRY: processOrder preserves `BookUncrossed`. This is the core obligation
+    that will be proven via mutual induction over processOrder / processCascade
+    / processTriggeredStops, with case analysis on the pipeline phases. -/
+theorem processOrder_preserves_uncrossed (fuel : Nat) (o : Order) (b : BookState)
+    (_h : AllInv b) :
+    BookUncrossed (processOrder fuel o b).book := by
+  sorry
+
+/-- Main theorem: `process` preserves `BookUncrossed`. Reduces to
+    `processOrder_preserves_uncrossed` since `process` only adds metadata
+    updates (nextId, clock) on top of `processOrder`. -/
+theorem process_preserves_uncrossed (b : BookState) (o : Order)
+    (h : AllInv b) :
+    BookUncrossed (process b o).book := by
+  show BookUncrossed (process b o).book
+  unfold process
+  simp only
+  exact (BookUncrossed_with_meta _ _ _).mp
+    (processOrder_preserves_uncrossed defaultFuel _ b h)

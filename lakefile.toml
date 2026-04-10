@@ -1,0 +1,10 @@
+name = "MatchingEngine"
+version = "0.1.0"
+defaultTargets = ["matchingengine"]
+
+[[lean_lib]]
+name = "MatchingEngine"
+
+[[lean_exe]]
+name = "matchingengine"
+root = "Main"
