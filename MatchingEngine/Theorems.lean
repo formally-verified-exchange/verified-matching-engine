@@ -231,6 +231,39 @@ theorem dispose_preserves_stops (inc : Order) (b : BookState) (trades : List Tra
   exact insertOrder_preserves_stops b inc _
 
 -- ============================================================================
+-- Level-modification helpers for asks/bids modification patterns in doMatch
+-- ============================================================================
+
+/-- Modified head-level + restLevels with the `if-isEmpty` pattern (as used
+    by doMatch's skip/STP/decrement branches) preserves a per-level-price
+    predicate `S`. -/
+private theorem modLevelPrices {level : PriceLevel} {restLevels : List PriceLevel}
+    {S : Price → Prop}
+    (hlevel : S level.price)
+    (hrest : ∀ l ∈ restLevels, S l.price)
+    (ords : List Order) :
+    ∀ l ∈ (if ords.isEmpty then restLevels
+           else { level with orders := ords } :: restLevels), S l.price := by
+  intro l hl
+  split at hl
+  · exact hrest l hl
+  · cases hl with
+    | head => exact hlevel
+    | tail _ hmem => exact hrest l hmem
+
+/-- Cons-only variant (used by normal fill's partial / iceberg cases). -/
+private theorem consLevelPrices {level : PriceLevel} {restLevels : List PriceLevel}
+    {S : Price → Prop}
+    (hlevel : S level.price)
+    (hrest : ∀ l ∈ restLevels, S l.price)
+    (ords : List Order) :
+    ∀ l ∈ ({ level with orders := ords } :: restLevels), S l.price := by
+  intro l hl
+  cases hl with
+  | head => exact hlevel
+  | tail _ hmem => exact hrest l hmem
+
+-- ============================================================================
 -- Minimal reproducer for the Lean 4.26 `simp only [hside]` issue
 -- ============================================================================
 
