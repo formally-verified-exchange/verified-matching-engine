@@ -845,6 +845,193 @@ private theorem bidsSortedDescB_drop_head_pattern (level : PriceLevel)
     exact bidsSortedDescB_modify_head level restLevels restOrders h
 
 -- ============================================================================
+-- insertDesc/insertAsc sortedness preservation
+-- ============================================================================
+
+/-- Every level in `insertDesc levels o p` has head price `< bound` if `p < bound`
+    and every level in `levels.head?` has price `< bound`. -/
+private theorem insertDesc_head_lt_bound (levels : List PriceLevel) (o : Order) (p : Price)
+    (bound : Price) (h_p : p < bound)
+    (h_lvls : ∀ lh ∈ levels.head?, lh.price < bound) :
+    ∀ lh ∈ (insertDesc levels o p).head?, lh.price < bound := by
+  cases levels with
+  | nil =>
+    unfold insertDesc
+    intro lh hlh
+    simp at hlh
+    rw [← hlh]
+    exact h_p
+  | cons l rest =>
+    unfold insertDesc
+    intro lh hlh
+    by_cases h1 : p > l.price
+    · simp [h1] at hlh
+      rw [← hlh]; exact h_p
+    · by_cases h2 : p = l.price
+      · have hb : (p == l.price) = true := by simp [h2]
+        simp [h1, hb] at hlh
+        rw [← hlh]
+        exact h_lvls l (by simp)
+      · have h3 : ¬ ((p == l.price) = true) := by
+          intro heq; exact h2 (by simpa using heq)
+        simp [h1, h3] at hlh
+        rw [← hlh]
+        exact h_lvls l (by simp)
+
+/-- Every level in `insertAsc levels o p` has head price `> bound` if `p > bound`
+    and every level in `levels.head?` has price `> bound`. -/
+private theorem insertAsc_head_gt_bound (levels : List PriceLevel) (o : Order) (p : Price)
+    (bound : Price) (h_p : p > bound)
+    (h_lvls : ∀ lh ∈ levels.head?, lh.price > bound) :
+    ∀ lh ∈ (insertAsc levels o p).head?, lh.price > bound := by
+  cases levels with
+  | nil =>
+    unfold insertAsc
+    intro lh hlh
+    simp at hlh
+    rw [← hlh]
+    exact h_p
+  | cons l rest =>
+    unfold insertAsc
+    intro lh hlh
+    by_cases h1 : p < l.price
+    · simp [h1] at hlh
+      rw [← hlh]; exact h_p
+    · by_cases h2 : p = l.price
+      · have hb : (p == l.price) = true := by simp [h2]
+        simp [h1, hb] at hlh
+        rw [← hlh]
+        exact h_lvls l (by simp)
+      · have h3 : ¬ ((p == l.price) = true) := by
+          intro heq; exact h2 (by simpa using heq)
+        simp [h1, h3] at hlh
+        rw [← hlh]
+        exact h_lvls l (by simp)
+
+/-- `insertDesc` preserves `bidsSortedDescB`. -/
+theorem insertDesc_preserves_sorted (levels : List PriceLevel) (o : Order) (p : Price)
+    (h : bidsSortedDescB levels = true) :
+    bidsSortedDescB (insertDesc levels o p) = true := by
+  induction levels with
+  | nil => rfl
+  | cons l rest ih =>
+    unfold insertDesc
+    by_cases h1 : p > l.price
+    · simp [h1]
+      unfold bidsSortedDescB
+      rw [Bool.and_eq_true]
+      refine ⟨by exact decide_eq_true h1, h⟩
+    · by_cases h2 : p = l.price
+      · have hb : (p == l.price) = true := by simp [h2]
+        simp [h1, hb]
+        exact bidsSortedDescB_modify_head l rest _ h
+      · -- p < l.price: recurse
+        have h3 : ¬ ((p == l.price) = true) := by
+          intro heq; exact h2 (by simpa using heq)
+        simp [h1, h3]
+        -- Goal: bidsSortedDescB (l :: insertDesc rest o p) = true
+        have h_rest_sorted : bidsSortedDescB rest = true :=
+          bidsSortedDescB_tail l rest h
+        have hrec : bidsSortedDescB (insertDesc rest o p) = true :=
+          ih h_rest_sorted
+        have hle : p ≤ l.price := Nat.le_of_not_lt h1
+        have hpl : p < l.price := Nat.lt_of_le_of_ne hle h2
+        -- Need: all levels in rest have price < l.price (from original sortedness)
+        have h_rest_lt : ∀ lh ∈ rest.head?, lh.price < l.price := by
+          intro lh hlh
+          cases hr : rest with
+          | nil => rw [hr] at hlh; cases hlh
+          | cons r rs =>
+            rw [hr] at hlh
+            simp at hlh
+            rw [← hlh]
+            rw [hr] at h
+            unfold bidsSortedDescB at h
+            rw [Bool.and_eq_true] at h
+            exact of_decide_eq_true h.1
+        have h_new_head_lt : ∀ hd ∈ (insertDesc rest o p).head?, hd.price < l.price :=
+          insertDesc_head_lt_bound rest o p l.price hpl h_rest_lt
+        -- Combine: insertDesc rest is sorted + head < l.price
+        cases hri : insertDesc rest o p with
+        | nil =>
+          show bidsSortedDescB [l] = true
+          rfl
+        | cons r rs =>
+          unfold bidsSortedDescB
+          rw [Bool.and_eq_true]
+          refine ⟨?_, ?_⟩
+          · have := h_new_head_lt r (by rw [hri]; simp)
+            exact decide_eq_true this
+          · rw [hri] at hrec; exact hrec
+
+/-- `insertAsc` preserves `asksSortedAscB`. -/
+theorem insertAsc_preserves_sorted (levels : List PriceLevel) (o : Order) (p : Price)
+    (h : asksSortedAscB levels = true) :
+    asksSortedAscB (insertAsc levels o p) = true := by
+  induction levels with
+  | nil => rfl
+  | cons l rest ih =>
+    unfold insertAsc
+    by_cases h1 : p < l.price
+    · simp [h1]
+      unfold asksSortedAscB
+      rw [Bool.and_eq_true]
+      refine ⟨by exact decide_eq_true h1, h⟩
+    · by_cases h2 : p = l.price
+      · have hb : (p == l.price) = true := by simp [h2]
+        simp [h1, hb]
+        exact asksSortedAscB_modify_head l rest _ h
+      · have h3 : ¬ ((p == l.price) = true) := by
+          intro heq; exact h2 (by simpa using heq)
+        simp [h1, h3]
+        have h_rest_sorted : asksSortedAscB rest = true :=
+          asksSortedAscB_tail l rest h
+        have hrec : asksSortedAscB (insertAsc rest o p) = true :=
+          ih h_rest_sorted
+        have hle : l.price ≤ p := Nat.le_of_not_lt h1
+        have hpl : p > l.price := Nat.lt_of_le_of_ne hle (fun heq => h2 heq.symm)
+        have h_rest_gt : ∀ lh ∈ rest.head?, lh.price > l.price := by
+          intro lh hlh
+          cases hr : rest with
+          | nil => rw [hr] at hlh; cases hlh
+          | cons r rs =>
+            rw [hr] at hlh
+            simp at hlh
+            rw [← hlh]
+            rw [hr] at h
+            unfold asksSortedAscB at h
+            rw [Bool.and_eq_true] at h
+            exact of_decide_eq_true h.1
+        have h_new_head_gt : ∀ hd ∈ (insertAsc rest o p).head?, hd.price > l.price :=
+          insertAsc_head_gt_bound rest o p l.price hpl h_rest_gt
+        cases hri : insertAsc rest o p with
+        | nil => show asksSortedAscB [l] = true; rfl
+        | cons r rs =>
+          unfold asksSortedAscB
+          rw [Bool.and_eq_true]
+          refine ⟨?_, ?_⟩
+          · have := h_new_head_gt r (by rw [hri]; simp)
+            exact decide_eq_true this
+          · rw [hri] at hrec; exact hrec
+
+/-- `insertOrder` preserves both bids and asks sortedness. -/
+theorem insertOrder_preserves_sortedness (b : BookState) (o : Order) (hasTrades : Bool)
+    (h_bids : bidsSortedDescB b.bids = true)
+    (h_asks : asksSortedAscB b.asks = true) :
+    bidsSortedDescB (insertOrder b o hasTrades).bids = true ∧
+    asksSortedAscB (insertOrder b o hasTrades).asks = true := by
+  unfold insertOrder
+  cases hs : o.side with
+  | buy =>
+    simp only
+    refine ⟨?_, h_asks⟩
+    exact insertDesc_preserves_sorted b.bids _ _ h_bids
+  | sell =>
+    simp only
+    refine ⟨h_bids, ?_⟩
+    exact insertAsc_preserves_sorted b.asks _ _ h_asks
+
+-- ============================================================================
 -- doMatch preserves contra-side sortedness
 -- ============================================================================
 
