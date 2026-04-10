@@ -1,6 +1,8 @@
 import MatchingEngine.Process
 import MatchingEngine.Invariants
 
+set_option maxHeartbeats 1000000
+
 /-!
 # Matching Engine — Invariant Preservation Theorems (Fresh Start)
 
@@ -134,6 +136,57 @@ theorem doMatch_sell_preserves_asks (fuel : Nat) (inc : Order)
                 · split
                   · exact ih _ _ _ _ (by first | rfl | exact hside)
                   · exact ih _ _ _ _ (by first | rfl | exact hside)
+
+-- ============================================================================
+-- BookUncrossed metadata-irrelevance lemmas
+-- ============================================================================
+
+/-- Updating `stops` preserves `BookUncrossed`. -/
+theorem BookUncrossed_with_stops (b : BookState) (s : List Order) :
+    BookUncrossed b ↔ BookUncrossed { b with stops := s } :=
+  BookUncrossed_of_bids_asks_eq rfl rfl
+
+/-- Updating `lastTradePrice` preserves `BookUncrossed`. -/
+theorem BookUncrossed_with_ltp (b : BookState) (p : Option Price) :
+    BookUncrossed b ↔ BookUncrossed { b with lastTradePrice := p } :=
+  BookUncrossed_of_bids_asks_eq rfl rfl
+
+/-- Updating `clock` preserves `BookUncrossed`. -/
+theorem BookUncrossed_with_clock (b : BookState) (c : Timestamp) :
+    BookUncrossed b ↔ BookUncrossed { b with clock := c } :=
+  BookUncrossed_of_bids_asks_eq rfl rfl
+
+/-- If the asks side is empty, the book is uncrossed (no best ask to cross). -/
+theorem BookUncrossed_no_asks (b : BookState) (h : b.asks = []) :
+    BookUncrossed b := by
+  unfold BookUncrossed bestAskPrice
+  rw [h]; simp
+
+/-- If the bids side is empty, the book is uncrossed (no best bid to cross). -/
+theorem BookUncrossed_no_bids (b : BookState) (h : b.bids = []) :
+    BookUncrossed b := by
+  unfold BookUncrossed bestBidPrice
+  rw [h]; simp
+
+-- ============================================================================
+-- AllInv lifted metadata helpers
+-- ============================================================================
+
+theorem AllInv.with_meta (b : BookState) (nid : OrderId) (clk : Timestamp)
+    (h : AllInv b) : AllInv { b with nextId := nid, clock := clk } :=
+  ⟨(BookUncrossed_with_meta b nid clk).mp h.1, h.2.1, h.2.2⟩
+
+theorem AllInv.with_stops (b : BookState) (s : List Order)
+    (h : AllInv b) : AllInv { b with stops := s } :=
+  ⟨(BookUncrossed_with_stops b s).mp h.1, h.2.1, h.2.2⟩
+
+theorem AllInv.with_ltp (b : BookState) (p : Option Price)
+    (h : AllInv b) : AllInv { b with lastTradePrice := p } :=
+  ⟨(BookUncrossed_with_ltp b p).mp h.1, h.2.1, h.2.2⟩
+
+theorem AllInv.with_clock (b : BookState) (c : Timestamp)
+    (h : AllInv b) : AllInv { b with clock := c } :=
+  ⟨(BookUncrossed_with_clock b c).mp h.1, h.2.1, h.2.2⟩
 
 -- ============================================================================
 -- Main theorem (STUB: reduces to processOrder_preserves_uncrossed)
