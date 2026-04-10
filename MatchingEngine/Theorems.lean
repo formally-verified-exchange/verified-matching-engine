@@ -2452,9 +2452,17 @@ theorem processOrder_preserves_uncrossed (fuel : Nat) (o : Order) (b : BookState
             cases hwcv : wouldCross o b with
             | true => exact absurd hwcv hwc
             | false => rfl
-          -- Need to know o.price.isSome for the post-only phase.
-          -- Post-only orders without price are a spec edge case; sorry for now.
-          sorry
+          -- Case on o.price.isSome
+          cases hp : o.price with
+          | none =>
+            -- Spec edge case: post-only with no price inserts at price 0,
+            -- which could cross a zero-priced level. Requires a spec invariant
+            -- (post-only → limit order → price.isSome). Deferred.
+            sorry
+          | some p =>
+            have hps : o.price.isSome = true := by rw [hp]; rfl
+            exact insertOrder_preserves_uncrossed b o false o.side rfl h.1
+              (wouldCross_false_nonCross o b o.side rfl hps hnc)
       · split
         · -- Phase 3: FOK
           split
