@@ -231,6 +231,40 @@ theorem dispose_preserves_stops (inc : Order) (b : BookState) (trades : List Tra
   exact insertOrder_preserves_stops b inc _
 
 -- ============================================================================
+-- Minimal reproducer for the Lean 4.26 `simp only [hside]` issue
+-- ============================================================================
+
+/-- **REPRO**: This is the minimal shape that fails. It's identical to
+    `doMatch_buy_preserves_bids` except the conclusion is a `∀ t ∈ ...`
+    over trades with an abstract predicate `S`. The exact same
+    `unfold doMatch; simp only [hside]` tactic works for the bids equality
+    goal but fails here with `maximum number of steps exceeded`. -/
+private theorem repro_simp_fails (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (S : Price → Prop) (hside : inc.side = .buy)
+    (hacc : ∀ t ∈ trades, S t.price)
+    (hasks : ∀ l ∈ asks, S l.price) :
+    ∀ t ∈ (doMatch fuel inc bids asks trades tm).trades, S t.price := by
+  induction fuel generalizing inc asks trades tm with
+  | zero => unfold doMatch; exact hacc
+  | succ n ih =>
+    unfold doMatch
+    split
+    · exact hacc
+    · split
+      · -- inc.side = .buy branch
+        cases hask : asks with
+        | nil => exact hacc
+        | cons level restLevels =>
+          simp only
+          split
+          · exact hacc  -- !canMatchPrice: returns with trades unchanged
+          · sorry
+      · rename_i heq
+        rw [hside] at heq
+        exact absurd heq (by decide)
+
+-- ============================================================================
 -- Main theorem (STUB: reduces to processOrder_preserves_uncrossed)
 -- ============================================================================
 
