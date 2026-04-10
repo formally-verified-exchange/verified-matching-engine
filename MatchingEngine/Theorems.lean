@@ -933,11 +933,19 @@ def totalRemaining : List PriceLevel → Nat
   | [] => 0
   | l :: rest => orderSum l.orders + totalRemaining rest
 
-/-- Well-founded measure for `doMatch` progress: lexicographic in
-    `(totalRemaining contra, inc.remainingQty)`. Encoded as a sum
-    for simplicity of composition with `Nat` ordering. -/
+/-- Total number of orders across all price levels. Needed in the measure
+    because the empty-level-skip branch of `doMatch` doesn't change
+    `totalRemaining` but does shrink the level list. -/
+def orderCount : List PriceLevel → Nat
+  | [] => 0
+  | l :: rest => l.orders.length + orderCount rest
+
+/-- Well-founded measure for `doMatch` progress. Includes
+    `totalRemaining + orderCount + contra.length + inc.remainingQty` so
+    that EVERY non-terminal recursive step strictly decreases it. Matches
+    the structure of `computeMatchFuel`. -/
 def matchMeasure (contra : List PriceLevel) (inc : Order) : Nat :=
-  totalRemaining contra + inc.remainingQty
+  totalRemaining contra + orderCount contra + contra.length + inc.remainingQty
 
 /-- Dropping the head order from the head level (with the "remove level if
     empty" pattern used by `doMatch`) decreases `totalRemaining` by exactly
@@ -992,6 +1000,25 @@ theorem totalRemaining_drop_head_order_lt
         + resting.remainingQty := by
           exact Nat.lt_add_of_pos_right hpos
     _ = totalRemaining (level :: restLevels) := heq
+
+/-- Empty-level-skip: dropping a head level whose `orders` is empty leaves
+    `totalRemaining` and `orderCount` unchanged, and decreases the level
+    count by 1. Hence `matchMeasure` strictly decreases. -/
+theorem matchMeasure_skip_empty_level
+    (level : PriceLevel) (restLevels : List PriceLevel) (inc : Order)
+    (hempty : level.orders = []) :
+    matchMeasure restLevels inc < matchMeasure (level :: restLevels) inc := by
+  unfold matchMeasure
+  -- totalRemaining (level :: rest) = orderSum [] + totalRemaining rest = totalRemaining rest
+  have ht : totalRemaining (level :: restLevels) = totalRemaining restLevels := by
+    show orderSum level.orders + totalRemaining restLevels = _
+    rw [hempty]; show orderSum [] + _ = _; show 0 + _ = _; omega
+  have hoc : orderCount (level :: restLevels) = orderCount restLevels := by
+    show level.orders.length + orderCount restLevels = _
+    rw [hempty]; simp
+  have hlen : (level :: restLevels).length = restLevels.length + 1 := by simp
+  rw [ht, hoc, hlen]
+  omega
 
 /-- **Sub-lemma (task #4)**: the output of `doMatch` for a buy-side order
     on a sorted ask list is buy-stable. Proven via the progress-lemma approach
