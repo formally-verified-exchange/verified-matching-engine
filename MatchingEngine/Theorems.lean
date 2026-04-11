@@ -1411,11 +1411,15 @@ theorem insertOrder_preserves_AllInv (b : BookState) (o : Order) (hasTrades : Bo
   · exact (insertOrder_preserves_sortedness b o hasTrades h.2.1 h.2.2).1
   · exact (insertOrder_preserves_sortedness b o hasTrades h.2.1 h.2.2).2
 
-/-- `dispose` preserves `AllInv`, given the non-crossing precondition for
-    the `insertOrder` case. -/
+/-- `dispose` preserves `AllInv`. The non-crossing precondition is only
+    needed if dispose actually inserts (the last branch); in all other
+    branches dispose returns `b` unchanged. -/
 theorem dispose_preserves_AllInv (inc : Order) (b : BookState) (trades : List Trade)
     (h : AllInv b)
-    (hprice : match inc.side with
+    (hprice :
+      ¬ (inc.remainingQty = 0 ∨ inc.status = .cancelled ∨
+         inc.tif = .ioc ∨ inc.orderType = .market) →
+      match inc.side with
       | .buy  => ∀ askP ∈ bestAskPrice b, (inc.price.getD 0) < askP
       | .sell => ∀ bidP ∈ bestBidPrice b, bidP < (inc.price.getD 0)) :
     AllInv (dispose inc b trades) := by
@@ -1426,7 +1430,29 @@ theorem dispose_preserves_AllInv (inc : Order) (b : BookState) (trades : List Tr
   · exact h
   split
   · exact h
-  · exact insertOrder_preserves_AllInv b inc _ h hprice
+  · rename_i h1 h2 h3
+    apply insertOrder_preserves_AllInv b inc _ h
+    apply hprice
+    intro hor
+    exfalso
+    rcases hor with hq | hs | hi | hm
+    · apply h1
+      show (inc.remainingQty == 0 || inc.status == OrderStatus.cancelled) = true
+      rw [hq]; rfl
+    · apply h1
+      show (inc.remainingQty == 0 || inc.status == OrderStatus.cancelled) = true
+      rw [hs]
+      cases hq : inc.remainingQty with
+      | zero => rfl
+      | succ k =>
+        show ((k + 1 == 0) || true) = true
+        simp
+    · apply h2
+      show (inc.tif == TimeInForce.ioc) = true
+      rw [hi]; rfl
+    · apply h3
+      show (inc.orderType == OrderType.market) = true
+      rw [hm]; rfl
 
 -- ============================================================================
 -- doMatch buy-side no-cross after matching
