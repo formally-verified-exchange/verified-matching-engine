@@ -3263,63 +3263,63 @@ theorem computeMatchFuel_gt_matchMeasure
 /-- Extractor: buy-side version. -/
 private theorem matching_dispose_noCross_buy
     (o : Order) (b : BookState) (hside : o.side = .buy) :
-    ¬ ((doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty = 0 ∨
-       (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.status = .cancelled ∨
-       (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.tif = .ioc ∨
-       (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.orderType = .market) →
+    ¬ ((doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty = 0 ∨
+       (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.status = .cancelled ∨
+       (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.tif = .ioc ∨
+       (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.orderType = .market) →
     ∀ askP ∈ bestAskPrice { b with
-          bids := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids,
-          asks := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks,
-          clock := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).clock },
-      (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.price.getD 0 < askP := by
+          bids := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).bids,
+          asks := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks,
+          clock := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).clock },
+      (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.price.getD 0 < askP := by
   intro h_nt askP haskP
-  have hnq : (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty ≠ 0 :=
+  have hnq : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty ≠ 0 :=
     fun hq => h_nt (Or.inl hq)
-  have hnc : (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.status ≠ .cancelled :=
+  have hnc : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.status ≠ .cancelled :=
     fun hs => h_nt (Or.inr (Or.inl hs))
-  have hnq_pos : (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty > 0 :=
+  have hnq_pos : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty > 0 :=
     Nat.pos_of_ne_zero hnq
-  have hfuel_gt : computeMatchFuel b o.side > matchMeasure b.asks o := by
-    have h := computeMatchFuel_gt_matchMeasure b o o.side
-    have hcontra : contraLevels b o.side = b.asks := by
-      unfold contraLevels; rw [hside]
+  have hfuel_gt : computeMatchFuel b Side.buy > matchMeasure b.asks o := by
+    have h := computeMatchFuel_gt_matchMeasure b o Side.buy
+    have hcontra : contraLevels b Side.buy = b.asks := by
+      unfold contraLevels; rfl
     rw [hcontra] at h
     exact h
   have hnc_result := doMatch_buy_noCross_after_match
-    (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1) hside hfuel_gt
+    (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1) hside hfuel_gt
     hnq_pos hnc
   rcases hnc_result with hempty | hhead
   · -- asks empty case
     have hbe : bestAskPrice { b with
-          bids := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids,
-          asks := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks,
-          clock := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).clock } = none := by
+          bids := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).bids,
+          asks := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks,
+          clock := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).clock } = none := by
       show Option.map (fun x => x.price)
-        (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks.head? = none
+        (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks.head? = none
       rw [hempty]; rfl
     rw [hbe] at haskP
     cases haskP
-  · cases has : (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks with
+  · cases has : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks with
     | nil =>
       have hbe : bestAskPrice { b with
-            bids := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids,
-            asks := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks,
-            clock := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).clock } = none := by
+            bids := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).bids,
+            asks := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks,
+            clock := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).clock } = none := by
         show Option.map (fun x => x.price)
-          (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks.head? = none
+          (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks.head? = none
         rw [has]; rfl
       rw [hbe] at haskP; cases haskP
     | cons hd rest =>
-      have h_head : (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.price.getD 0 < hd.price := by
+      have h_head : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.price.getD 0 < hd.price := by
         apply hhead hd
-        show hd ∈ (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks.head?
+        show hd ∈ (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks.head?
         rw [has]; simp
       have hbest : bestAskPrice { b with
-            bids := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids,
-            asks := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks,
-            clock := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).clock } = some hd.price := by
+            bids := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).bids,
+            asks := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks,
+            clock := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).clock } = some hd.price := by
         show Option.map (fun x => x.price)
-          (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks.head? = some hd.price
+          (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks.head? = some hd.price
         rw [has]; rfl
       rw [hbest] at haskP
       have heq : askP = hd.price := (Option.mem_some_iff.mp haskP).symm
@@ -3329,62 +3329,62 @@ private theorem matching_dispose_noCross_buy
 /-- Extractor: sell-side version. -/
 private theorem matching_dispose_noCross_sell
     (o : Order) (b : BookState) (hside : o.side = .sell) :
-    ¬ ((doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty = 0 ∨
-       (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.status = .cancelled ∨
-       (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.tif = .ioc ∨
-       (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.orderType = .market) →
+    ¬ ((doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty = 0 ∨
+       (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.status = .cancelled ∨
+       (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.tif = .ioc ∨
+       (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.orderType = .market) →
     ∀ bidP ∈ bestBidPrice { b with
-          bids := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids,
-          asks := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks,
-          clock := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).clock },
-      bidP < (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.price.getD 0 := by
+          bids := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids,
+          asks := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).asks,
+          clock := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).clock },
+      bidP < (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.price.getD 0 := by
   intro h_nt bidP hbidP
-  have hnq : (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty ≠ 0 :=
+  have hnq : (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty ≠ 0 :=
     fun hq => h_nt (Or.inl hq)
-  have hnc : (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.status ≠ .cancelled :=
+  have hnc : (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.status ≠ .cancelled :=
     fun hs => h_nt (Or.inr (Or.inl hs))
-  have hnq_pos : (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty > 0 :=
+  have hnq_pos : (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty > 0 :=
     Nat.pos_of_ne_zero hnq
-  have hfuel_gt : computeMatchFuel b o.side > matchMeasure b.bids o := by
-    have h := computeMatchFuel_gt_matchMeasure b o o.side
-    have hcontra : contraLevels b o.side = b.bids := by
-      unfold contraLevels; rw [hside]
+  have hfuel_gt : computeMatchFuel b Side.sell > matchMeasure b.bids o := by
+    have h := computeMatchFuel_gt_matchMeasure b o Side.sell
+    have hcontra : contraLevels b Side.sell = b.bids := by
+      unfold contraLevels; rfl
     rw [hcontra] at h
     exact h
   have hnc_result := doMatch_sell_noCross_after_match
-    (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1) hside hfuel_gt
+    (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1) hside hfuel_gt
     hnq_pos hnc
   rcases hnc_result with hempty | hhead
   · have hbe : bestBidPrice { b with
-          bids := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids,
-          asks := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks,
-          clock := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).clock } = none := by
+          bids := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids,
+          asks := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).asks,
+          clock := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).clock } = none := by
       show Option.map (fun x => x.price)
-        (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids.head? = none
+        (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids.head? = none
       rw [hempty]; rfl
     rw [hbe] at hbidP
     cases hbidP
-  · cases hbs : (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids with
+  · cases hbs : (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids with
     | nil =>
       have hbe : bestBidPrice { b with
-            bids := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids,
-            asks := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks,
-            clock := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).clock } = none := by
+            bids := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids,
+            asks := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).asks,
+            clock := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).clock } = none := by
         show Option.map (fun x => x.price)
-          (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids.head? = none
+          (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids.head? = none
         rw [hbs]; rfl
       rw [hbe] at hbidP; cases hbidP
     | cons hd rest =>
-      have h_head : hd.price < (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).incoming.price.getD 0 := by
+      have h_head : hd.price < (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.price.getD 0 := by
         apply hhead hd
-        show hd ∈ (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids.head?
+        show hd ∈ (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids.head?
         rw [hbs]; simp
       have hbest : bestBidPrice { b with
-            bids := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids,
-            asks := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).asks,
-            clock := (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).clock } = some hd.price := by
+            bids := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids,
+            asks := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).asks,
+            clock := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).clock } = some hd.price := by
         show Option.map (fun x => x.price)
-          (doMatch (computeMatchFuel b o.side) o b.bids b.asks [] (b.clock + 1)).bids.head? = some hd.price
+          (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids.head? = some hd.price
         rw [hbs]; rfl
       rw [hbest] at hbidP
       have heq : bidP = hd.price := (Option.mem_some_iff.mp hbidP).symm
@@ -3410,10 +3410,19 @@ private theorem matching_dispose_noCross
                   asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
                   clock := (matchOrder (computeMatchFuel b o.side) b o).clock },
                 bidP < (matchOrder (computeMatchFuel b o.side) b o).incoming.price.getD 0 := by
-  -- The side-specific helpers (matching_dispose_noCross_buy/sell) are proven;
-  -- the unified wrapper requires term unification that's fragile due to
-  -- o.side vs Side.buy substitution after cases. Sorry'd.
-  sorry
+  intro h_nt
+  have hinc_side : (matchOrder (computeMatchFuel b o.side) b o).incoming.side = o.side := by
+    unfold matchOrder
+    exact doMatch_preserves_inc_side _ o b.bids b.asks [] (b.clock + 1)
+  rw [hinc_side]
+  simp only [matchOrder] at h_nt ⊢
+  cases hs : o.side with
+  | buy =>
+    rw [hs] at h_nt
+    exact matching_dispose_noCross_buy o b hs h_nt
+  | sell =>
+    rw [hs] at h_nt
+    exact matching_dispose_noCross_sell o b hs h_nt
 
 -- ============================================================================
 -- Cascade preservation stubs (mutual induction obligation)
