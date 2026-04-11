@@ -3573,8 +3573,12 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                   exact dispose_preserves_AllInv _ _ _ hb' (matching_dispose_noCross o b h)
                 | false =>
                   simp only [hte, Bool.not_false, if_true]
-                  -- inc = {mr.incoming with minQty := none}; non-crossing carries via record update
-                  sorry
+                  -- inc = {mr.incoming with minQty := none}; record update preserves
+                  -- side/price/etc., so the dispose conditions and non-crossing match.
+                  apply dispose_preserves_AllInv _ _ _ hb'
+                  intro h_nt
+                  -- h_nt is about the cleared inc; transfer to mr.incoming
+                  exact matching_dispose_noCross o b h h_nt
             · split
               · -- Phase 4: MTL
                 -- MTL has multiple sub-cases (no-trades vs trades, converted done vs partial)
