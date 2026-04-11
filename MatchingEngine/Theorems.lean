@@ -1373,13 +1373,93 @@ theorem doMatch_preserves_asks_sorted (fuel : Nat) (inc : Order)
     rw [doMatch_sell_preserves_asks fuel inc bids asks trades tm hs]
     exact hsorted
 
-/-- `doMatch` preserves `inc.side` — doMatch only modifies inc via record
-    updates on `remainingQty`/`status`, never on `.side`.
-    **Sorry'd**: 120-line mechanical structural induction, deferred. -/
+/-- Buy-specific: `doMatch` preserves `inc.side = .buy`. -/
+theorem doMatch_buy_preserves_inc_side (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hside : inc.side = .buy) :
+    (doMatch fuel inc bids asks trades tm).incoming.side = .buy := by
+  induction fuel generalizing inc asks trades tm with
+  | zero => exact hside
+  | succ n ih =>
+    unfold doMatch; simp only [hside]
+    split
+    · exact hside
+    · split
+      · exact hside
+      · rename_i level restLevels
+        split
+        · exact hside
+        · split
+          · exact ih _ _ _ _ (by first | rfl | exact hside)
+          · rename_i _ resting restOrders _
+            split
+            · split <;> (first | exact ih _ _ _ _ (by first | rfl | exact hside) | rfl)
+            · split
+              · split
+                · rfl
+                · exact ih _ _ _ _ (by first | rfl | exact hside)
+                · rfl
+                · split
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+                  · split
+                    · exact ih _ _ _ _ (by first | rfl | exact hside)
+                    · split
+                      · exact ih _ _ _ _ (by first | rfl | exact hside)
+                      · exact ih _ _ _ _ (by first | rfl | exact hside)
+              · split
+                · exact ih _ _ _ _ (by first | rfl | exact hside)
+                · split
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+
+/-- Sell-specific: `doMatch` preserves `inc.side = .sell`. -/
+theorem doMatch_sell_preserves_inc_side (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hside : inc.side = .sell) :
+    (doMatch fuel inc bids asks trades tm).incoming.side = .sell := by
+  induction fuel generalizing inc bids trades tm with
+  | zero => exact hside
+  | succ n ih =>
+    unfold doMatch; simp only [hside]
+    split
+    · exact hside
+    · split
+      · exact hside
+      · rename_i level restLevels
+        split
+        · exact hside
+        · split
+          · exact ih _ _ _ _ (by first | rfl | exact hside)
+          · rename_i _ resting restOrders _
+            split
+            · split <;> (first | exact ih _ _ _ _ (by first | rfl | exact hside) | rfl)
+            · split
+              · split
+                · rfl
+                · exact ih _ _ _ _ (by first | rfl | exact hside)
+                · rfl
+                · split
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+                  · split
+                    · exact ih _ _ _ _ (by first | rfl | exact hside)
+                    · split
+                      · exact ih _ _ _ _ (by first | rfl | exact hside)
+                      · exact ih _ _ _ _ (by first | rfl | exact hside)
+              · split
+                · exact ih _ _ _ _ (by first | rfl | exact hside)
+                · split
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+
+/-- `doMatch` preserves `inc.side` — unified. -/
 theorem doMatch_preserves_inc_side (fuel : Nat) (inc : Order)
     (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp) :
     (doMatch fuel inc bids asks trades tm).incoming.side = inc.side := by
-  sorry
+  cases hs : inc.side with
+  | buy =>
+    exact doMatch_buy_preserves_inc_side fuel inc bids asks trades tm hs
+  | sell =>
+    exact doMatch_sell_preserves_inc_side fuel inc bids asks trades tm hs
 
 /-- `doMatch` preserves `inc.price` — same structure as inc_side. -/
 theorem doMatch_preserves_inc_price (fuel : Nat) (inc : Order)
