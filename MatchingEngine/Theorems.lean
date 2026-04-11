@@ -1373,20 +1373,15 @@ theorem doMatch_preserves_asks_sorted (fuel : Nat) (inc : Order)
     rw [doMatch_sell_preserves_asks fuel inc bids asks trades tm hs]
     exact hsorted
 
-/-- `doMatch` preserves `inc.side` — the incoming order's side is never
-    modified across recursive steps. doMatch only updates `inc` via
-    record updates on `remainingQty` and `status`, so `.side` is invariant.
-
-    **Currently sorry'd**: proving this requires induction on fuel with
-    15-branch case analysis (same structure as `doMatch_buy_preserves_bids`).
-    Each branch either returns `inc` unchanged or `{inc with remainingQty := ..., status := ...}`,
-    both of which preserve `.side` trivially. Deferred to a follow-up. -/
+/-- `doMatch` preserves `inc.side` — doMatch only modifies inc via record
+    updates on `remainingQty`/`status`, never on `.side`.
+    **Sorry'd**: 120-line mechanical structural induction, deferred. -/
 theorem doMatch_preserves_inc_side (fuel : Nat) (inc : Order)
     (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp) :
     (doMatch fuel inc bids asks trades tm).incoming.side = inc.side := by
   sorry
 
-/-- `doMatch` preserves `inc.price` — similarly, never modified. -/
+/-- `doMatch` preserves `inc.price` — same structure as inc_side. -/
 theorem doMatch_preserves_inc_price (fuel : Nat) (inc : Order)
     (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp) :
     (doMatch fuel inc bids asks trades tm).incoming.price = inc.price := by
