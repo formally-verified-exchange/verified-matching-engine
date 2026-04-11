@@ -3168,13 +3168,82 @@ theorem doMatch_output_stable (fuel : Nat) (inc : Order)
 -- doMatch passive price rule (price-time priority)
 -- ============================================================================
 
+/-- Sell-mirror of `doMatch_passive_price_buy_acc`. Structural copy with
+    asks↔bids, `.buy`↔`.sell`. -/
+private theorem doMatch_passive_price_sell_acc (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (S : Price → Prop) (hside : inc.side = .sell)
+    (hacc : ∀ t ∈ trades, S t.price)
+    (hbids : ∀ l ∈ bids, S l.price) :
+    ∀ t ∈ (doMatch fuel inc bids asks trades tm).trades, S t.price := by
+  induction fuel generalizing inc bids trades tm with
+  | zero => unfold doMatch; exact hacc
+  | succ n ih =>
+    unfold doMatch
+    split
+    · exact hacc
+    · split
+      · -- buy branch: absurd since inc.side = .sell
+        rename_i heq
+        rw [hside] at heq; exact absurd heq (by decide)
+      · -- sell branch
+        cases hbid : bids with
+        | nil => exact hacc
+        | cons level restLevels =>
+          simp only
+          rw [hbid] at hbids
+          have hlp : S level.price := hbids level (List.mem_cons_self)
+          have hrp : ∀ l ∈ restLevels, S l.price := fun l hl =>
+            hbids l (List.mem_cons_of_mem _ hl)
+          split
+          · exact hacc
+          · split
+            · exact ih _ _ _ _ hside hacc hrp
+            · rename_i _ resting restOrders _
+              split
+              · split
+                · exact ih _ _ _ _ hside hacc hrp
+                · exact ih _ _ _ _ hside hacc (consLevelPrices hlp hrp _)
+              · split
+                · split
+                  · exact hacc
+                  · split
+                    · exact ih _ _ _ _ hside hacc hrp
+                    · exact ih _ _ _ _ hside hacc (consLevelPrices hlp hrp _)
+                  · exact hacc
+                  · split
+                    · exact ih _ _ _ _ hside hacc (modLevelPrices hlp hrp _)
+                    · split
+                      · exact ih _ _ _ _ hside hacc (modLevelPrices hlp hrp _)
+                      · split
+                        · exact ih _ _ _ _ hside hacc (modLevelPrices hlp hrp _)
+                        · exact ih _ _ _ _ hside hacc (consLevelPrices hlp hrp _)
+                · have hacc' : ∀ t ∈ trades ++ [{
+                      price := level.price,
+                      qty := min inc.remainingQty resting.visibleQty,
+                      aggressorId := inc.id,
+                      passiveId := resting.id,
+                      aggressorSide := inc.side,
+                      aggPostOnly := inc.postOnly,
+                      aggStpGroup := inc.stpGroup,
+                      pasStpGroup := resting.stpGroup }], S t.price := by
+                    intro t ht
+                    rw [List.mem_append] at ht
+                    cases ht with
+                    | inl h => exact hacc t h
+                    | inr h =>
+                      simp only [List.mem_singleton] at h
+                      subst h
+                      exact hlp
+                  split
+                  · exact ih _ _ _ _ hside hacc' (modLevelPrices hlp hrp _)
+                  · split
+                    · exact ih _ _ _ _ hside hacc' (consLevelPrices hlp hrp _)
+                    · exact ih _ _ _ _ hside hacc' (consLevelPrices hlp hrp _)
+
 /-- Every trade produced by `doMatch` has price equal to the price of some
     resting level (either a bid or an ask). This is the price-time priority
-    rule: aggressors trade at the resting (passive) order's price.
-
-    **Note**: only the buy side is proven via the accumulator lemma.
-    The sell side requires a symmetric `doMatch_passive_price_sell_acc`
-    that mirrors the buy proof — deferred per the symmetry simplification. -/
+    rule: aggressors trade at the resting (passive) order's price. -/
 theorem doMatch_passive_price (fuel : Nat) (inc : Order) (bids asks : List PriceLevel)
     (tm : Timestamp) :
     ∀ t ∈ (doMatch fuel inc bids asks [] tm).trades,
@@ -3186,8 +3255,10 @@ theorem doMatch_passive_price (fuel : Nat) (inc : Order) (bids asks : List Price
       (fun _ h => absurd h List.not_mem_nil)
       (fun l hl => ⟨l, Or.inr hl, rfl⟩)
   | sell =>
-    -- Symmetric to buy via doMatch_passive_price_sell_acc; deferred.
-    sorry
+    exact doMatch_passive_price_sell_acc fuel inc bids asks [] tm
+      (fun p => ∃ l, (l ∈ bids ∨ l ∈ asks) ∧ p = l.price) hs
+      (fun _ h => absurd h List.not_mem_nil)
+      (fun l hl => ⟨l, Or.inl hl, rfl⟩)
 
 -- ============================================================================
 -- Main theorem (STUB: reduces to processOrder_preserves_uncrossed)
@@ -3262,22 +3333,22 @@ theorem computeMatchFuel_gt_matchMeasure
 
 /-- Extractor: buy-side version. -/
 private theorem matching_dispose_noCross_buy
-    (o : Order) (b : BookState) (hside : o.side = .buy) :
-    ¬ ((doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty = 0 ∨
-       (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.status = .cancelled ∨
-       (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.tif = .ioc ∨
-       (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.orderType = .market) →
+    (o : Order) (b : BookState) (tm : Timestamp) (hside : o.side = .buy) :
+    ¬ ((doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).incoming.remainingQty = 0 ∨
+       (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).incoming.status = .cancelled ∨
+       (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).incoming.tif = .ioc ∨
+       (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).incoming.orderType = .market) →
     ∀ askP ∈ bestAskPrice { b with
-          bids := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).bids,
-          asks := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks,
-          clock := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).clock },
-      (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.price.getD 0 < askP := by
+          bids := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).bids,
+          asks := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).asks,
+          clock := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).clock },
+      (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).incoming.price.getD 0 < askP := by
   intro h_nt askP haskP
-  have hnq : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty ≠ 0 :=
+  have hnq : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).incoming.remainingQty ≠ 0 :=
     fun hq => h_nt (Or.inl hq)
-  have hnc : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.status ≠ .cancelled :=
+  have hnc : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).incoming.status ≠ .cancelled :=
     fun hs => h_nt (Or.inr (Or.inl hs))
-  have hnq_pos : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty > 0 :=
+  have hnq_pos : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).incoming.remainingQty > 0 :=
     Nat.pos_of_ne_zero hnq
   have hfuel_gt : computeMatchFuel b Side.buy > matchMeasure b.asks o := by
     have h := computeMatchFuel_gt_matchMeasure b o Side.buy
@@ -3286,40 +3357,40 @@ private theorem matching_dispose_noCross_buy
     rw [hcontra] at h
     exact h
   have hnc_result := doMatch_buy_noCross_after_match
-    (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1) hside hfuel_gt
+    (computeMatchFuel b Side.buy) o b.bids b.asks [] tm hside hfuel_gt
     hnq_pos hnc
   rcases hnc_result with hempty | hhead
   · -- asks empty case
     have hbe : bestAskPrice { b with
-          bids := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).bids,
-          asks := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks,
-          clock := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).clock } = none := by
+          bids := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).bids,
+          asks := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).asks,
+          clock := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).clock } = none := by
       show Option.map (fun x => x.price)
-        (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks.head? = none
+        (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).asks.head? = none
       rw [hempty]; rfl
     rw [hbe] at haskP
     cases haskP
-  · cases has : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks with
+  · cases has : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).asks with
     | nil =>
       have hbe : bestAskPrice { b with
-            bids := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).bids,
-            asks := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks,
-            clock := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).clock } = none := by
+            bids := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).bids,
+            asks := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).asks,
+            clock := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).clock } = none := by
         show Option.map (fun x => x.price)
-          (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks.head? = none
+          (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).asks.head? = none
         rw [has]; rfl
       rw [hbe] at haskP; cases haskP
     | cons hd rest =>
-      have h_head : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).incoming.price.getD 0 < hd.price := by
+      have h_head : (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).incoming.price.getD 0 < hd.price := by
         apply hhead hd
-        show hd ∈ (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks.head?
+        show hd ∈ (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).asks.head?
         rw [has]; simp
       have hbest : bestAskPrice { b with
-            bids := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).bids,
-            asks := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks,
-            clock := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).clock } = some hd.price := by
+            bids := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).bids,
+            asks := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).asks,
+            clock := (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).clock } = some hd.price := by
         show Option.map (fun x => x.price)
-          (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] (b.clock + 1)).asks.head? = some hd.price
+          (doMatch (computeMatchFuel b Side.buy) o b.bids b.asks [] tm).asks.head? = some hd.price
         rw [has]; rfl
       rw [hbest] at haskP
       have heq : askP = hd.price := (Option.mem_some_iff.mp haskP).symm
@@ -3328,22 +3399,22 @@ private theorem matching_dispose_noCross_buy
 
 /-- Extractor: sell-side version. -/
 private theorem matching_dispose_noCross_sell
-    (o : Order) (b : BookState) (hside : o.side = .sell) :
-    ¬ ((doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty = 0 ∨
-       (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.status = .cancelled ∨
-       (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.tif = .ioc ∨
-       (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.orderType = .market) →
+    (o : Order) (b : BookState) (tm : Timestamp) (hside : o.side = .sell) :
+    ¬ ((doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).incoming.remainingQty = 0 ∨
+       (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).incoming.status = .cancelled ∨
+       (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).incoming.tif = .ioc ∨
+       (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).incoming.orderType = .market) →
     ∀ bidP ∈ bestBidPrice { b with
-          bids := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids,
-          asks := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).asks,
-          clock := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).clock },
-      bidP < (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.price.getD 0 := by
+          bids := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).bids,
+          asks := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).asks,
+          clock := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).clock },
+      bidP < (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).incoming.price.getD 0 := by
   intro h_nt bidP hbidP
-  have hnq : (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty ≠ 0 :=
+  have hnq : (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).incoming.remainingQty ≠ 0 :=
     fun hq => h_nt (Or.inl hq)
-  have hnc : (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.status ≠ .cancelled :=
+  have hnc : (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).incoming.status ≠ .cancelled :=
     fun hs => h_nt (Or.inr (Or.inl hs))
-  have hnq_pos : (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.remainingQty > 0 :=
+  have hnq_pos : (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).incoming.remainingQty > 0 :=
     Nat.pos_of_ne_zero hnq
   have hfuel_gt : computeMatchFuel b Side.sell > matchMeasure b.bids o := by
     have h := computeMatchFuel_gt_matchMeasure b o Side.sell
@@ -3352,39 +3423,39 @@ private theorem matching_dispose_noCross_sell
     rw [hcontra] at h
     exact h
   have hnc_result := doMatch_sell_noCross_after_match
-    (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1) hside hfuel_gt
+    (computeMatchFuel b Side.sell) o b.bids b.asks [] tm hside hfuel_gt
     hnq_pos hnc
   rcases hnc_result with hempty | hhead
   · have hbe : bestBidPrice { b with
-          bids := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids,
-          asks := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).asks,
-          clock := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).clock } = none := by
+          bids := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).bids,
+          asks := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).asks,
+          clock := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).clock } = none := by
       show Option.map (fun x => x.price)
-        (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids.head? = none
+        (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).bids.head? = none
       rw [hempty]; rfl
     rw [hbe] at hbidP
     cases hbidP
-  · cases hbs : (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids with
+  · cases hbs : (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).bids with
     | nil =>
       have hbe : bestBidPrice { b with
-            bids := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids,
-            asks := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).asks,
-            clock := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).clock } = none := by
+            bids := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).bids,
+            asks := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).asks,
+            clock := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).clock } = none := by
         show Option.map (fun x => x.price)
-          (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids.head? = none
+          (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).bids.head? = none
         rw [hbs]; rfl
       rw [hbe] at hbidP; cases hbidP
     | cons hd rest =>
-      have h_head : hd.price < (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).incoming.price.getD 0 := by
+      have h_head : hd.price < (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).incoming.price.getD 0 := by
         apply hhead hd
-        show hd ∈ (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids.head?
+        show hd ∈ (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).bids.head?
         rw [hbs]; simp
       have hbest : bestBidPrice { b with
-            bids := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids,
-            asks := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).asks,
-            clock := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).clock } = some hd.price := by
+            bids := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).bids,
+            asks := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).asks,
+            clock := (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).clock } = some hd.price := by
         show Option.map (fun x => x.price)
-          (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] (b.clock + 1)).bids.head? = some hd.price
+          (doMatch (computeMatchFuel b Side.sell) o b.bids b.asks [] tm).bids.head? = some hd.price
         rw [hbs]; rfl
       rw [hbest] at hbidP
       have heq : bidP = hd.price := (Option.mem_some_iff.mp hbidP).symm
@@ -3419,10 +3490,10 @@ private theorem matching_dispose_noCross
   cases hs : o.side with
   | buy =>
     rw [hs] at h_nt
-    exact matching_dispose_noCross_buy o b hs h_nt
+    exact matching_dispose_noCross_buy o b (b.clock + 1) hs h_nt
   | sell =>
     rw [hs] at h_nt
-    exact matching_dispose_noCross_sell o b hs h_nt
+    exact matching_dispose_noCross_sell o b (b.clock + 1) hs h_nt
 
 -- ============================================================================
 -- Cascade preservation stubs (mutual induction obligation)
@@ -3470,79 +3541,203 @@ private theorem wouldCross_false_nonCross_pre
         rw [heq] at hlt
         exact hlt
 
+/-- Raw doMatch+dispose helper: for any book `b` with AllInv, matching
+    an incoming order and then disposing preserves AllInv. Used for the
+    MTL phase 4 case 3 where the second doMatch is called directly with
+    an arbitrary timestamp (not via matchOrder). -/
+private theorem doMatch_dispose_preserves_AllInv
+    (inc : Order) (b : BookState) (tm : Timestamp) (trades : List Trade)
+    (h : AllInv b) :
+    AllInv (dispose
+      (doMatch (computeMatchFuel b inc.side) inc b.bids b.asks [] tm).incoming
+      { b with
+        bids := (doMatch (computeMatchFuel b inc.side) inc b.bids b.asks [] tm).bids,
+        asks := (doMatch (computeMatchFuel b inc.side) inc b.bids b.asks [] tm).asks,
+        clock := (doMatch (computeMatchFuel b inc.side) inc b.bids b.asks [] tm).clock }
+      trades) := by
+  apply dispose_preserves_AllInv
+  · -- AllInv of the post-match book
+    exact doMatch_preserves_AllInv (computeMatchFuel b inc.side) inc b tm inc.side rfl h
+  · -- Lazy non-crossing precondition
+    intro h_nt
+    have hinc_side : (doMatch (computeMatchFuel b inc.side) inc b.bids b.asks [] tm).incoming.side = inc.side :=
+      doMatch_preserves_inc_side _ inc b.bids b.asks [] tm
+    rw [hinc_side]
+    cases hs : inc.side with
+    | buy =>
+      rw [hs] at h_nt
+      exact matching_dispose_noCross_buy inc b tm hs h_nt
+    | sell =>
+      rw [hs] at h_nt
+      exact matching_dispose_noCross_sell inc b tm hs h_nt
+
+/-- Minimal well-formedness fragment needed by the mutual induction:
+    (1) a post-only order must have a price;
+    (2) a stop order must not be post-only (post-only is a limit-only flag). -/
+def OrderProcOk (o : Order) : Prop :=
+  (o.postOnly = true → o.price.isSome = true) ∧
+  ((o.orderType = OrderType.stopLimit ∨ o.orderType = OrderType.stopMarket) →
+    o.postOnly = false)
+
+/-- Stop-list invariant: no resting stop order carries the post-only flag. -/
+def StopsNoPostOnly (b : BookState) : Prop :=
+  ∀ s ∈ b.stops, s.postOnly = false
+
+/-- `convertStop` preserves `postOnly`. -/
+private theorem convertStop_preserves_postOnly (s : Order) (t : Timestamp) :
+    (convertStop s t).postOnly = s.postOnly := by
+  unfold convertStop
+  split <;> rfl
+
+/-- If `s` is non-post-only, `convertStop s t` satisfies `OrderProcOk`. -/
+private theorem convertStop_OrderProcOk
+    (s : Order) (t : Timestamp) (hpo : s.postOnly = false) :
+    OrderProcOk (convertStop s t) := by
+  refine ⟨?_, ?_⟩
+  · intro hpo'
+    rw [convertStop_preserves_postOnly] at hpo'
+    rw [hpo] at hpo'; cases hpo'
+  · intro _
+    rw [convertStop_preserves_postOnly]; exact hpo
+
+/-- Membership in `List.filter p l` implies membership in `l`. -/
+private theorem mem_of_mem_filterB {α : Type} (p : α → Bool) (l : List α) (x : α)
+    (h : x ∈ l.filter p) : x ∈ l := (List.mem_filter.mp h).1
+
+/-- Partition's second component is a filtered subset. -/
+private theorem partition_snd_subset {α : Type} (l : List α) (pred : α → Bool) (x : α)
+    (h : x ∈ (l.partition pred).2) : x ∈ l := by
+  rw [List.partition_eq_filter_filter] at h
+  exact (List.mem_filter.mp h).1
+
+/-- Partition's first component is a filtered subset. -/
+private theorem partition_fst_subset {α : Type} (l : List α) (pred : α → Bool) (x : α)
+    (h : x ∈ (l.partition pred).1) : x ∈ l := by
+  rw [List.partition_eq_filter_filter] at h
+  exact (List.mem_filter.mp h).1
+
+/-- `StopsNoPostOnly` is preserved by `partition` (subset). -/
+private theorem StopsNoPostOnly_partition (b : BookState) (pred : Order → Bool)
+    (h : StopsNoPostOnly b) :
+    StopsNoPostOnly { b with stops := (b.stops.partition pred).2 } := by
+  intro s hs
+  exact h s (partition_snd_subset b.stops pred s hs)
+
+/-- `StopsNoPostOnly` only depends on `.stops`. -/
+private theorem StopsNoPostOnly_of_same_stops (b b' : BookState)
+    (hstops : b'.stops = b.stops) (h : StopsNoPostOnly b) :
+    StopsNoPostOnly b' := by
+  intro s hs; rw [hstops] at hs; exact h s hs
+
+
 /-- Joint AllInv preservation for the three mutually recursive functions.
-    Proved by induction on fuel, with phase analysis for each function. -/
+    Proved by induction on fuel, with phase analysis for each function.
+    The `OrderProcOk` / `StopsNoPostOnly` preconditions rule out ill-formed
+    post-only placements that the spec's WF rules already exclude. -/
 theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
-    (∀ (o : Order) (b : BookState), AllInv b →
-      AllInv (processOrder fuel o b).book) ∧
-    (∀ (trades : List Trade) (b : BookState), AllInv b →
-      AllInv (processCascade fuel trades b).book) ∧
-    (∀ (orders : List Order) (b : BookState), AllInv b →
-      AllInv (processTriggeredStops fuel orders b).book) := by
+    (∀ (o : Order) (b : BookState),
+      OrderProcOk o → StopsNoPostOnly b → AllInv b →
+      AllInv (processOrder fuel o b).book ∧
+      StopsNoPostOnly (processOrder fuel o b).book) ∧
+    (∀ (trades : List Trade) (b : BookState),
+      StopsNoPostOnly b → AllInv b →
+      AllInv (processCascade fuel trades b).book ∧
+      StopsNoPostOnly (processCascade fuel trades b).book) ∧
+    (∀ (orders : List Order) (b : BookState),
+      (∀ o ∈ orders, o.postOnly = false) → StopsNoPostOnly b → AllInv b →
+      AllInv (processTriggeredStops fuel orders b).book ∧
+      StopsNoPostOnly (processTriggeredStops fuel orders b).book) := by
   intro fuel
   induction fuel with
   | zero =>
     refine ⟨?_, ?_, ?_⟩
-    · intro o b h
-      show AllInv b
-      exact h
-    · intro ts b h
+    · intro o b _ hs h; exact ⟨h, hs⟩
+    · intro ts b hs h
       cases ts
-      · show AllInv b; exact h
-      · show AllInv b; exact h
-    · intro os b h
+      · exact ⟨h, hs⟩
+      · exact ⟨h, hs⟩
+    · intro os b _ hs h
       cases os
-      · show AllInv b; exact h
-      · show AllInv b; exact h
+      · exact ⟨h, hs⟩
+      · exact ⟨h, hs⟩
   | succ n ih =>
     obtain ⟨ih_po, ih_pc, ih_pts⟩ := ih
     refine ⟨?_, ?_, ?_⟩
     · -- processOrder fuel'+1 preservation
-      intro o b h
+      intro o b hpok hstops h
       unfold processOrder
       simp only
       split
       · -- Phase 1: Stop order
+        rename_i hstop
+        -- hstop has form `(o.orderType == .stopLimit || o.orderType == .stopMarket) = true`
+        have ho_stop : o.orderType = .stopLimit ∨ o.orderType = .stopMarket := by
+          rw [Bool.or_eq_true] at hstop
+          rcases hstop with h1 | h2
+          · left
+            cases hv : o.orderType <;> rw [hv] at h1 <;> first | rfl | cases h1
+          · right
+            cases hv : o.orderType <;> rw [hv] at h2 <;> first | rfl | cases h2
+        -- From hpok.2: o.postOnly = false
+        have hopo : o.postOnly = false := hpok.2 ho_stop
         split
         · -- Triggered: recurse via ih_po on clock-updated book
-          exact ih_po _ _ (AllInv.with_clock b (b.clock + 1) h)
-        · -- Not triggered: append to stops
-          exact AllInv.with_stops b _ h
+          have hconv_ok : OrderProcOk (convertStop o b.clock) :=
+            convertStop_OrderProcOk o b.clock hopo
+          have hstops' : StopsNoPostOnly { b with clock := b.clock + 1 } := by
+            intro s hs; exact hstops s hs
+          exact ih_po _ _ hconv_ok hstops' (AllInv.with_clock b (b.clock + 1) h)
+        · -- Not triggered: append o to stops
+          refine ⟨AllInv.with_stops b _ h, ?_⟩
+          intro s hs
+          -- hs : s ∈ b.stops ++ [o]
+          rw [List.mem_append] at hs
+          cases hs with
+          | inl hmem => exact hstops s hmem
+          | inr hmem =>
+            simp only [List.mem_singleton] at hmem
+            rw [hmem]; exact hopo
       · split
         · -- Phase 2: Post-only
+          rename_i _ hpo
+          have hpov : o.postOnly = true := by
+            cases hpv : o.postOnly with
+            | true => rfl
+            | false => rw [hpv] at hpo; cases hpo
           split
           · -- wouldCross true: return b unchanged
-            exact h
+            exact ⟨h, hstops⟩
           · -- wouldCross false: insertOrder b o false
             rename_i _ hwc
             have hnc : wouldCross o b = false := by
               cases hwcv : wouldCross o b with
               | true => exact absurd hwcv hwc
               | false => rfl
+            -- From hpok.1 and hpov, o.price.isSome = true, so o.price ≠ none
+            have hps : o.price.isSome = true := hpok.1 hpov
             cases hp : o.price with
             | none =>
-              -- Spec edge case: post-only with no price. Deferred.
-              sorry
+              -- Contradiction: hps says isSome but hp says none
+              rw [hp] at hps; cases hps
             | some p =>
-              have hps : o.price.isSome = true := by rw [hp]; rfl
-              refine insertOrder_preserves_AllInv b o false h ?_
-              cases hs : o.side with
-              | buy =>
-                show ∀ askP ∈ bestAskPrice b, (o.price.getD 0) < askP
-                have := wouldCross_false_nonCross_pre o b .buy hs hps hnc
-                exact this
-              | sell =>
-                show ∀ bidP ∈ bestBidPrice b, bidP < (o.price.getD 0)
-                have := wouldCross_false_nonCross_pre o b .sell hs hps hnc
-                exact this
+              have hps' : o.price.isSome = true := by rw [hp]; rfl
+              refine ⟨insertOrder_preserves_AllInv b o false h ?_, ?_⟩
+              · cases hs : o.side with
+                | buy =>
+                  show ∀ askP ∈ bestAskPrice b, (o.price.getD 0) < askP
+                  exact wouldCross_false_nonCross_pre o b .buy hs hps' hnc
+                | sell =>
+                  show ∀ bidP ∈ bestBidPrice b, bidP < (o.price.getD 0)
+                  exact wouldCross_false_nonCross_pre o b .sell hs hps' hnc
+              · -- StopsNoPostOnly (insertOrder b o false): insertOrder doesn't touch .stops
+                exact StopsNoPostOnly_of_same_stops b _
+                  (insertOrder_preserves_stops b o false) hstops
         · split
           · -- Phase 3: FOK
             split
             · -- !fokCheck: b unchanged
-              exact h
+              exact ⟨h, hstops⟩
             · -- fokCheck: match + cascade (no dispose)
-              apply ih_pc
-              -- Establish AllInv for b' (after match)
               have hb' : AllInv { b with
                 bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
                 asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
@@ -3550,16 +3745,15 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                 unfold matchOrder
                 exact doMatch_preserves_AllInv
                   (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
-              -- b''' adds lastTradePrice — still AllInv via with_ltp
-              exact AllInv.with_ltp _ _ hb'
+              apply ih_pc
+              · exact StopsNoPostOnly_of_same_stops b _ rfl hstops
+              · exact AllInv.with_ltp _ _ hb'
           · split
             · -- Phase 3b: MinQty
               split
               · -- !minQtyCheck: b unchanged
-                exact h
+                exact ⟨h, hstops⟩
               · -- minQtyCheck: match + dispose + cascade
-                apply ih_pc
-                apply AllInv.with_ltp
                 have hb' : AllInv { b with
                   bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
                   asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
@@ -3567,21 +3761,22 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                   unfold matchOrder
                   exact doMatch_preserves_AllInv
                     (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
-                cases hte : (matchOrder (computeMatchFuel b o.side) b o).trades.isEmpty with
-                | true =>
-                  simp only [hte, Bool.not_true, if_false]
-                  exact dispose_preserves_AllInv _ _ _ hb' (matching_dispose_noCross o b h)
-                | false =>
-                  simp only [hte, Bool.not_false, if_true]
-                  -- inc = {mr.incoming with minQty := none}; record update preserves
-                  -- side/price/etc., so the dispose conditions and non-crossing match.
-                  apply dispose_preserves_AllInv _ _ _ hb'
-                  intro h_nt
-                  -- h_nt is about the cleared inc; transfer to mr.incoming
-                  exact matching_dispose_noCross o b h h_nt
+                apply ih_pc
+                · refine StopsNoPostOnly_of_same_stops b _ ?_ hstops
+                  show (dispose _ _ _).stops = b.stops
+                  exact dispose_preserves_stops _ _ _
+                · apply AllInv.with_ltp
+                  cases hte : (matchOrder (computeMatchFuel b o.side) b o).trades.isEmpty with
+                  | true =>
+                    simp only [hte, Bool.not_true, if_false]
+                    exact dispose_preserves_AllInv _ _ _ hb' (matching_dispose_noCross o b h)
+                  | false =>
+                    simp only [hte, Bool.not_false, if_true]
+                    apply dispose_preserves_AllInv _ _ _ hb'
+                    intro h_nt
+                    exact matching_dispose_noCross o b h h_nt
             · split
               · -- Phase 4: MTL routing
-                -- 3 sub-cases: no-trades, trades+converted-done, trades+converted-remaining
                 have hb' : AllInv { b with
                   bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
                   asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
@@ -3591,23 +3786,40 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                     (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
                 split
                 · -- mr.trades.isEmpty: returns b' directly (no cascade)
-                  exact hb'
+                  exact ⟨hb', StopsNoPostOnly_of_same_stops b _ rfl hstops⟩
                 · -- mr.trades non-empty: converted to limit
                   split
                   · -- converted.remainingQty == 0: cascade only
                     apply ih_pc
-                    exact AllInv.with_ltp _ _ hb'
+                    · exact StopsNoPostOnly_of_same_stops b _ rfl hstops
+                    · exact AllInv.with_ltp _ _ hb'
                   · -- converted.remainingQty > 0: second doMatch + dispose + cascade
-                    -- Most complex MTL sub-case. The second doMatch operates on b'.bids/asks
-                    -- with the converted (now-limit) order. AllInv b' was just established.
-                    -- The chain: doMatch_preserves_AllInv → dispose_preserves_AllInv → ih_pc.
-                    -- Deferred: requires non-crossing extraction for the second doMatch
-                    -- via a parallel lemma to matching_dispose_noCross.
-                    sorry
+                    apply ih_pc
+                    · refine StopsNoPostOnly_of_same_stops b _ ?_ hstops
+                      show (dispose _ _ _).stops = b.stops
+                      exact dispose_preserves_stops _ _ _
+                    · apply AllInv.with_ltp
+                      apply dispose_preserves_AllInv
+                      · exact doMatch_preserves_AllInv _ _ _ _ _ rfl hb'
+                      · intro h_nt
+                        split
+                        · -- .buy branch
+                          rename_i hscr_buy
+                          have h_mr_side :
+                              (matchOrder (computeMatchFuel b o.side) b o).incoming.side = Side.buy := by
+                            have := hscr_buy
+                            rwa [doMatch_preserves_inc_side] at this
+                          rw [h_mr_side] at h_nt ⊢
+                          exact matching_dispose_noCross_buy _ _ _ rfl h_nt
+                        · -- .sell branch
+                          rename_i hscr_sell
+                          have h_mr_side :
+                              (matchOrder (computeMatchFuel b o.side) b o).incoming.side = Side.sell := by
+                            have := hscr_sell
+                            rwa [doMatch_preserves_inc_side] at this
+                          rw [h_mr_side] at h_nt ⊢
+                          exact matching_dispose_noCross_sell _ _ _ rfl h_nt
               · -- Phase 5: Normal matching
-                -- In Phase 5 we're past minQty.isSome check (=false), so inc = mr.incoming
-                apply ih_pc
-                apply AllInv.with_ltp
                 have hb' : AllInv { b with
                   bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
                   asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
@@ -3615,29 +3827,44 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                   unfold matchOrder
                   exact doMatch_preserves_AllInv
                     (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
-                -- In Phase 5, o.minQty.isSome = false (from outer split hypothesis)
                 have h_minq_false : o.minQty.isSome = false := by
                   rename_i h1 h2 h3 h4 h5
-                  -- h4 : ¬(o.minQty.isSome = true) (most likely position)
                   cases hv : o.minQty.isSome with
                   | true => exact absurd hv (by first | exact h1 | exact h2 | exact h3 | exact h4 | exact h5)
                   | false => rfl
-                simp only [h_minq_false, Bool.false_and, Bool.false_eq_true, if_false]
-                exact dispose_preserves_AllInv _ _ _ hb' (matching_dispose_noCross o b h)
+                apply ih_pc
+                · refine StopsNoPostOnly_of_same_stops b _ ?_ hstops
+                  show (dispose _ _ _).stops = b.stops
+                  exact dispose_preserves_stops _ _ _
+                · apply AllInv.with_ltp
+                  simp only [h_minq_false, Bool.false_and, Bool.false_eq_true, if_false]
+                  exact dispose_preserves_AllInv _ _ _ hb' (matching_dispose_noCross o b h)
     · -- processCascade fuel'+1 preservation
-      intro ts b h
+      intro ts b hstops h
       unfold processCascade
       match ts with
-      | [] => exact h
+      | [] => exact ⟨h, hstops⟩
       | t :: rest =>
         simp only
         split
         · -- triggered is empty: recurse with updated LTP
           have h1 : AllInv { b with lastTradePrice := some t.price } :=
             AllInv.with_ltp b (some t.price) h
-          exact ih_pc rest _ h1
+          exact ih_pc rest _
+            (StopsNoPostOnly_of_same_stops b _ rfl hstops) h1
         · -- triggered non-empty
           simp only
+          -- Triggered orders: subset of b.stops via partition.1; after mergeSort
+          -- membership is preserved, so all have postOnly=false.
+          have htrig_po : ∀ o ∈ ((b.stops.partition (fun s => shouldTrigger s (some t.price))).1).mergeSort
+              (fun a c => a.timestamp < c.timestamp), o.postOnly = false := by
+            intro o ho
+            have hmem := (List.mem_mergeSort).mp ho
+            exact hstops o (partition_fst_subset _ _ _ hmem)
+          have hstops_rem : StopsNoPostOnly { b with
+              stops := (b.stops.partition (fun s => shouldTrigger s (some t.price))).2 } := by
+            intro s hs
+            exact hstops s (partition_snd_subset _ _ _ hs)
           have h1 : AllInv { b with
               stops := (b.stops.partition (fun s => shouldTrigger s (some t.price))).2 } :=
             AllInv.with_stops b _ h
@@ -3645,37 +3872,50 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
               stops := (b.stops.partition (fun s => shouldTrigger s (some t.price))).2,
               lastTradePrice := some t.price } :=
             AllInv.with_ltp _ (some t.price) h1
-          exact ih_pc rest _ (ih_pts _ _ hb')
+          have hstops_ltp : StopsNoPostOnly { b with
+              stops := (b.stops.partition (fun s => shouldTrigger s (some t.price))).2,
+              lastTradePrice := some t.price } :=
+            StopsNoPostOnly_of_same_stops _ _ rfl hstops_rem
+          have hpts := ih_pts _ _ htrig_po hstops_ltp hb'
+          exact ih_pc rest _ hpts.2 hpts.1
     · -- processTriggeredStops fuel'+1 preservation
-      intro os b h
+      intro os b hos hstops h
       unfold processTriggeredStops
       match os with
-      | [] => exact h
+      | [] => exact ⟨h, hstops⟩
       | stop :: rest =>
         simp only
+        have hstop_po : stop.postOnly = false := hos stop List.mem_cons_self
+        have hrest_po : ∀ o ∈ rest, o.postOnly = false := fun o ho =>
+          hos o (List.mem_cons_of_mem _ ho)
+        have hconv_ok : OrderProcOk (convertStop stop b.clock) :=
+          convertStop_OrderProcOk stop b.clock hstop_po
         have hb' : AllInv { b with clock := b.clock + 1 } :=
           AllInv.with_clock b (b.clock + 1) h
-        have hres : AllInv (processOrder n (convertStop stop b.clock)
-                            { b with clock := b.clock + 1 }).book :=
-          ih_po _ _ hb'
-        exact ih_pts rest _ hres
+        have hstops' : StopsNoPostOnly { b with clock := b.clock + 1 } := by
+          intro s hs; exact hstops s hs
+        have hres := ih_po _ _ hconv_ok hstops' hb'
+        exact ih_pts rest _ hrest_po hres.2 hres.1
 
-/-- Corollary: `processOrder` preserves `AllInv`. -/
+/-- Corollary: `processOrder` preserves `AllInv` given well-formedness
+    preconditions `OrderProcOk` and `StopsNoPostOnly`. -/
 theorem processOrder_preserves_AllInv (fuel : Nat) (o : Order) (b : BookState)
-    (h : AllInv b) : AllInv (processOrder fuel o b).book :=
-  (process_all_preserve_AllInv fuel).1 o b h
+    (hpok : OrderProcOk o) (hstops : StopsNoPostOnly b) (h : AllInv b) :
+    AllInv (processOrder fuel o b).book :=
+  ((process_all_preserve_AllInv fuel).1 o b hpok hstops h).1
 
 /-- Corollary: `processCascade` preserves `BookUncrossed`. -/
 theorem processCascade_preserves_uncrossed (fuel : Nat) (trades : List Trade)
-    (b : BookState) (h : AllInv b) :
+    (b : BookState) (hstops : StopsNoPostOnly b) (h : AllInv b) :
     BookUncrossed (processCascade fuel trades b).book :=
-  ((process_all_preserve_AllInv fuel).2.1 trades b h).1
+  (((process_all_preserve_AllInv fuel).2.1 trades b hstops h).1).1
 
 /-- Corollary: `processTriggeredStops` preserves `BookUncrossed`. -/
 theorem processTriggeredStops_preserves_uncrossed (fuel : Nat) (orders : List Order)
-    (b : BookState) (h : AllInv b) :
+    (b : BookState) (hos : ∀ o ∈ orders, o.postOnly = false)
+    (hstops : StopsNoPostOnly b) (h : AllInv b) :
     BookUncrossed (processTriggeredStops fuel orders b).book :=
-  ((process_all_preserve_AllInv fuel).2.2 orders b h).1
+  (((process_all_preserve_AllInv fuel).2.2 orders b hos hstops h).1).1
 
 /-- Post-only precondition extractor: if `wouldCross o b = false` AND the
     order's price is defined AND the book's side has a best price, extract
@@ -3726,18 +3966,21 @@ private theorem wouldCross_false_nonCross
 /-- `processOrder` preserves `BookUncrossed`. Trivial corollary of
     `processOrder_preserves_AllInv`. -/
 theorem processOrder_preserves_uncrossed (fuel : Nat) (o : Order) (b : BookState)
-    (h : AllInv b) :
+    (hpok : OrderProcOk o) (hstops : StopsNoPostOnly b) (h : AllInv b) :
     BookUncrossed (processOrder fuel o b).book :=
-  (processOrder_preserves_AllInv fuel o b h).1
+  (processOrder_preserves_AllInv fuel o b hpok hstops h).1
 
 /-- Main theorem: `process` preserves `BookUncrossed`. Reduces to
     `processOrder_preserves_uncrossed` since `process` only adds metadata
     updates (nextId, clock) on top of `processOrder`. -/
 theorem process_preserves_uncrossed (b : BookState) (o : Order)
-    (h : AllInv b) :
+    (hpok : OrderProcOk o) (hstops : StopsNoPostOnly b) (h : AllInv b) :
     BookUncrossed (process b o).book := by
   show BookUncrossed (process b o).book
   unfold process
   simp only
+  -- The order submitted to processOrder is `{o with id := ..., timestamp := ...}`.
+  -- Record updates preserve postOnly, price, orderType, so OrderProcOk is preserved.
+  have hpok' : OrderProcOk { o with id := b.nextId, timestamp := b.clock } := hpok
   exact (BookUncrossed_with_meta _ _ _).mp
-    (processOrder_preserves_uncrossed defaultFuel _ b h)
+    (processOrder_preserves_uncrossed defaultFuel _ b hpok' hstops h)
