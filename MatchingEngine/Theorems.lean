@@ -3026,8 +3026,18 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
             split
             · -- !fokCheck: b unchanged
               exact h
-            · -- fokCheck: match + dispose + cascade
-              sorry
+            · -- fokCheck: match + cascade (no dispose)
+              apply ih_pc
+              -- Establish AllInv for b' (after match)
+              have hb' : AllInv { b with
+                bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
+                asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
+                clock := (matchOrder (computeMatchFuel b o.side) b o).clock } := by
+                unfold matchOrder
+                exact doMatch_preserves_AllInv
+                  (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
+              -- b''' adds lastTradePrice — still AllInv via with_ltp
+              exact AllInv.with_ltp _ _ hb'
           · split
             · -- Phase 3b: MinQty
               split
