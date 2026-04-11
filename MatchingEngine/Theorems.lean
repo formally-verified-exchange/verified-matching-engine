@@ -3580,11 +3580,30 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                   -- h_nt is about the cleared inc; transfer to mr.incoming
                   exact matching_dispose_noCross o b h h_nt
             · split
-              · -- Phase 4: MTL
-                -- MTL has multiple sub-cases (no-trades vs trades, converted done vs partial)
-                -- All reduce to doMatch + optional dispose + cascade with additional
-                -- MTL-specific doMatch for the converted limit order
-                sorry
+              · -- Phase 4: MTL routing
+                -- 3 sub-cases: no-trades, trades+converted-done, trades+converted-remaining
+                have hb' : AllInv { b with
+                  bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
+                  asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
+                  clock := (matchOrder (computeMatchFuel b o.side) b o).clock } := by
+                  unfold matchOrder
+                  exact doMatch_preserves_AllInv
+                    (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
+                split
+                · -- mr.trades.isEmpty: returns b' directly (no cascade)
+                  exact hb'
+                · -- mr.trades non-empty: converted to limit
+                  split
+                  · -- converted.remainingQty == 0: cascade only
+                    apply ih_pc
+                    exact AllInv.with_ltp _ _ hb'
+                  · -- converted.remainingQty > 0: second doMatch + dispose + cascade
+                    -- Most complex MTL sub-case. The second doMatch operates on b'.bids/asks
+                    -- with the converted (now-limit) order. AllInv b' was just established.
+                    -- The chain: doMatch_preserves_AllInv → dispose_preserves_AllInv → ih_pc.
+                    -- Deferred: requires non-crossing extraction for the second doMatch
+                    -- via a parallel lemma to matching_dispose_noCross.
+                    sorry
               · -- Phase 5: Normal matching
                 -- In Phase 5 we're past minQty.isSome check (=false), so inc = mr.incoming
                 apply ih_pc
