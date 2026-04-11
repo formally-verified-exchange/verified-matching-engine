@@ -3063,11 +3063,7 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                 sorry
               · -- Phase 5: Normal matching
                 apply ih_pc
-                -- Goal: AllInv b''' where b''' has lastTradePrice updated on top of dispose result
                 apply AllInv.with_ltp
-                -- Goal: AllInv (dispose inc b' mr.trades)
-                -- where inc = mr.incoming (or with minQty cleared)
-                -- and b' = {b with bids := mr.bids, asks := mr.asks, clock := mr.clock}
                 have hb' : AllInv { b with
                   bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
                   asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
@@ -3075,8 +3071,9 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                   unfold matchOrder
                   exact doMatch_preserves_AllInv
                     (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
-                -- Deferred: the dispose non-crossing precondition.
-                -- Needs doMatch_noCross_after_match + case analysis on inc.side.
+                -- Deferred: dispose non-crossing precondition.
+                -- Needs: push_neg alternative for ¬(... ∨ ... ∨ ... ∨ ...),
+                -- doMatch_noCross_after_match application, case on side, conditional inc.
                 sorry
     · -- processCascade fuel'+1 preservation
       intro ts b h
