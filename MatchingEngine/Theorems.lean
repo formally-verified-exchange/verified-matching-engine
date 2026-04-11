@@ -3558,8 +3558,6 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
               · -- !minQtyCheck: b unchanged
                 exact h
               · -- minQtyCheck: match + dispose + cascade
-                -- inc = if !mr.trades.isEmpty then {mr.incoming with minQty := none} else mr.incoming
-                -- Either way inc.side/.price/.etc = mr.incoming's, so non-crossing carries through.
                 apply ih_pc
                 apply AllInv.with_ltp
                 have hb' : AllInv { b with
@@ -3569,9 +3567,14 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                   unfold matchOrder
                   exact doMatch_preserves_AllInv
                     (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
-                -- Deferred: conditional inc handling (minQty := none vs mr.incoming)
-                -- needs a small lemma showing both dispose branches preserve AllInv.
-                sorry
+                cases hte : (matchOrder (computeMatchFuel b o.side) b o).trades.isEmpty with
+                | true =>
+                  simp only [hte, Bool.not_true, if_false]
+                  exact dispose_preserves_AllInv _ _ _ hb' (matching_dispose_noCross o b h)
+                | false =>
+                  simp only [hte, Bool.not_false, if_true]
+                  -- inc = {mr.incoming with minQty := none}; non-crossing carries via record update
+                  sorry
             · split
               · -- Phase 4: MTL
                 -- MTL has multiple sub-cases (no-trades vs trades, converted done vs partial)
@@ -3589,8 +3592,13 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                   unfold matchOrder
                   exact doMatch_preserves_AllInv
                     (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
-                -- In Phase 5, o.minQty.isSome = false (from outer split, deferred)
-                have h_minq_false : o.minQty.isSome = false := by sorry
+                -- In Phase 5, o.minQty.isSome = false (from outer split hypothesis)
+                have h_minq_false : o.minQty.isSome = false := by
+                  rename_i h1 h2 h3 h4 h5
+                  -- h4 : ¬(o.minQty.isSome = true) (most likely position)
+                  cases hv : o.minQty.isSome with
+                  | true => exact absurd hv (by first | exact h1 | exact h2 | exact h3 | exact h4 | exact h5)
+                  | false => rfl
                 simp only [h_minq_false, Bool.false_and, Bool.false_eq_true, if_false]
                 exact dispose_preserves_AllInv _ _ _ hb' (matching_dispose_noCross o b h)
     · -- processCascade fuel'+1 preservation
