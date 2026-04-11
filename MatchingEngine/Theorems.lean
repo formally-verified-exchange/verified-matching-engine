@@ -1461,19 +1461,102 @@ theorem doMatch_preserves_inc_side (fuel : Nat) (inc : Order)
   | sell =>
     exact doMatch_sell_preserves_inc_side fuel inc bids asks trades tm hs
 
-/-- `doMatch` preserves `inc.price` — same structure as inc_side. -/
+/-- Buy-specific: `doMatch` preserves `inc.price`. -/
+theorem doMatch_buy_preserves_inc_price (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hside : inc.side = .buy) :
+    (doMatch fuel inc bids asks trades tm).incoming.price = inc.price := by
+  induction fuel generalizing inc asks trades tm with
+  | zero => rfl
+  | succ n ih =>
+    unfold doMatch; simp only [hside]
+    split
+    · rfl
+    · split
+      · rfl
+      · rename_i level restLevels
+        split
+        · rfl
+        · split
+          · exact ih _ _ _ _ (by first | rfl | exact hside)
+          · rename_i _ resting restOrders _
+            split
+            · split <;> (first | exact ih _ _ _ _ (by first | rfl | exact hside) | rfl)
+            · split
+              · split
+                · rfl
+                · exact ih _ _ _ _ (by first | rfl | exact hside)
+                · rfl
+                · split
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+                  · split
+                    · exact ih _ _ _ _ (by first | rfl | exact hside)
+                    · split
+                      · exact ih _ _ _ _ (by first | rfl | exact hside)
+                      · exact ih _ _ _ _ (by first | rfl | exact hside)
+              · split
+                · exact ih _ _ _ _ (by first | rfl | exact hside)
+                · split
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+
+/-- Sell-specific: `doMatch` preserves `inc.price`. -/
+theorem doMatch_sell_preserves_inc_price (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp)
+    (hside : inc.side = .sell) :
+    (doMatch fuel inc bids asks trades tm).incoming.price = inc.price := by
+  induction fuel generalizing inc bids trades tm with
+  | zero => rfl
+  | succ n ih =>
+    unfold doMatch; simp only [hside]
+    split
+    · rfl
+    · split
+      · rfl
+      · rename_i level restLevels
+        split
+        · rfl
+        · split
+          · exact ih _ _ _ _ (by first | rfl | exact hside)
+          · rename_i _ resting restOrders _
+            split
+            · split <;> (first | exact ih _ _ _ _ (by first | rfl | exact hside) | rfl)
+            · split
+              · split
+                · rfl
+                · exact ih _ _ _ _ (by first | rfl | exact hside)
+                · rfl
+                · split
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+                  · split
+                    · exact ih _ _ _ _ (by first | rfl | exact hside)
+                    · split
+                      · exact ih _ _ _ _ (by first | rfl | exact hside)
+                      · exact ih _ _ _ _ (by first | rfl | exact hside)
+              · split
+                · exact ih _ _ _ _ (by first | rfl | exact hside)
+                · split
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+                  · exact ih _ _ _ _ (by first | rfl | exact hside)
+
+/-- `doMatch` preserves `inc.price` — unified. -/
 theorem doMatch_preserves_inc_price (fuel : Nat) (inc : Order)
     (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp) :
     (doMatch fuel inc bids asks trades tm).incoming.price = inc.price := by
-  sorry
+  cases hs : inc.side with
+  | buy => exact doMatch_buy_preserves_inc_price fuel inc bids asks trades tm hs
+  | sell => exact doMatch_sell_preserves_inc_price fuel inc bids asks trades tm hs
 
-/-- `doMatch` preserves `inc.orderType`. -/
+/-- `doMatch` preserves `inc.orderType` — trivial corollary of inc.price
+    proof, but actually needs a full structural induction of its own
+    since the match doesn't naturally track orderType. Skipped —
+    not needed for the matching_dispose_noCross helper. -/
 theorem doMatch_preserves_inc_orderType (fuel : Nat) (inc : Order)
     (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp) :
     (doMatch fuel inc bids asks trades tm).incoming.orderType = inc.orderType := by
   sorry
 
-/-- `doMatch` preserves `inc.tif`. -/
+/-- `doMatch` preserves `inc.tif`. Same — deferred. -/
 theorem doMatch_preserves_inc_tif (fuel : Nat) (inc : Order)
     (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp) :
     (doMatch fuel inc bids asks trades tm).incoming.tif = inc.tif := by
