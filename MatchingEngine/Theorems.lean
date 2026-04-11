@@ -327,7 +327,7 @@ theorem insertOrder_buy_preserves_uncrossed (b : BookState) (o : Order)
         · simp [h1]
           exact hprice'
         · by_cases h2 : (o.price.getD 0) = lhd.price
-          · simp [h1, h2]
+          · simp [h2]
             exact hhd
           · have h3 : ¬ ((o.price.getD 0) == lhd.price) = true := by
               intro heq
@@ -385,7 +385,7 @@ theorem insertOrder_sell_preserves_uncrossed (b : BookState) (o : Order)
         · simp [h1]
           exact hprice'
         · by_cases h2 : (o.price.getD 0) = lhd.price
-          · simp [h1, h2]
+          · simp [h2]
             exact hhd
           · have h3 : ¬ ((o.price.getD 0) == lhd.price) = true := by
               intro heq
@@ -1104,7 +1104,7 @@ theorem doMatch_buy_preserves_asks_sorted (fuel : Nat) (inc : Order)
                           have hne : ∀ (y : Order),
                               (restOrders ++ [y]).isEmpty = false := by
                             intro y; cases restOrders <;> rfl
-                          simp only [hne, if_false]
+                          simp only [hne]
                           exact ih _ _ _ _ hside
                             (asksSortedAscB_modify_head level restLevels _ hsorted)
                         | false =>
@@ -1196,7 +1196,7 @@ theorem doMatch_sell_preserves_bids_sorted (fuel : Nat) (inc : Order)
                           have hne : ∀ (y : Order),
                               (restOrders ++ [y]).isEmpty = false := by
                             intro y; cases restOrders <;> rfl
-                          simp only [hne, if_false]
+                          simp only [hne]
                           exact ih _ _ _ _ hside
                             (bidsSortedDescB_modify_head level restLevels _ hsorted)
                         | false =>
@@ -2282,7 +2282,7 @@ theorem doMatch_buy_output_stable (fuel : Nat) (inc : Order)
                           have hne : ∀ (y : Order),
                               (restOrders ++ [y]).isEmpty = false := by
                             intro y; cases restOrders <;> rfl
-                          simp only [hne, if_false]
+                          simp only [hne]
                           -- Now the goal has level'' = {level with orders := restOrders ++ [reloaded]}
                           -- :: restLevels. Same pattern as normal fill iceberg.
                           have hmdec_lvl :
@@ -2810,7 +2810,7 @@ theorem doMatch_sell_output_stable (fuel : Nat) (inc : Order)
                           have hne : ∀ (y : Order),
                               (restOrders ++ [y]).isEmpty = false := by
                             intro y; cases restOrders <;> rfl
-                          simp only [hne, if_false]
+                          simp only [hne]
                           have hmdec_lvl :
                               matchMeasure ({ level with orders := restOrders ++
                                   [({ resting with
@@ -3768,10 +3768,10 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                 · apply AllInv.with_ltp
                   cases hte : (matchOrder (computeMatchFuel b o.side) b o).trades.isEmpty with
                   | true =>
-                    simp only [hte, Bool.not_true, if_false]
+                    simp only [Bool.not_true]
                     exact dispose_preserves_AllInv _ _ _ hb' (matching_dispose_noCross o b h)
                   | false =>
-                    simp only [hte, Bool.not_false, if_true]
+                    simp only [Bool.not_false, if_true]
                     apply dispose_preserves_AllInv _ _ _ hb'
                     intro h_nt
                     exact matching_dispose_noCross o b h h_nt

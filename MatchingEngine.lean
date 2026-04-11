@@ -7,4 +7,5 @@ import MatchingEngine.Process
 import MatchingEngine.Cancel
 import MatchingEngine.Invariants
 import MatchingEngine.Theorems
+import MatchingEngine.TheoremsElegant
 import MatchingEngine.Tests

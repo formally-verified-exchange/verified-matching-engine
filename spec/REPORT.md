@@ -6,38 +6,9 @@ The formal specification (matching-engine-formal-spec.md v1.2.0) was translated 
 
 ## Spec Bugs Found
 
-### Bug #1: STP DECREMENT + Iceberg Stranding
+### Bug #1: Stop Trigger Missing Timestamp Update (FIFO Violation)
 
-**Severity:** Medium — causes undefined behavior in implementation
-
-**Location:** §8.3 DECREMENT case, interaction with §7.5 Iceberg reload
-
-**Issue:** When STP DECREMENT reduces a resting iceberg order's `visibleQty` to 0 but `remainingQty` > 0, the spec provides no mechanism to reload the visible slice. The iceberg reload logic (§5.1 Step 3) only triggers after a *fill*, not after a DECREMENT. This creates a "stranded" order with hidden quantity that can never become visible.
-
-**Example scenario:**
-- Resting iceberg: qty=2, displayQty=1, visibleQty=1, remainingQty=2
-- Incoming order with same STP group, policy=DECREMENT
-- DECREMENT: reduceQty = min(incoming.remainingQty, 1) = 1
-- After: visibleQty=0, remainingQty=1, hidden qty=1
-- The order sits on the book with visibleQty=0 — it can never be matched, filled, or reloaded
-
-**Consequence in implementation:** The next incoming order attempting to match against this resting order would compute fillQty = min(x, 0) = 0, producing a zero-quantity trade (invalid) or an infinite loop.
-
-**Fix applied in TLA+ model:** After DECREMENT, if visibleQty=0 and remainingQty>0 and the order is an iceberg, reload the visible slice (same as normal iceberg reload with new timestamp and move to back of queue).
-
-**Recommended spec amendment:** Add to §8.3 DECREMENT case:
-```
-IF resting.visibleQty = 0 AND resting.remainingQty > 0 AND resting.displayQty ≠ ⊥:
-    resting.visibleQty = min(resting.displayQty, resting.remainingQty)
-    resting.timestamp = currentTimestamp()
-    MOVE resting TO back OF level.orders
-```
-
----
-
-### Bug #2: Stop Trigger Missing Timestamp Update (FIFO Violation)
-
-**Severity:** High — directly violates INV-8 (FIFO within price level)
+**Severity:** High — directly violates INV-7 (FIFO within price level)
 
 **Location:** §10.1 EVALUATE_STOPS, interaction with §6.1 INSERT
 
@@ -57,6 +28,35 @@ IF resting.visibleQty = 0 AND resting.remainingQty > 0 AND resting.displayQty �
 **Recommended spec amendment:** Add to §10.1:
 ```
 stop.timestamp = currentTimestamp()   -- New timestamp for triggered stop
+```
+
+---
+
+### Bug #2: STP DECREMENT + Iceberg Stranding
+
+**Severity:** Medium — causes undefined behavior in implementation
+
+**Location:** §8.3 DECREMENT case, interaction with §7.5 Iceberg reload
+
+**Issue:** When STP DECREMENT reduces a resting iceberg order's `visibleQty` to 0 but `remainingQty` > 0, the spec provides no mechanism to reload the visible slice. The iceberg reload logic (§7.5) only triggers after a *fill*, not after a DECREMENT. This creates a "stranded" order with hidden quantity that can never become visible.
+
+**Example scenario:**
+- Resting iceberg: qty=2, displayQty=1, visibleQty=1, remainingQty=2
+- Incoming order with same STP group, policy=DECREMENT
+- DECREMENT: reduceQty = min(incoming.remainingQty, 1) = 1
+- After: visibleQty=0, remainingQty=1, hidden qty=1
+- The order sits on the book with visibleQty=0 — it can never be matched, filled, or reloaded
+
+**Consequence in implementation:** The next incoming order attempting to match against this resting order would compute fillQty = min(x, 0) = 0, producing a zero-quantity trade (invalid) or an infinite loop.
+
+**Fix applied in TLA+ model:** After DECREMENT, if visibleQty=0 and remainingQty>0 and the order is an iceberg, reload the visible slice (same as normal iceberg reload with new timestamp and move to back of queue).
+
+**Recommended spec amendment:** Add to §8.3 DECREMENT case:
+```
+IF resting.visibleQty = 0 AND resting.remainingQty > 0 AND resting.displayQty ≠ ⊥:
+    resting.visibleQty = min(resting.displayQty, resting.remainingQty)
+    resting.timestamp = currentTimestamp()
+    MOVE resting TO back OF level.orders
 ```
 
 ---
@@ -98,7 +98,7 @@ All configurations include full order type suite (LIMIT, MARKET, MTL, STOP_LIMIT
 | INV-4/5 | Book uncrossed (bestBid < bestAsk) | **PASS** |
 | INV-5/6 | No ghost orders (remainingQty > 0) | **PASS** |
 | INV-6/7 | Status consistency (resting ∈ {NEW, PARTIAL}) | **PASS** |
-| INV-7/8 | FIFO within price level | **VIOLATED** → Bug #2 found and fixed → **PASS** |
+| INV-7/8 | FIFO within price level | **VIOLATED** → Bug #1 found and fixed → **PASS** |
 | INV-8/9 | No MARKET orders on book | **PASS** |
 | INV-9 | Passive price rule | True by construction |
 | INV-11 | Post-only guarantee | **PASS** |
@@ -108,6 +108,6 @@ All configurations include full order type suite (LIMIT, MARKET, MTL, STOP_LIMIT
 
 ## Files
 
-- `MatchingEngine.tla` — Main TLA+ specification (~850 lines)
-- `MatchingEngine.cfg` — Default TLC configuration (3 orders, 3 prices)
+- `MatchingEngine.tla` — Main TLA+ specification (~950 lines)
+- `MatchingEngine.cfg` — Default TLC configuration (2 orders, 3 prices)
 - `MatchingEngine_*.cfg` — Various test configurations

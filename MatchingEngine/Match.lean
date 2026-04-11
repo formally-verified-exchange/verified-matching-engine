@@ -131,13 +131,7 @@ def doMatch (fuel : Nat) (inc : Order) (bids asks : List PriceLevel)
                       visibleQty := reloadQty,
                       timestamp := tm,
                       status := .partiallyFilled }
-                    let level' := if restOrders.isEmpty then
-                                    [{ level with orders := [reloaded] }]
-                                  else
-                                    { level with orders := restOrders ++ [reloaded] } :: []
-                    -- Rebuild: keep rest of levels
-                    let allLevels := level' ++ restLevels.drop 0  -- all remaining after current
-                    -- Actually need to reconstruct properly
+                    -- Rebuild the contra side with the reloaded iceberg at the back.
                     let newQueue := restOrders ++ [reloaded]
                     let level'' := if newQueue.isEmpty then restLevels
                                   else { level with orders := newQueue } :: restLevels
