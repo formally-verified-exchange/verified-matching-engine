@@ -64,6 +64,16 @@
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 
+% Allow more aggressive interword stretching to avoid overfull hboxes
+% caused by long \texttt{...} identifiers that cannot be hyphenated.
+\emergencystretch=3em
+
+% Permit line breaks inside \texttt after "/" and "_" so that long
+% file paths (e.g. MatchingEngine/TheoremsElegant.lean) can wrap.
+\makeatletter
+\def\BreakableChars#1{\discretionary{}{}{}\ttfamily#1}
+\makeatother
+
 \title{From Bounded Model Checking to Mechanized Proof:\\
 A Multi-Level Verification Case Study for a\\
 Price-Time Priority Matching Engine}
@@ -252,10 +262,12 @@ Order modifiers include:
 \item \textbf{MinQty}: requires a minimum fill on first execution; the
       constraint is cleared after the initial threshold is met, allowing the
       remainder to rest.
-\item \textbf{Self-Trade Prevention (STP)}: four policies---CANCEL\_NEWEST,
-      CANCEL\_OLDEST, CANCEL\_BOTH, DECREMENT---govern what happens when an
-      incoming order would trade against a resting order in the same STP group.
-      The incoming order's policy governs.
+\item \textbf{Self-Trade Prevention (STP)}: four policies
+      (\textsc{cancel\_newest}, \textsc{cancel\_oldest},
+      \textsc{cancel\_both}, \textsc{decrement}) govern what
+      happens when an incoming order would trade against a resting
+      order in the same STP group. The incoming order's policy
+      governs.
 \end{itemize}
 
 
@@ -297,7 +309,7 @@ WF-13      & PostOnly& Post-only$\Rightarrow$\textsc{limit} \\
 WF-14      & PostOnly& Post-only$\not\Rightarrow$\textsc{ioc}/\textsc{fok} \\
 WF-15      & PostOnly& \textsc{market}, \textsc{mtl}$\Rightarrow$$\neg$post-only \\
 WF-16      & STP     & $\mathit{selfTradeGroup}=\bot \iff \mathit{stpPolicy}=\bot$ \\
-WF-17      & STP     & $\mathit{stpPolicy}\in\{\textsc{cancel\_newest},\textsc{cancel\_oldest},\textsc{cancel\_both},\textsc{decrement}\}$ \\
+WF-17      & STP     & $\mathit{stpPolicy}\in\{\textsc{cancel\_newest},$ $\textsc{cancel\_oldest},$ $\textsc{cancel\_both},$ $\textsc{decrement}\}$ \\
 WF-18      & MinQty  & $0 < \mathit{minQty} \leq \mathit{quantity}$ \\
 WF-19      & MinQty  & MinQty$\Rightarrow$$\neg$post-only \\
 WF-20      & MinQty  & \textsc{fok}$\Rightarrow$$\mathit{minQty}=\bot$ \\
@@ -403,17 +415,17 @@ touched by the main theorem. The Lean column refers to
 \texttt{Theorems.lean} or \texttt{Invariants.lean}.}
 \label{tab:trace}
 \small
-\begin{tabular}{@{}lllL{5cm}@{}}
+\begin{tabular}{@{}lL{3cm}L{3.2cm}L{4.3cm}@{}}
 \toprule
 Spec clause & TLA+ artefact & Lean artefact & Role \\
 \midrule
-WF-13       & \texttt{ValidOrder} guard & \texttt{OrderProcOk} (field 1) & Main-theorem precondition \\
-WF-15       & \texttt{ValidOrder} guard & \texttt{OrderProcOk} (field 2) & Main-theorem precondition \\
+WF-13       & \texttt{ValidOrder} guard & \texttt{OrderProcOk} field 1 & Main-theorem precondition \\
+WF-15       & \texttt{ValidOrder} guard & \texttt{OrderProcOk} field 2 & Main-theorem precondition \\
 INV-2/3     & not separately checked$^\dagger$ & \texttt{bidsSortedDesc}, \texttt{asksSortedAsc} & Discovered: needed for induction \\
-INV-4       & \texttt{BookUncrossed}    & \texttt{BookUncrossed}, \texttt{AllInv} & Main-theorem conclusion \\
+INV-4       & \texttt{BookUncrossed}    & \texttt{BookUncrossed}, part of \texttt{AllInv} & Main-theorem conclusion \\
 INV-5       & \texttt{NoGhosts}         & \texttt{NoGhosts} & Needed for iceberg reload case \\
 INV-6       & \texttt{StatusConsistency}& \texttt{NoGhosts} (derived) & Not explicitly threaded in Lean \\
-INV-7       & \texttt{FIFOWithinLevel}  & --- & TLC-only; Lean focuses on \texttt{BookUncrossed} \\
+INV-7       & \texttt{FIFOWithinLevel}  & --- & TLC-only \\
 INV-8       & \texttt{NoRestingMarkets} & --- & TLC-only \\
 INV-11      & \texttt{PostOnlyGuarantee}& --- & TLC-only \\
 INV-12      & \texttt{STPGuarantee}     & --- & TLC-only \\
@@ -421,7 +433,7 @@ INV-13      & \texttt{NoRestingMTL}     & --- & TLC-only \\
 INV-14      & \texttt{NoRestingMinQty}  & \texttt{NoRestingMinQty} & Invariants.lean definition \\
 \texttt{canMatch}
             & \texttt{CanMatchPrice}    & \texttt{canMatchPrice}   & Matching loop guard \\
-PROCESS \S12& \texttt{ProcessOrder} (11~phases) & \texttt{processOrder} (11~phases) & Mutual induction target \\
+PROCESS \S12& \texttt{ProcessOrder} (11 phases) & \texttt{processOrder} (11 phases) & Mutual induction target \\
 \bottomrule
 \end{tabular}
 
@@ -557,19 +569,19 @@ holds in every reachable state within the explored configurations.
 \caption{Invariants checked.}
 \label{tab:invariants}
 \small
-\begin{tabular}{@{}llL{4.8cm}lll@{}}
+\begin{tabular}{@{}llL{4.8cm}ll@{}}
 \toprule
 ID & TLA+ Operator & Description & TLC & Lean \\
 \midrule
-INV-1  & \texttt{NoEmptyLevels}    & Every price level has a non-empty order queue & Trivial & Trivial \\
+INV-1  & \texttt{NoEmptyLevels}    & Every price level has a non-empty order queue & trivial & trivial \\
 INV-2  & (sortedness)              & Bids strictly descending & $\checkmark$ & $\checkmark$ \\
 INV-3  & (sortedness)              & Asks strictly ascending & $\checkmark$ & $\checkmark$ \\
 INV-4  & \texttt{BookUncrossed}    & $\mathit{bestBid} < \mathit{bestAsk}$ or either side empty & $\checkmark$ & $\checkmark$ \\
 INV-5  & \texttt{NoGhosts}         & Every resting order has $\mathit{remainingQty} > 0$ & $\checkmark$ & $\checkmark$ \\
 INV-6  & \texttt{StatusConsistency}& Resting orders have status \textsc{new} or \textsc{partial} & $\checkmark$ & --- \\
-INV-7  & \texttt{FIFOWithinLevel}  & Consecutive orders have strictly increasing timestamps & \textbf{Violated $\to$ fixed $\to\checkmark$} & --- \\
+INV-7  & \texttt{FIFOWithinLevel}  & FIFO within level (strictly increasing timestamps) & fixed$^{\star}$ & --- \\
 INV-8  & \texttt{NoRestingMarkets} & \textsc{market} orders never appear on the book & $\checkmark$ & --- \\
-INV-9  & (construction)            & Execution price equals resting (passive) order's price & by constr. & by constr. \\
+INV-9  & (construction)            & Trade price equals the passive order's price & by constr. & by constr. \\
 INV-11 & \texttt{PostOnlyGuarantee}& No trade where the aggressor was post-only & $\checkmark$ & --- \\
 INV-12 & \texttt{STPGuarantee}     & No trade between orders in the same STP group & $\checkmark$ & --- \\
 INV-13 & \texttt{NoRestingMTL}     & \textsc{mtl} orders are converted before resting & $\checkmark$ & --- \\
@@ -579,14 +591,14 @@ INV-14 & \texttt{NoRestingMinQty}  & $\mathit{minQty}$ is cleared before an orde
 
 \medskip
 \raggedright\footnotesize
-IDs match the canonical \S13 summary of the prose specification. TLC
-column: $\checkmark$ means bounded exhaustive pass across all
-configurations in Table~\ref{tab:configs}. Lean column: $\checkmark$
-means part of \texttt{AllInv} and mechanically proved for \emph{all}
-book sizes by \texttt{process\_preserves\_uncrossed}; --- means not
-yet lifted to Lean (future work). INV-2, INV-3 (sortedness) are part
-of \texttt{AllInv} but TLA+ sequences are sorted by construction from
-the keyed price function.
+IDs match the canonical \S13 summary of the prose specification.
+TLC column: $\checkmark$ means bounded exhaustive pass across all
+configurations in Table~\ref{tab:configs}. Lean column:
+$\checkmark$ means part of \texttt{AllInv} and mechanically proved
+for all book sizes by \texttt{process\_preserves\_AllInv}; ---
+means not yet lifted to Lean.
+$^{\star}$INV-7 was violated under the original specification and
+passes after the fix described in \S\ref{sec:bug1}.
 \end{table}
 
 
@@ -1191,9 +1203,9 @@ the honest precondition: the proof tells us what matters.
 \label{sec:lean-elegant}
 
 Once the constructive proof was complete, we developed a second
-proof component in \texttt{TheoremsElegant.lean} (6 theorems,
-312 lines) that recasts the matching-and-dispose core as a shorter
-structural argument.
+proof component, in the file \texttt{TheoremsElegant.lean}
+(6~theorems, 312~lines), that recasts the matching-and-dispose
+core as a shorter structural argument.
 
 When \texttt{doMatch} terminates on a fuel-sufficient run, the
 resulting state falls into one of three cases:
@@ -1456,13 +1468,13 @@ The complete artifacts are:
 \item \texttt{spec/MatchingEngine.cfg} and the per-configuration files
       \texttt{spec/MatchingEngine\_*.cfg} for Table~\ref{tab:configs}.
 \item \texttt{spec/REPORT.md}---model checking output and bug descriptions.
-\item \texttt{MatchingEngine/}---the Lean~4 project (11 source files).
-      The two proof files are \texttt{MatchingEngine/Theorems.lean}
-      (3{,}986 lines, 74 theorems) and
-      \texttt{MatchingEngine/TheoremsElegant.lean} (312 lines,
-      6 theorems). Both are built and type-checked by
-      \texttt{lake build} and are imported from
-      \texttt{MatchingEngine.lean}.
+\item \texttt{MatchingEngine/}---the Lean~4 project (11 source
+      files). The two proof files are
+      \texttt{Theorems.lean} (3{,}986 lines, 74 theorems) and
+      \texttt{TheoremsElegant.lean} (312 lines, 6 theorems), both
+      under the \texttt{MatchingEngine/} directory. Both are built
+      and type-checked by \texttt{lake build} and are imported from
+      the library root \texttt{MatchingEngine.lean}.
 \item Synthesized C/C++ implementations (available in related
       repositories).
 \end{itemize}
