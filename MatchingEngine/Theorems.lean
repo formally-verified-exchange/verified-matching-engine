@@ -3044,11 +3044,39 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
               · -- !minQtyCheck: b unchanged
                 exact h
               · -- minQtyCheck: match + dispose + cascade
+                apply ih_pc
+                apply AllInv.with_ltp
+                have hb' : AllInv { b with
+                  bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
+                  asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
+                  clock := (matchOrder (computeMatchFuel b o.side) b o).clock } := by
+                  unfold matchOrder
+                  exact doMatch_preserves_AllInv
+                    (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
+                -- Deferred: dispose non-crossing precondition.
                 sorry
             · split
               · -- Phase 4: MTL
+                -- MTL has multiple sub-cases (no-trades vs trades, converted done vs partial)
+                -- All reduce to doMatch + optional dispose + cascade with additional
+                -- MTL-specific doMatch for the converted limit order
                 sorry
               · -- Phase 5: Normal matching
+                apply ih_pc
+                -- Goal: AllInv b''' where b''' has lastTradePrice updated on top of dispose result
+                apply AllInv.with_ltp
+                -- Goal: AllInv (dispose inc b' mr.trades)
+                -- where inc = mr.incoming (or with minQty cleared)
+                -- and b' = {b with bids := mr.bids, asks := mr.asks, clock := mr.clock}
+                have hb' : AllInv { b with
+                  bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
+                  asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
+                  clock := (matchOrder (computeMatchFuel b o.side) b o).clock } := by
+                  unfold matchOrder
+                  exact doMatch_preserves_AllInv
+                    (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
+                -- Deferred: the dispose non-crossing precondition.
+                -- Needs doMatch_noCross_after_match + case analysis on inc.side.
                 sorry
     · -- processCascade fuel'+1 preservation
       intro ts b h
