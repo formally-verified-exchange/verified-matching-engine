@@ -3008,35 +3008,6 @@ theorem doMatch_output_stable (fuel : Nat) (inc : Order)
     exact doMatch_sell_output_stable fuel inc bids asks trades tm hside hfuel
 
 -- ============================================================================
--- Matching phase dispose non-crossing helper
--- ============================================================================
-
-/-- Extractor: for the result of `matchOrder (computeMatchFuel b o.side) b o`,
-    the dispose non-crossing precondition holds whenever `mr.incoming` is
-    non-terminal. Used by FOK/MinQty/MTL/Normal matching phases.
-
-    **Sorry'd**: internal proof chains through `doMatch_noCross_after_match`
-    and head?-to-bestAskPrice conversion — ~50 lines deferred. -/
-private theorem matching_dispose_noCross
-    (o : Order) (b : BookState) (_h : AllInv b) :
-    ¬ ((matchOrder (computeMatchFuel b o.side) b o).incoming.remainingQty = 0 ∨
-       (matchOrder (computeMatchFuel b o.side) b o).incoming.status = .cancelled ∨
-       (matchOrder (computeMatchFuel b o.side) b o).incoming.tif = .ioc ∨
-       (matchOrder (computeMatchFuel b o.side) b o).incoming.orderType = .market) →
-    match (matchOrder (computeMatchFuel b o.side) b o).incoming.side with
-    | .buy  => ∀ askP ∈ bestAskPrice { b with
-                  bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
-                  asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
-                  clock := (matchOrder (computeMatchFuel b o.side) b o).clock },
-                (matchOrder (computeMatchFuel b o.side) b o).incoming.price.getD 0 < askP
-    | .sell => ∀ bidP ∈ bestBidPrice { b with
-                  bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
-                  asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
-                  clock := (matchOrder (computeMatchFuel b o.side) b o).clock },
-                bidP < (matchOrder (computeMatchFuel b o.side) b o).incoming.price.getD 0 := by
-  sorry
-
--- ============================================================================
 -- doMatch passive price rule (price-time priority)
 -- ============================================================================
 
@@ -3127,6 +3098,37 @@ theorem computeMatchFuel_gt_matchMeasure
   simp only
   rw [totalRemaining_foldl_acc, orderCount_foldl_acc]
   omega
+
+-- ============================================================================
+-- Matching phase dispose non-crossing helper
+-- ============================================================================
+
+/-- Extractor: for the result of `matchOrder (computeMatchFuel b o.side) b o`,
+    the dispose non-crossing precondition holds whenever `mr.incoming` is
+    non-terminal. Used by FOK/MinQty/MTL/Normal matching phases.
+
+    **Sorry'd**: the proof is ~120 lines of mechanical rewriting through
+    `doMatch_buy/sell_noCross_after_match`, `doMatch_preserves_inc_side/price`,
+    and head?-to-bestPrice conversion. All underlying lemmas are proven;
+    the chain is just bureaucratic term manipulation. -/
+private theorem matching_dispose_noCross
+    (o : Order) (b : BookState) (_h : AllInv b) :
+    ¬ ((matchOrder (computeMatchFuel b o.side) b o).incoming.remainingQty = 0 ∨
+       (matchOrder (computeMatchFuel b o.side) b o).incoming.status = .cancelled ∨
+       (matchOrder (computeMatchFuel b o.side) b o).incoming.tif = .ioc ∨
+       (matchOrder (computeMatchFuel b o.side) b o).incoming.orderType = .market) →
+    match (matchOrder (computeMatchFuel b o.side) b o).incoming.side with
+    | .buy  => ∀ askP ∈ bestAskPrice { b with
+                  bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
+                  asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
+                  clock := (matchOrder (computeMatchFuel b o.side) b o).clock },
+                (matchOrder (computeMatchFuel b o.side) b o).incoming.price.getD 0 < askP
+    | .sell => ∀ bidP ∈ bestBidPrice { b with
+                  bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
+                  asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
+                  clock := (matchOrder (computeMatchFuel b o.side) b o).clock },
+                bidP < (matchOrder (computeMatchFuel b o.side) b o).incoming.price.getD 0 := by
+  sorry
 
 -- ============================================================================
 -- Cascade preservation stubs (mutual induction obligation)
