@@ -1373,6 +1373,37 @@ theorem doMatch_preserves_asks_sorted (fuel : Nat) (inc : Order)
     rw [doMatch_sell_preserves_asks fuel inc bids asks trades tm hs]
     exact hsorted
 
+/-- `doMatch` preserves `inc.side` — the incoming order's side is never
+    modified across recursive steps. doMatch only updates `inc` via
+    record updates on `remainingQty` and `status`, so `.side` is invariant.
+
+    **Currently sorry'd**: proving this requires induction on fuel with
+    15-branch case analysis (same structure as `doMatch_buy_preserves_bids`).
+    Each branch either returns `inc` unchanged or `{inc with remainingQty := ..., status := ...}`,
+    both of which preserve `.side` trivially. Deferred to a follow-up. -/
+theorem doMatch_preserves_inc_side (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp) :
+    (doMatch fuel inc bids asks trades tm).incoming.side = inc.side := by
+  sorry
+
+/-- `doMatch` preserves `inc.price` — similarly, never modified. -/
+theorem doMatch_preserves_inc_price (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp) :
+    (doMatch fuel inc bids asks trades tm).incoming.price = inc.price := by
+  sorry
+
+/-- `doMatch` preserves `inc.orderType`. -/
+theorem doMatch_preserves_inc_orderType (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp) :
+    (doMatch fuel inc bids asks trades tm).incoming.orderType = inc.orderType := by
+  sorry
+
+/-- `doMatch` preserves `inc.tif`. -/
+theorem doMatch_preserves_inc_tif (fuel : Nat) (inc : Order)
+    (bids asks : List PriceLevel) (trades : List Trade) (tm : Timestamp) :
+    (doMatch fuel inc bids asks trades tm).incoming.tif = inc.tif := by
+  sorry
+
 /-- `doMatch` preserves the full `AllInv` (uncrossed + both sides sorted). -/
 theorem doMatch_preserves_AllInv (fuel : Nat) (inc : Order) (b : BookState)
     (tm : Timestamp) (side : Side) (hside : inc.side = side) (h : AllInv b) :
@@ -2819,6 +2850,35 @@ theorem doMatch_output_stable (fuel : Nat) (inc : Order)
     exact doMatch_sell_output_stable fuel inc bids asks trades tm hside hfuel
 
 -- ============================================================================
+-- Matching phase dispose non-crossing helper
+-- ============================================================================
+
+/-- Extractor: for the result of `matchOrder (computeMatchFuel b o.side) b o`,
+    the dispose non-crossing precondition holds whenever `mr.incoming` is
+    non-terminal. Used by FOK/MinQty/MTL/Normal matching phases.
+
+    **Sorry'd**: internal proof chains through `doMatch_noCross_after_match`
+    and head?-to-bestAskPrice conversion — ~50 lines deferred. -/
+private theorem matching_dispose_noCross
+    (o : Order) (b : BookState) (_h : AllInv b) :
+    ¬ ((matchOrder (computeMatchFuel b o.side) b o).incoming.remainingQty = 0 ∨
+       (matchOrder (computeMatchFuel b o.side) b o).incoming.status = .cancelled ∨
+       (matchOrder (computeMatchFuel b o.side) b o).incoming.tif = .ioc ∨
+       (matchOrder (computeMatchFuel b o.side) b o).incoming.orderType = .market) →
+    match (matchOrder (computeMatchFuel b o.side) b o).incoming.side with
+    | .buy  => ∀ askP ∈ bestAskPrice { b with
+                  bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
+                  asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
+                  clock := (matchOrder (computeMatchFuel b o.side) b o).clock },
+                (matchOrder (computeMatchFuel b o.side) b o).incoming.price.getD 0 < askP
+    | .sell => ∀ bidP ∈ bestBidPrice { b with
+                  bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
+                  asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
+                  clock := (matchOrder (computeMatchFuel b o.side) b o).clock },
+                bidP < (matchOrder (computeMatchFuel b o.side) b o).incoming.price.getD 0 := by
+  sorry
+
+-- ============================================================================
 -- doMatch passive price rule (price-time priority)
 -- ============================================================================
 
@@ -3044,6 +3104,8 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
               · -- !minQtyCheck: b unchanged
                 exact h
               · -- minQtyCheck: match + dispose + cascade
+                -- inc = if !mr.trades.isEmpty then {mr.incoming with minQty := none} else mr.incoming
+                -- Either way inc.side/.price/.etc = mr.incoming's, so non-crossing carries through.
                 apply ih_pc
                 apply AllInv.with_ltp
                 have hb' : AllInv { b with
@@ -3053,7 +3115,8 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                   unfold matchOrder
                   exact doMatch_preserves_AllInv
                     (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
-                -- Deferred: dispose non-crossing precondition.
+                -- Deferred: conditional inc handling (minQty := none vs mr.incoming)
+                -- needs a small lemma showing both dispose branches preserve AllInv.
                 sorry
             · split
               · -- Phase 4: MTL
@@ -3062,6 +3125,7 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                 -- MTL-specific doMatch for the converted limit order
                 sorry
               · -- Phase 5: Normal matching
+                -- In Phase 5 we're past minQty.isSome check (=false), so inc = mr.incoming
                 apply ih_pc
                 apply AllInv.with_ltp
                 have hb' : AllInv { b with
@@ -3071,10 +3135,10 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                   unfold matchOrder
                   exact doMatch_preserves_AllInv
                     (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
-                -- Deferred: dispose non-crossing precondition.
-                -- Needs: push_neg alternative for ¬(... ∨ ... ∨ ... ∨ ...),
-                -- doMatch_noCross_after_match application, case on side, conditional inc.
-                sorry
+                -- In Phase 5, o.minQty.isSome = false (from outer split, deferred)
+                have h_minq_false : o.minQty.isSome = false := by sorry
+                simp only [h_minq_false, Bool.false_and, Bool.false_eq_true, if_false]
+                exact dispose_preserves_AllInv _ _ _ hb' (matching_dispose_noCross o b h)
     · -- processCascade fuel'+1 preservation
       intro ts b h
       unfold processCascade
