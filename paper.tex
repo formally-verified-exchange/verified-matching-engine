@@ -76,7 +76,8 @@
 
 \title{From Bounded Model Checking to Mechanized Proof:\\
 A Multi-Level Verification Case Study for a\\
-Price-Time Priority Matching Engine}
+Price-Time Priority Matching Engine\thanks{Artifacts available at
+\url{https://github.com/formally-verified-exchange/verified-matching-engine}.}}
 
 \author{%
   Ara Aslyan\\
@@ -1464,7 +1465,13 @@ and is a natural next step.
 
 \subsection{Reproducibility}
 
-The complete artifacts are:
+All artifacts described in this paper---the prose specification,
+the TLA+ model and configurations, the Lean~4 project, and the
+paper source---are available in a public Git repository at
+\url{https://github.com/formally-verified-exchange/verified-matching-engine}.
+The top-level \texttt{README.md} lists prerequisites and gives
+step-by-step commands for building the Lean proofs and running
+TLC against each configuration. The complete artifacts are:
 \begin{itemize}[nosep]
 \item \texttt{matching-engine-formal-spec.md}---the prose specification.
 \item \texttt{spec/MatchingEngine.tla}---the TLA+ specification
