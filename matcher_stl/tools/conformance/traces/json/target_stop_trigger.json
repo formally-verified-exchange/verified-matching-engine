@@ -1,0 +1,124 @@
+{
+  "metadata": {
+    "source": "counterexample",
+    "trace_id": "target_stop_trigger",
+    "state_count": 4,
+    "prices": [
+      1,
+      2
+    ]
+  },
+  "steps": [
+    {
+      "step": 1,
+      "action": "SubmitOrder",
+      "params": {
+        "id": 1,
+        "side": "BUY",
+        "price": 1,
+        "quantity": 1,
+        "orderType": "LIMIT",
+        "timeInForce": "GTC",
+        "stopPrice": null,
+        "displayQty": null,
+        "postOnly": false,
+        "minQty": null,
+        "stpGroup": null,
+        "stpPolicy": null
+      },
+      "projected_state": {
+        "book": {
+          "bids": [
+            {
+              "price": 1,
+              "orders": [
+                {
+                  "id": 1,
+                  "remainingQty": 1,
+                  "visibleQty": 1
+                }
+              ]
+            }
+          ],
+          "asks": []
+        },
+        "stops": [],
+        "lastTradePrice": 0,
+        "orderCount": 1,
+        "stopCount": 0
+      }
+    },
+    {
+      "step": 2,
+      "action": "SubmitOrder",
+      "params": {
+        "id": 2,
+        "side": "SELL",
+        "price": null,
+        "quantity": 1,
+        "orderType": "MTL",
+        "timeInForce": "GTC",
+        "stopPrice": null,
+        "displayQty": null,
+        "postOnly": false,
+        "minQty": null,
+        "stpGroup": null,
+        "stpPolicy": null
+      },
+      "projected_state": {
+        "book": {
+          "bids": [],
+          "asks": []
+        },
+        "stops": [],
+        "lastTradePrice": 1,
+        "orderCount": 0,
+        "stopCount": 0
+      },
+      "fills": [
+        {
+          "aggressorId": 2,
+          "passiveId": 1,
+          "price": 1,
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "action": "SubmitOrder",
+      "params": {
+        "id": 3,
+        "side": "BUY",
+        "price": null,
+        "quantity": 1,
+        "orderType": "STOP_MARKET",
+        "timeInForce": "GTC",
+        "stopPrice": 2,
+        "displayQty": null,
+        "postOnly": false,
+        "minQty": null,
+        "stpGroup": null,
+        "stpPolicy": null
+      },
+      "projected_state": {
+        "book": {
+          "bids": [],
+          "asks": []
+        },
+        "stops": [
+          {
+            "id": 3,
+            "side": "BUY",
+            "stopPrice": 2,
+            "price": null,
+            "remainingQty": 1
+          }
+        ],
+        "lastTradePrice": 1,
+        "orderCount": 0,
+        "stopCount": 1
+      }
+    }
+  ]
+}

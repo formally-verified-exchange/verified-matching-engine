@@ -2,13 +2,13 @@
 set -e
 
 TLC="java -cp $HOME/tla-plus/tla2tools.jar tlc2.TLC"
-SPEC="spec/MatchingEngine.tla"
-cd "$(dirname "$0")/.."
+SPEC="MatchingEngine.tla"
+cd "$(dirname "$0")"
 
 CONFIGS=(
-    "spec/MatchingEngine.cfg:Medium (2 orders, 3 prices, no amend)"
-    "spec/MatchingEngine_amend.cfg:With Amend (2 orders, 2 prices)"
-    "spec/MatchingEngine_noamend.cfg:3-order (3 orders, 2 prices, no amend)"
+    "MatchingEngine.cfg:Medium (2 orders, 3 prices, no amend)"
+    "MatchingEngine_amend.cfg:With Amend (2 orders, 2 prices)"
+    "MatchingEngine_noamend.cfg:3-order (3 orders, 2 prices, no amend)"
 )
 
 PASS=0

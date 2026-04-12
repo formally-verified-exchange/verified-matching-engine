@@ -1,0 +1,124 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running Random Simulation with seed -1457967020036356613 with 1 worker on 24 cores with 23552MB heap and 64MB offheap memory [pid: 3606594] (Linux 6.17.0-14-generic amd64, Ubuntu 21.0.10 x86_64).
+Parsing file /home/aaslyan/matcher_tla/spec/MatchingEngine.tla
+Parsing file /tmp/Integers.tla
+Parsing file /tmp/Sequences.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module MatchingEngine
+Starting... (2026-03-29 23:16:15)
+Computed 1 initial states...
+Error: Invariant TargetNoTrade is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ postOnlyOK = TRUE
+/\ stops = {}
+/\ clock = 1
+/\ nextId = 1
+/\ askQ = <<<<>>, <<>>, <<>>>>
+/\ lastAction = [type |-> "Init"]
+/\ bidQ = <<<<>>, <<>>, <<>>>>
+/\ lastTradePrice = NULL
+/\ stpOK = TRUE
+
+State 2: <TimeAdvance line 753, col 5 to line 759, col 62 of module MatchingEngine>
+/\ postOnlyOK = TRUE
+/\ stops = {}
+/\ clock = 2
+/\ nextId = 1
+/\ askQ = <<<<>>, <<>>, <<>>>>
+/\ lastAction = [type |-> "TimeAdvance"]
+/\ bidQ = <<<<>>, <<>>, <<>>>>
+/\ lastTradePrice = NULL
+/\ stpOK = TRUE
+
+State 3: <SubmitOrder line 601, col 5 to line 642, col 57 of module MatchingEngine>
+/\ postOnlyOK = TRUE
+/\ stops = {}
+/\ clock = 3
+/\ nextId = 2
+/\ askQ = <<<<>>, <<>>, <<>>>>
+/\ lastAction = [ side |-> "BUY",
+  price |-> 2,
+  stpGroup |-> "G1",
+  qty |-> 2,
+  orderType |-> "LIMIT",
+  stopPrice |-> NULL,
+  tif |-> "GTC",
+  displayQty |-> 1,
+  postOnly |-> TRUE,
+  stpPolicy |-> "CANCEL_BOTH",
+  minQty |-> NULL,
+  id |-> 1,
+  type |-> "SubmitOrder" ]
+/\ bidQ = << <<>>,
+   << [ side |-> "BUY",
+        price |-> 2,
+        stpGroup |-> "G1",
+        qty |-> 2,
+        orderType |-> "LIMIT",
+        stopPrice |-> NULL,
+        tif |-> "GTC",
+        displayQty |-> 1,
+        postOnly |-> TRUE,
+        stpPolicy |-> "CANCEL_BOTH",
+        minQty |-> NULL,
+        id |-> 1,
+        remainingQty |-> 2,
+        visibleQty |-> 1,
+        status |-> "NEW",
+        timestamp |-> 2 ] >>,
+   <<>> >>
+/\ lastTradePrice = NULL
+/\ stpOK = TRUE
+
+State 4: <SubmitOrder line 601, col 5 to line 642, col 57 of module MatchingEngine>
+/\ postOnlyOK = TRUE
+/\ stops = {}
+/\ clock = 5
+/\ nextId = 3
+/\ askQ = <<<<>>, <<>>, <<>>>>
+/\ lastAction = [ side |-> "SELL",
+  price |-> NULL,
+  stpGroup |-> NULL,
+  qty |-> 1,
+  orderType |-> "MTL",
+  stopPrice |-> NULL,
+  tif |-> "GTC",
+  displayQty |-> NULL,
+  postOnly |-> FALSE,
+  stpPolicy |-> NULL,
+  minQty |-> NULL,
+  id |-> 2,
+  type |-> "SubmitOrder" ]
+/\ bidQ = << <<>>,
+   << [ side |-> "BUY",
+        price |-> 2,
+        stpGroup |-> "G1",
+        qty |-> 2,
+        orderType |-> "LIMIT",
+        stopPrice |-> NULL,
+        tif |-> "GTC",
+        displayQty |-> 1,
+        postOnly |-> TRUE,
+        stpPolicy |-> "CANCEL_BOTH",
+        minQty |-> NULL,
+        id |-> 1,
+        remainingQty |-> 1,
+        visibleQty |-> 1,
+        status |-> "PARTIAL",
+        timestamp |-> 4 ] >>,
+   <<>> >>
+/\ lastTradePrice = 2
+/\ stpOK = TRUE
+
+The number of states generated: 172408
+Simulation using seed -1457967020036356613 and aril 0
+Progress: 176238 states checked.
+Finished in 12s at (2026-03-29 23:16:28)

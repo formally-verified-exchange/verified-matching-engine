@@ -1,0 +1,81 @@
+{
+  "metadata": {
+    "source": "counterexample",
+    "trace_id": "target_iceberg",
+    "state_count": 3,
+    "prices": [
+      1,
+      2,
+      3
+    ]
+  },
+  "steps": [
+    {
+      "step": 1,
+      "action": "SubmitOrder",
+      "params": {
+        "id": 1,
+        "side": "BUY",
+        "price": null,
+        "quantity": 1,
+        "orderType": "MTL",
+        "timeInForce": "GTC",
+        "stopPrice": null,
+        "displayQty": null,
+        "postOnly": false,
+        "minQty": null,
+        "stpGroup": null,
+        "stpPolicy": null
+      },
+      "projected_state": {
+        "book": {
+          "bids": [],
+          "asks": []
+        },
+        "stops": [],
+        "lastTradePrice": 0,
+        "orderCount": 0,
+        "stopCount": 0
+      }
+    },
+    {
+      "step": 2,
+      "action": "SubmitOrder",
+      "params": {
+        "id": 2,
+        "side": "BUY",
+        "price": 1,
+        "quantity": 1,
+        "orderType": "LIMIT",
+        "timeInForce": "GTC",
+        "stopPrice": null,
+        "displayQty": 1,
+        "postOnly": false,
+        "minQty": null,
+        "stpGroup": null,
+        "stpPolicy": null
+      },
+      "projected_state": {
+        "book": {
+          "bids": [
+            {
+              "price": 1,
+              "orders": [
+                {
+                  "id": 2,
+                  "remainingQty": 1,
+                  "visibleQty": 1
+                }
+              ]
+            }
+          ],
+          "asks": []
+        },
+        "stops": [],
+        "lastTradePrice": 0,
+        "orderCount": 1,
+        "stopCount": 0
+      }
+    }
+  ]
+}

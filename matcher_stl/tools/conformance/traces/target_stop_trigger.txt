@@ -1,0 +1,138 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 80 and seed 3460313823905654188 with 4 workers on 24 cores with 23552MB heap and 64MB offheap memory [pid: 3605204] (Linux 6.17.0-14-generic amd64, Ubuntu 21.0.10 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /home/aaslyan/matcher_tla/spec/MatchingEngine.tla
+Parsing file /tmp/Integers.tla
+Parsing file /tmp/Sequences.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module MatchingEngine
+Starting... (2026-03-29 23:11:31)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-03-29 23:11:31.
+Progress(5) at 2026-03-29 23:11:34: 75,758 states generated (75,758 s/min), 24,701 distinct states found (24,701 ds/min), 24,658 states left on queue.
+Progress(5) at 2026-03-29 23:12:34: 3,040,327 states generated (2,964,569 s/min), 1,963,855 distinct states found (1,939,154 ds/min), 1,961,757 states left on queue.
+Progress(5) at 2026-03-29 23:13:34: 6,030,065 states generated (2,989,738 s/min), 3,719,142 distinct states found (1,755,287 ds/min), 3,715,131 states left on queue.
+Progress(5) at 2026-03-29 23:14:34: 8,995,038 states generated (2,964,973 s/min), 5,588,575 distinct states found (1,869,433 ds/min), 5,582,401 states left on queue.
+Error: Invariant TargetNoStopTrigger is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ postOnlyOK = TRUE
+/\ stops = {}
+/\ clock = 1
+/\ nextId = 1
+/\ askQ = <<<<>>, <<>>>>
+/\ lastAction = [type |-> "Init"]
+/\ bidQ = <<<<>>, <<>>>>
+/\ lastTradePrice = NULL
+/\ stpOK = TRUE
+
+State 2: <SubmitOrder line 601, col 5 to line 642, col 57 of module MatchingEngine>
+/\ postOnlyOK = TRUE
+/\ stops = {}
+/\ clock = 2
+/\ nextId = 2
+/\ askQ = <<<<>>, <<>>>>
+/\ lastAction = [ side |-> "BUY",
+  price |-> 1,
+  stpGroup |-> NULL,
+  qty |-> 1,
+  orderType |-> "LIMIT",
+  stopPrice |-> NULL,
+  tif |-> "GTC",
+  displayQty |-> NULL,
+  postOnly |-> FALSE,
+  stpPolicy |-> NULL,
+  minQty |-> NULL,
+  id |-> 1,
+  type |-> "SubmitOrder" ]
+/\ bidQ = << << [ side |-> "BUY",
+        price |-> 1,
+        stpGroup |-> NULL,
+        qty |-> 1,
+        orderType |-> "LIMIT",
+        stopPrice |-> NULL,
+        tif |-> "GTC",
+        displayQty |-> NULL,
+        postOnly |-> FALSE,
+        stpPolicy |-> NULL,
+        minQty |-> NULL,
+        id |-> 1,
+        remainingQty |-> 1,
+        visibleQty |-> 1,
+        status |-> "NEW",
+        timestamp |-> 1 ] >>,
+   <<>> >>
+/\ lastTradePrice = NULL
+/\ stpOK = TRUE
+
+State 3: <SubmitOrder line 601, col 5 to line 642, col 57 of module MatchingEngine>
+/\ postOnlyOK = TRUE
+/\ stops = {}
+/\ clock = 3
+/\ nextId = 3
+/\ askQ = <<<<>>, <<>>>>
+/\ lastAction = [ side |-> "SELL",
+  price |-> NULL,
+  stpGroup |-> NULL,
+  qty |-> 1,
+  orderType |-> "MTL",
+  stopPrice |-> NULL,
+  tif |-> "GTC",
+  displayQty |-> NULL,
+  postOnly |-> FALSE,
+  stpPolicy |-> NULL,
+  minQty |-> NULL,
+  id |-> 2,
+  type |-> "SubmitOrder" ]
+/\ bidQ = <<<<>>, <<>>>>
+/\ lastTradePrice = 1
+/\ stpOK = TRUE
+
+State 4: <SubmitOrder line 601, col 5 to line 642, col 57 of module MatchingEngine>
+/\ postOnlyOK = TRUE
+/\ stops = { [ side |-> "BUY",
+    price |-> NULL,
+    stpGroup |-> NULL,
+    qty |-> 1,
+    orderType |-> "STOP_MARKET",
+    stopPrice |-> 2,
+    tif |-> "GTC",
+    displayQty |-> NULL,
+    postOnly |-> FALSE,
+    stpPolicy |-> NULL,
+    minQty |-> NULL,
+    id |-> 3,
+    remainingQty |-> 1,
+    visibleQty |-> 1,
+    status |-> "NEW",
+    timestamp |-> 3 ] }
+/\ clock = 4
+/\ nextId = 4
+/\ askQ = <<<<>>, <<>>>>
+/\ lastAction = [ side |-> "BUY",
+  price |-> NULL,
+  stpGroup |-> NULL,
+  qty |-> 1,
+  orderType |-> "STOP_MARKET",
+  stopPrice |-> 2,
+  tif |-> "GTC",
+  displayQty |-> NULL,
+  postOnly |-> FALSE,
+  stpPolicy |-> NULL,
+  minQty |-> NULL,
+  id |-> 3,
+  type |-> "SubmitOrder" ]
+/\ bidQ = <<<<>>, <<>>>>
+/\ lastTradePrice = 1
+/\ stpOK = TRUE
+
+10332192 states generated, 6344544 distinct states found, 6337717 states left on queue.
+The depth of the complete state graph search is 6.
+The average outdegree of the complete state graph is 13 (minimum is 0, the maximum 31 and the 95th percentile is 31).
+Finished in 03min 30s at (2026-03-29 23:15:01)

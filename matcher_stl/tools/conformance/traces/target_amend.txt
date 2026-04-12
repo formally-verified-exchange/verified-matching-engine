@@ -1,0 +1,112 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 59 and seed 4588471656289104285 with 4 workers on 24 cores with 23552MB heap and 64MB offheap memory [pid: 3606259] (Linux 6.17.0-14-generic amd64, Ubuntu 21.0.10 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /home/aaslyan/matcher_tla/spec/MatchingEngine.tla
+Parsing file /tmp/Integers.tla
+Parsing file /tmp/Sequences.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module MatchingEngine
+Starting... (2026-03-29 23:15:20)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-03-29 23:15:20.
+Error: Invariant TargetNoPartialFill is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ postOnlyOK = TRUE
+/\ stops = {}
+/\ clock = 1
+/\ nextId = 1
+/\ askQ = <<<<>>, <<>>>>
+/\ lastAction = [type |-> "Init"]
+/\ bidQ = <<<<>>, <<>>>>
+/\ lastTradePrice = NULL
+/\ stpOK = TRUE
+
+State 2: <SubmitOrder line 601, col 5 to line 642, col 57 of module MatchingEngine>
+/\ postOnlyOK = TRUE
+/\ stops = {}
+/\ clock = 2
+/\ nextId = 2
+/\ askQ = <<<<>>, <<>>>>
+/\ lastAction = [ side |-> "BUY",
+  price |-> 1,
+  stpGroup |-> NULL,
+  qty |-> 1,
+  orderType |-> "LIMIT",
+  stopPrice |-> NULL,
+  tif |-> "GTC",
+  displayQty |-> NULL,
+  postOnly |-> FALSE,
+  stpPolicy |-> NULL,
+  minQty |-> NULL,
+  id |-> 1,
+  type |-> "SubmitOrder" ]
+/\ bidQ = << << [ side |-> "BUY",
+        price |-> 1,
+        stpGroup |-> NULL,
+        qty |-> 1,
+        orderType |-> "LIMIT",
+        stopPrice |-> NULL,
+        tif |-> "GTC",
+        displayQty |-> NULL,
+        postOnly |-> FALSE,
+        stpPolicy |-> NULL,
+        minQty |-> NULL,
+        id |-> 1,
+        remainingQty |-> 1,
+        visibleQty |-> 1,
+        status |-> "NEW",
+        timestamp |-> 1 ] >>,
+   <<>> >>
+/\ lastTradePrice = NULL
+/\ stpOK = TRUE
+
+State 3: <SubmitOrder line 601, col 5 to line 642, col 57 of module MatchingEngine>
+/\ postOnlyOK = TRUE
+/\ stops = {}
+/\ clock = 3
+/\ nextId = 3
+/\ askQ = << << [ side |-> "SELL",
+        price |-> 1,
+        stpGroup |-> NULL,
+        qty |-> 2,
+        orderType |-> "LIMIT",
+        stopPrice |-> NULL,
+        tif |-> "GTC",
+        displayQty |-> NULL,
+        postOnly |-> FALSE,
+        stpPolicy |-> NULL,
+        minQty |-> NULL,
+        id |-> 2,
+        remainingQty |-> 1,
+        visibleQty |-> 1,
+        status |-> "PARTIAL",
+        timestamp |-> 2 ] >>,
+   <<>> >>
+/\ lastAction = [ side |-> "SELL",
+  price |-> NULL,
+  stpGroup |-> NULL,
+  qty |-> 2,
+  orderType |-> "MTL",
+  stopPrice |-> NULL,
+  tif |-> "GTC",
+  displayQty |-> NULL,
+  postOnly |-> FALSE,
+  stpPolicy |-> NULL,
+  minQty |-> NULL,
+  id |-> 2,
+  type |-> "SubmitOrder" ]
+/\ bidQ = <<<<>>, <<>>>>
+/\ lastTradePrice = 1
+/\ stpOK = TRUE
+
+29711 states generated, 4704 distinct states found, 4672 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 5 (minimum is 0, the maximum 31 and the 95th percentile is 31).
+Finished in 02s at (2026-03-29 23:15:22)

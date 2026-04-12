@@ -69,7 +69,7 @@
 \emergencystretch=3em
 
 % Permit line breaks inside \texttt after "/" and "_" so that long
-% file paths (e.g. MatchingEngine/TheoremsElegant.lean) can wrap.
+% file paths (e.g. matcher_lean/TheoremsElegant.lean) can wrap.
 \makeatletter
 \def\BreakableChars#1{\discretionary{}{}{}\ttfamily#1}
 \makeatother
@@ -1411,18 +1411,19 @@ against each configuration. The complete artifacts are:
 
 \begin{itemize}[nosep]
 \item \texttt{matching-engine-formal-spec.md}---the prose specification.
-\item \texttt{spec/MatchingEngine.tla}---the TLA+ specification
+\item \texttt{matcher\_tla/MatchingEngine.tla}---the TLA+ specification
       ($\sim$950 lines).
-\item \texttt{spec/MatchingEngine.cfg} and the per-configuration files
-      \texttt{spec/MatchingEngine\_*.cfg} for Table~\ref{tab:configs}.
-\item \texttt{spec/REPORT.md}---model checking output and bug
+\item \texttt{matcher\_tla/MatchingEngine.cfg} and the per-configuration files
+      \texttt{matcher\_tla/MatchingEngine\_*.cfg} for Table~\ref{tab:configs}.
+\item \texttt{matcher\_tla/REPORT.md}---model checking output and bug
       descriptions.
-\item \texttt{MatchingEngine/}---the Lean~4 project (11 source files).
-      The two proof files are \texttt{Theorems.lean} (3{,}986 lines,
+\item \texttt{matcher\_lean/}---the self-contained Lean~4 project.
+      The 11 source files live under \texttt{matcher\_lean/MatchingEngine/};
+      the two proof files are \texttt{Theorems.lean} (3{,}986 lines,
       74 theorems) and \texttt{TheoremsElegant.lean} (312 lines,
-      6 theorems), both under the \texttt{MatchingEngine/} directory.
-      Both are built and type-checked by \texttt{lake build} and are
-      imported from the library root \texttt{MatchingEngine.lean}.
+      6 theorems). Both are built and type-checked by running
+      \texttt{lake build} from inside \texttt{matcher\_lean/} and are
+      imported from the library root \texttt{matcher\_lean/MatchingEngine.lean}.
 \end{itemize}
 
 To reproduce the FIFO counterexample:
@@ -1440,7 +1441,7 @@ To reproduce the FIFO counterexample:
 To reproduce the fuel-unsoundness issue (\S\ref{sec:lean-fuel}):
 \begin{enumerate}[nosep]
 \item Revert \texttt{computeMatchFuel} in
-      \texttt{MatchingEngine/Process.lean} to the constant
+      \texttt{matcher\_lean/MatchingEngine/Process.lean} to the constant
       \texttt{defaultFuel~:=~100}.
 \item Re-run \texttt{lake build}. The proof of
       \texttt{doMatch\_preserves\_AllInv} will fail: the measure

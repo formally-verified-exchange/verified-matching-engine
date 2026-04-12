@@ -13,23 +13,26 @@ describes how to build and run the two verification artifacts.
 
 ```
 matching-engine-formal-spec.md   Prose specification (v1.2.0, 978 lines)
-spec/
+matcher_tla/                     TLA+ specification and TLC configs
   MatchingEngine.tla             TLA+ model (~950 lines)
   MatchingEngine.cfg             TLC config: 2 orders / 3 prices (medium)
   MatchingEngine_noamend.cfg     TLC config: 3 orders / 2 prices
   MatchingEngine_amend.cfg       TLC config: with AmendOrder action
   REPORT.md                      Model checking findings and bug traces
-MatchingEngine/                  Lean 4 sources
-  Basic.lean, Order.lean, Book.lean, STP.lean,
-  Match.lean, Process.lean, Cancel.lean, Invariants.lean,
-  Tests.lean,
-  Theorems.lean                  Constructive proof (3,986 lines)
-  TheoremsElegant.lean           Structural proof (312 lines)
-MatchingEngine.lean               Library root (imports every module)
-Main.lean                         Executable entry point (runs Tests)
-lakefile.toml                     Lake build configuration
-lean-toolchain                    Pinned Lean toolchain
-paper.tex / paper.pdf             Paper manuscript
+matcher_lean/                    Self-contained Lean 4 project
+  lakefile.toml                  Lake build configuration
+  lean-toolchain                 Pinned Lean toolchain
+  Main.lean                      Executable entry point (runs Tests)
+  MatchingEngine.lean            Library root (imports every module)
+  MatchingEngine/                Lean 4 sources
+    Basic.lean, Order.lean, Book.lean, STP.lean,
+    Match.lean, Process.lean, Cancel.lean, Invariants.lean,
+    Tests.lean,
+    Theorems.lean                Constructive proof (3,986 lines)
+    TheoremsElegant.lean         Structural proof (312 lines)
+matcher_c/                       Reference C implementation
+matcher_stl/                     Reference C++ (STL) implementation
+paper.tex / paper.pdf            Paper manuscript
 ```
 
 ## Prerequisites
@@ -62,17 +65,18 @@ alias tlc='java -cp $TLA_JAR tlc2.TLC'
 
 ## Building and checking the Lean proofs
 
-From the repository root:
+From inside `matcher_lean/`:
 
 ```bash
+cd matcher_lean
 lake build
 ```
 
 This builds every file in the `MatchingEngine` library, including
 `Theorems.lean` and `TheoremsElegant.lean`, which are imported from
-the library root `MatchingEngine.lean`. A successful `lake build`
-means every proof has been elaborated by Lean with no open
-obligations.
+the library root `matcher_lean/MatchingEngine.lean`. A successful
+`lake build` means every proof has been elaborated by Lean with no
+open obligations.
 
 To execute the runtime test suite in `Tests.lean`:
 
@@ -82,7 +86,7 @@ lake exe matchingengine
 
 ### What is proved
 
-The main theorem lives in `MatchingEngine/Theorems.lean`:
+The main theorem lives in `matcher_lean/MatchingEngine/Theorems.lean`:
 
 ```lean
 theorem process_preserves_AllInv
@@ -105,14 +109,14 @@ The theorem holds for arbitrary book sizes. The matching-loop fuel
 bound is derived from the book state via `computeMatchFuel` and is
 proved sufficient, not assumed.
 
-`MatchingEngine/TheoremsElegant.lean` contains an independent proof
+`matcher_lean/MatchingEngine/TheoremsElegant.lean` contains an independent proof
 of the same result via case analysis of the matching termination
 condition; it is also built by `lake build`.
 
 ## Running TLA+ / TLC
 
 All runs are from the repository root. The configurations are
-summarised in `spec/REPORT.md` and in Table 4 of the paper.
+summarised in `matcher_tla/REPORT.md` and in Table 4 of the paper.
 
 ### Medium configuration (default)
 
@@ -120,7 +124,7 @@ summarised in `spec/REPORT.md` and in Table 4 of the paper.
 Explores roughly 36.7 M states in a few minutes.
 
 ```bash
-tlc -config spec/MatchingEngine.cfg spec/MatchingEngine.tla
+tlc -config matcher_tla/MatchingEngine.cfg matcher_tla/MatchingEngine.tla
 ```
 
 ### 3-order configuration
@@ -128,7 +132,7 @@ tlc -config spec/MatchingEngine.cfg spec/MatchingEngine.tla
 3 orders, 2 prices. Larger state space; used for exploratory runs.
 
 ```bash
-tlc -config spec/MatchingEngine_noamend.cfg spec/MatchingEngine.tla
+tlc -config matcher_tla/MatchingEngine_noamend.cfg matcher_tla/MatchingEngine.tla
 ```
 
 ### With amend action
@@ -137,7 +141,7 @@ Same scope as the medium configuration, but the `AmendOrder` action
 is enabled.
 
 ```bash
-tlc -config spec/MatchingEngine_amend.cfg spec/MatchingEngine.tla
+tlc -config matcher_tla/MatchingEngine_amend.cfg matcher_tla/MatchingEngine.tla
 ```
 
 ### Checked invariants
@@ -170,33 +174,33 @@ with
 ConvertStop(s)
 ```
 
-in `spec/MatchingEngine.tla`, then re-run TLC with the `_noamend`
+in `matcher_tla/MatchingEngine.tla`, then re-run TLC with the `_noamend`
 configuration:
 
 ```bash
-tlc -config spec/MatchingEngine_noamend.cfg spec/MatchingEngine.tla
+tlc -config matcher_tla/MatchingEngine_noamend.cfg matcher_tla/MatchingEngine.tla
 ```
 
 TLC produces a `FIFOWithinLevel` violation within the first few
 million states. The minimal counterexample is a three-order
-sequence; see `spec/REPORT.md` and §6.1 of the paper.
+sequence; see `matcher_tla/REPORT.md` and §6.1 of the paper.
 
 ### Bug #2: Iceberg stranding under STP DECREMENT
 
 Remove the reload-after-DECREMENT clause from the STP path in
-`spec/MatchingEngine.tla`. The specification gap is described in
-`spec/REPORT.md` and §6.2 of the paper.
+`matcher_tla/MatchingEngine.tla`. The specification gap is described in
+`matcher_tla/REPORT.md` and §6.2 of the paper.
 
 ### Constant-fuel unsoundness (found during the Lean proof)
 
-Revert `computeMatchFuel` in `MatchingEngine/Process.lean` to the
+Revert `computeMatchFuel` in `matcher_lean/MatchingEngine/Process.lean` to the
 constant
 
 ```lean
 def defaultFuel : Nat := 100
 ```
 
-and re-run:
+and re-run (from inside `matcher_lean/`):
 
 ```bash
 lake build
@@ -209,8 +213,9 @@ counterexample is a book with more than 100 contra-side orders; see
 
 ### Build-closure incident
 
-Delete `import MatchingEngine.Theorems` from `MatchingEngine.lean`
-and run `lake build`. The build succeeds, but `Theorems.lean` is not
+Delete `import MatchingEngine.Theorems` from
+`matcher_lean/MatchingEngine.lean` and run `lake build` from inside
+`matcher_lean/`. The build succeeds, but `Theorems.lean` is not
 elaborated on that run. Adding the import back restores full proof
 checking. This is discussed in §7.3 of the paper.
 

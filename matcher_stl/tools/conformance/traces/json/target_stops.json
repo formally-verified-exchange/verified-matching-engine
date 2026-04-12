@@ -1,0 +1,78 @@
+{
+  "metadata": {
+    "source": "counterexample",
+    "trace_id": "target_stops",
+    "state_count": 3,
+    "prices": [
+      1,
+      2,
+      3
+    ]
+  },
+  "steps": [
+    {
+      "step": 1,
+      "action": "SubmitOrder",
+      "params": {
+        "id": 1,
+        "side": "SELL",
+        "price": null,
+        "quantity": 1,
+        "orderType": "MTL",
+        "timeInForce": "GTC",
+        "stopPrice": null,
+        "displayQty": null,
+        "postOnly": false,
+        "minQty": null,
+        "stpGroup": null,
+        "stpPolicy": null
+      },
+      "projected_state": {
+        "book": {
+          "bids": [],
+          "asks": []
+        },
+        "stops": [],
+        "lastTradePrice": 0,
+        "orderCount": 0,
+        "stopCount": 0
+      }
+    },
+    {
+      "step": 2,
+      "action": "SubmitOrder",
+      "params": {
+        "id": 2,
+        "side": "BUY",
+        "price": null,
+        "quantity": 1,
+        "orderType": "STOP_MARKET",
+        "timeInForce": "GTC",
+        "stopPrice": 1,
+        "displayQty": null,
+        "postOnly": false,
+        "minQty": null,
+        "stpGroup": null,
+        "stpPolicy": null
+      },
+      "projected_state": {
+        "book": {
+          "bids": [],
+          "asks": []
+        },
+        "stops": [
+          {
+            "id": 2,
+            "side": "BUY",
+            "stopPrice": 1,
+            "price": null,
+            "remainingQty": 1
+          }
+        ],
+        "lastTradePrice": 0,
+        "orderCount": 0,
+        "stopCount": 1
+      }
+    }
+  ]
+}
