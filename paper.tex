@@ -717,6 +717,11 @@ Once the constructive proof of the full pipeline was complete, a second
 shorter proof was developed for the matching-and-dispose core, in the
 file \texttt{TheoremsElegant.lean} (312 lines, 6 theorems).
 
+The matching loop continues as long as the incoming order's price is
+willing to cross the best price on the opposite side---a condition
+captured by the predicate \texttt{canMatchPrice} (defined formally in
+\S\ref{sec:invariants}). When the loop stops, this condition is false.
+
 The insight is that when \texttt{doMatch} terminates on a
 fuel-sufficient run, the resulting state falls into exactly one of
 three cases:
@@ -789,48 +794,39 @@ rules as explicit preconditions: post-only orders have a defined price,
 and stop orders are not post-only. Neither was included in the initial
 proof attempt. The proof failed at specific branches, and the failures
 pointed precisely to these missing hypotheses. The proof told us which
-constraints were load-bearing.
+constraints were load-bearing. The precise Lean predicate and its
+derivation from the specification's well-formedness constraints are
+given in \S\ref{sec:wf}.
 
 
 % ============================================================================
-\section{From Specification to Code}
+\section{From Specification to Implementation}
 \label{sec:synthesis}
 % ============================================================================
 
-\subsection{The Specification as a Blueprint}
-\label{sec:synthesis-blueprint}
+The fixed specification---prose amended by the two bug fixes described
+in \S\ref{sec:findings}---is designed to serve as the primary input for
+a systems-language implementation. The specification's phase structure,
+well-formedness constraints, and invariant definitions provide a precise
+blueprint: each processing phase maps directly to an implementation
+function, each well-formedness constraint maps to an admission check,
+and each invariant maps to a runtime assertion.
 
-The fixed specification---prose amended by the two bug fixes---served as
-the primary input for C and C++ implementations. The implementations
-follow the phase structure of the specification one for one, apply both
-bug fixes explicitly (stop-trigger timestamps are refreshed before
-re-entry; the STP DECREMENT path reloads iceberg visible quantity when
-it would otherwise reach zero), and include an
-\texttt{engine\_check\_invariants} routine that translates the
-TLC-checked invariants into runtime assertions.
+For the Lean reference implementation, the gap between specification and
+implementation is closed by the proof itself: the code that tests run
+against is the same code the theorems reference. There is no extraction
+layer, no refinement obligation.
 
-The runtime assertions are not a proof. An invariant assertion fires
-after state has already diverged. But they narrow the gap between
-specification and implementation and have caught regressions during
-development.
-
-\subsection{What This Does and Does Not Mean}
-\label{sec:synthesis-gap}
-
-This is not a proof that the C++ code is correct. The Lean proof
-establishes \texttt{AllInv} preservation for the Lean reference
-implementation. It does not transfer automatically to C or C++. Those
-implementations are validated by shared test suites derived from the
-specification, not by a formal correspondence argument.
-
-For the Lean reference implementation, the gap is closed: the code that
-tests run against is the same code the theorems reference. There is no
-extraction layer, no refinement obligation. For the systems-language
-implementations, a gap remains.
-
-A genuine end-to-end guarantee would require a refinement argument
-connecting the Lean reference to the C/C++ code. That is beyond the
-scope of this paper and is a natural next step.
+For a systems-language implementation such as C++, the gap can be
+narrowed by conformance testing against the TLA+ model. In this
+approach, TLC generates execution traces---sequences of orders and the
+model's expected book state after each---and a test harness replays
+these traces against the implementation, comparing its output
+state-for-state against the model. This pipeline does not constitute a
+refinement proof, but it provides a level of assurance substantially
+above conventional unit testing by covering the same combinatorial
+feature interactions that TLC explores. A conformance-tested C++
+implementation is planned as a follow-up to this work.
 
 
 % ============================================================================
@@ -892,9 +888,8 @@ beyond any bounded configuration.
 \subsection{The Role of AI}
 \label{sec:lessons-ai}
 
-The TLA+ model, the Lean~4 proofs, and the C/C++ implementations were
-developed interactively with a large language model acting as a coding
-assistant. Strategic decisions---the progress-lemma decomposition, the
+The TLA+ model and the Lean~4 proofs were developed interactively with
+a large language model acting as a coding assistant. Strategic decisions---the progress-lemma decomposition, the
 three-case analysis in the elegant proof, and the side-parameterization
 refactor---were human contributions. The bulk of tactic scripting and
 operator translation was produced by the model under that guidance.
@@ -1305,9 +1300,7 @@ between a high-level specification and a C-level implementation, and
 consumed person-decades of effort. The present work is considerably
 narrower in both ambition and cost: we prove preservation of a single
 book invariant (\texttt{AllInv}) for the Lean reference implementation
-of a feature-rich matching engine and rely on a separate
-testing-and-assertion path to connect that reference to systems-language
-code. The investment is correspondingly smaller (weeks rather than
+of a feature-rich matching engine. The investment is correspondingly smaller (weeks rather than
 years), but the target is a different class of system---one whose
 complexity lives in feature composition rather than in concurrency or
 low-level memory semantics.
@@ -1351,11 +1344,10 @@ AI's contribution. Neither layer alone would have produced the artifact.
 Program synthesis from formal specifications is a classical research
 area~\cite{Manna1980}. Recent work on LLM-driven
 synthesis~\cite{Jain2022} has reached practical levels for small
-programs. The approach taken in \S\ref{sec:synthesis} differs in that
-the specification is both the logical source of truth and the primary
-input, with architectural hints provided as orthogonal performance
-directives. A formal refinement argument between the Lean reference
-and the synthesized C/C++ remains future work.
+programs. The approach taken in this work stops at the Lean reference
+implementation. Carrying the specification forward to a
+systems-language implementation via conformance testing against TLC
+traces is planned future work.
 
 
 % ============================================================================
@@ -1401,12 +1393,11 @@ code that tests run is the same code the theorems reference---there is
 no separate model, no extraction layer, and no refinement obligation.
 The semantic gap between tested behavior and proved behavior is zero.
 
-For the C and C++ synthesized implementations, a gap remains. The Lean
-proof does not transfer automatically to C or C++. Those implementations
-are validated by shared test suites derived from the specification, not
-by a formal correspondence argument. A refinement proof connecting the
-Lean reference to the systems-language implementations is a natural
-next step.
+For any future systems-language implementation, a gap would remain. The
+Lean proof does not transfer automatically to C or C++. The
+conformance-testing approach described in \S\ref{sec:synthesis} narrows
+this gap but does not close it. A refinement proof connecting the Lean
+reference to a systems-language implementation is a natural next step.
 
 \subsection{Reproducibility}
 
@@ -1432,8 +1423,6 @@ against each configuration. The complete artifacts are:
       6 theorems), both under the \texttt{MatchingEngine/} directory.
       Both are built and type-checked by \texttt{lake build} and are
       imported from the library root \texttt{MatchingEngine.lean}.
-\item Synthesized C/C++ implementations (available in related
-      repositories).
 \end{itemize}
 
 To reproduce the FIFO counterexample:
@@ -1501,14 +1490,19 @@ model checking followed by weeks of theorem proving---represents a
 tractable investment for systems where feature interactions can move
 real money in the wrong direction.
 
+All artifacts described in this paper---the prose specification, the
+TLA+ model and configurations, and the Lean~4 project including both
+proof files---are publicly available at the repository linked on the
+first page. A conformance-tested C++ implementation of the same
+specification, together with a TLA+-driven trace-replay testing
+pipeline, is in preparation as a companion publication.
+
 
 \section*{Acknowledgments}
 
-The TLA+ model, the Lean~4 proofs, and the C/C++ implementations
-discussed in \S\ref{sec:synthesis} were developed interactively with
+The TLA+ model and the Lean~4 proofs were developed interactively with
 the assistance of a large language model, using the formal specification
-as the primary input. The constant-fuel soundness issue described in
-\S\ref{sec:lean} was encountered during this process.
+as the primary input.
 
 % ============================================================================
 \begin{thebibliography}{99}
