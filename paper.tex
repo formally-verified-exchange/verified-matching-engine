@@ -599,8 +599,8 @@ The formal statement defines the combined invariant
 \[
 \texttt{AllInv}(b) \;\equiv\;
 \texttt{BookUncrossed}(b) \land
-\texttt{bidsSortedDesc}(b) \land
-\texttt{asksSortedAsc}(b),
+\texttt{bidsSortedDescB(b.bids) = true} \land
+\texttt{asksSortedAscB(b.asks) = true},
 \]
 and the main theorem is:
 
@@ -930,7 +930,7 @@ are designed to be used in sequence, not as alternatives.
 The object of study is an internal prose specification,
 \texttt{matching-engine-formal-spec.md} version~1.2.0, describing a
 generic asset-agnostic order matching engine with price-time priority.
-The specification is 900 lines of structured pseudocode covering
+The specification is 979 lines of structured pseudocode covering
 primitive domains, order well-formedness constraints, the order book
 structure, a core matching algorithm, post-match disposition, six order
 types, four STP policies, iceberg reload semantics, stop triggering with
@@ -949,11 +949,13 @@ valid inputs to the engine. Table~\ref{tab:wf} summarizes them.
 \begin{table}[H]
 \centering
 \caption{Well-formedness constraints (excerpt from the prose
-specification). TLA+ \texttt{WellFormed} and Lean
-\texttt{Order.wellFormed} model a subset (omitting WF-6/7,
-WF-12, WF-17; WF-11 is included but WF-12 is not). Lean's
-\texttt{OrderProcOk} requires only the two load-bearing fragments
-(WF-13 and its corollary).}
+specification). TLA+ \texttt{WellFormed} omits WF-6/7, WF-11/12,
+and WF-17; \texttt{MakeOrder} initializes the omitted
+\texttt{remainingQty}/\texttt{visibleQty} fields. Lean
+\texttt{Order.wellFormed} omits WF-6/7, WF-12, and WF-17; it
+includes WF-11 but not WF-12. Lean's \texttt{OrderProcOk}
+requires only the two load-bearing fragments (WF-13 and its
+corollary).}
 \label{tab:wf}
 \small
 \begin{tabular}{@{}llL{8cm}@{}}
@@ -1095,7 +1097,7 @@ the residual on the same side as the aggressor.
 \subsection{TLA+ Model Structure}
 \label{sec:model}
 
-The TLA+ specification (\texttt{MatchingEngine.tla}, approximately 850
+The TLA+ specification (\texttt{MatchingEngine.tla}, approximately 950
 lines) is a direct translation of the prose specification. The state
 consists of eight variables:
 
@@ -1185,12 +1187,15 @@ turn produce more trades and trigger more stops:
 \begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
 theorem process_all_preserve_AllInv : forall fuel,
   (forall o b, OrderProcOk o -> StopsNoPostOnly b -> AllInv b ->
-    AllInv (processOrder fuel o b).book) /\
-  (forall ts b, StopsNoPostOnly b -> AllInv b ->
-    AllInv (processCascade fuel ts b).book) /\
-  (forall os b, (forall o in os, o.postOnly = false) ->
-                StopsNoPostOnly b -> AllInv b ->
-    AllInv (processTriggeredStops fuel os b).book)
+    AllInv (processOrder fuel o b).book /\
+    StopsNoPostOnly (processOrder fuel o b).book) /\
+  (forall trades b, StopsNoPostOnly b -> AllInv b ->
+    AllInv (processCascade fuel trades b).book /\
+    StopsNoPostOnly (processCascade fuel trades b).book) /\
+  (forall orders b, (forall o in orders, o.postOnly = false) ->
+                    StopsNoPostOnly b -> AllInv b ->
+    AllInv (processTriggeredStops fuel orders b).book /\
+    StopsNoPostOnly (processTriggeredStops fuel orders b).book)
 \end{lstlisting}
 
 Induction proceeds on \texttt{fuel}. The base case (\texttt{fuel = 0})
@@ -1238,7 +1243,7 @@ Spec clause & TLA+ artefact & Lean artefact & Role \\
 \midrule
 WF-13       & \texttt{WellFormed} guard & \texttt{OrderProcOk} field 1 & Main-theorem precondition \\
 WF-13 (derived) & \texttt{WellFormed} guard & \texttt{OrderProcOk} field 2 & Main-theorem precondition \\
-INV-2/3     & not separately checked$^\dagger$ & \texttt{bidsSortedDesc}, \texttt{asksSortedAsc} & Discovered: needed for induction \\
+INV-2/3     & not separately checked$^\dagger$ & \texttt{bidsSortedDescB}, \texttt{asksSortedAscB} & Discovered: needed for induction \\
 INV-4       & \texttt{BookUncrossed}    & \texttt{BookUncrossed}, part of \texttt{AllInv} & Main-theorem conclusion \\
 INV-5       & \texttt{NoGhosts}         & \texttt{NoGhosts} (definition only) & Not proved preserved \\
 INV-6       & \texttt{StatusConsistency}& \texttt{statusConsistencyB} (definition only) & Not proved preserved \\
@@ -1262,8 +1267,9 @@ sorted key. In Lean the sortedness is explicit because book levels are
 a \texttt{List PriceLevel} and the induction needs to know both sides
 are monotone. This mismatch was discovered \emph{during} the proof:
 \texttt{BookUncrossed} alone is not inductive, which forced the
-addition of \texttt{AllInv = BookUncrossed $\land$ bidsSortedDesc
-$\land$ asksSortedAsc}.
+addition of \texttt{AllInv = BookUncrossed $\land$ bidsSortedDescB
+$\land$ asksSortedAscB} (with the Boolean predicates applied to the
+bid and ask level lists and required to equal \texttt{true}).
 \end{table}
 
 
