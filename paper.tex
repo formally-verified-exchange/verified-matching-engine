@@ -91,196 +91,865 @@ Price-Time Priority Matching Engine\thanks{Artifacts available at
 \maketitle
 
 \begin{abstract}
-We present a multi-level formal verification case study of a
-feature-rich price-time priority matching engine. The specification
-covers a full order-type suite (LIMIT, MARKET, MARKET-TO-LIMIT,
-STOP\_LIMIT, STOP\_MARKET) together with iceberg orders, four
-self-trade prevention policies, post-only, Fill-Or-Kill,
-minimum-quantity, cancel, and amend semantics. Verification proceeds
-at two levels: bounded exhaustive state-space exploration of a TLA+
-model, and a mechanized proof in Lean~4 of a Lean reference
-implementation that mirrors the same specification.
+We present a case study in multi-level formal verification of a
+feature-rich price-time priority matching engine---the software at the
+heart of every stock, futures, and cryptocurrency exchange. The engine
+supports five order types (\textsc{limit}, \textsc{market},
+\textsc{market-to-limit}, \textsc{stop\_limit}, \textsc{stop\_market}),
+iceberg display quantities, four self-trade prevention policies,
+post-only, fill-or-kill, and minimum-quantity semantics.
 
-Within the explored TLC configurations we identify one concrete
-specification defect---a FIFO violation caused by triggered stop
-orders retaining their original timestamp---and one specification gap
-in the interaction between STP DECREMENT and iceberg visibility
-management. In Lean, we prove that the main processing theorem
-preserves the combined book invariant \texttt{AllInv}, defined as
-uncrossed plus sorted on both sides. The proof holds for arbitrary
-book sizes with a fuel bound computed from the book state and proved
-sufficient rather than assumed. The development consists of a
-3{,}986-line constructive proof of the full preservation theorem,
-together with a 312-line structural proof of the matching-and-dispose
-core via a three-case analysis of the termination condition.
+The paper is structured around three findings, in the order they were
+discovered. Two were found by bounded model checking with TLC, which
+exhaustively explored 36 million reachable states: a FIFO violation
+caused by triggered stop orders retaining their original submission
+timestamp, and an iceberg stranding scenario caused by an interaction
+between STP DECREMENT and iceberg reload semantics. A third finding
+emerged only during theorem proving: the matching loop's original
+constant fuel bound of 100 steps made the key preservation theorem
+false for books with more than 100 contra-side orders.
 
-The proof effort itself surfaced a further issue that neither
-prose review nor bounded model checking had exposed: the original
-arbitrary fuel bound (\texttt{defaultFuel = 100}) made the
-preservation theorem false for books with more than a hundred
-contra-side orders. We report this as a methodological observation
-on the verification pipeline.
+We prove in Lean~4 that the processing pipeline preserves the combined
+book invariant \texttt{AllInv} (uncrossed plus sorted on both sides) for
+arbitrary book sizes, with a fuel bound computed from the book state and
+proved sufficient. The proof consists of a 3{,}986-line constructive
+artifact and a complementary 312-line structural proof via three-case
+analysis of the matching termination condition.
+
+The overarching lesson is that feature composition is where bugs hide.
+Each individual feature is correctly specified in isolation. The bugs
+live in intersections that prose review cannot see but an operational
+model exposes by construction.
 \end{abstract}
 
 
 % ============================================================================
-\section{Introduction}
+\section{What Is a Matching Engine?}
+\label{sec:intro}
 % ============================================================================
 
-Matching-engine correctness is commercially important and surprisingly
-difficult to state precisely. Production engines combine a large number of
-interacting features---order types, time-in-force policies, self-trade
-prevention, hidden quantity, stop triggers, cascading fills---each specified
-correctly in isolation, but capable of producing unexpected emergent behavior
-when combined. Prose specifications resolve the easy cases and leave the hard
-ones to implementor judgment.
+\subsection{The Role of a Matching Engine}
 
-Formal methods offer a sharper alternative: write the semantics as an
-executable state machine and enumerate its reachable states. This
-paper is a case study in doing exactly that for a matching-engine
-specification, and then going one step further---lifting the same
-semantics into Lean~4 and proving a safety property that bounded
-model checking cannot, by itself, establish.
+When you buy a stock, someone else is selling it. The matching engine
+finds the seller. Every exchange---stock market, futures exchange,
+cryptocurrency platform---runs a matching engine at its core. Every
+second, it processes thousands of incoming orders and decides which ones
+trade with which, at what price, in what quantity, and in what sequence.
 
-The paper's contributions are:
+If the matching engine makes a mistake, real money moves wrong. An order
+that should trade does not. An order that should not trade does. An
+order sitting at the front of a queue is pushed behind a newer one.
+These are not theoretical concerns: every such error is a financial
+event with an identifiable winner and loser.
+
+This paper is about formally verifying that a matching engine does what
+it claims to do---not just for small test cases, but for all possible
+inputs of all sizes.
+
+\subsection{Orders}
+\label{sec:orders-intro}
+
+An order is an instruction to trade. The simplest example: ``I want to
+buy 100 shares at \$150 or less.'' This is a \textsc{buy limit} order.
+The engine will fill it if a willing seller exists at that price or
+better; otherwise, it waits on the book.
+
+The engine studied in this paper supports five order types:
+
+\begin{itemize}[nosep]
+\item \textbf{\textsc{limit}}: rest at a specified price; fill at that
+      price or better. ``Buy 100 at \$150.'' Will wait indefinitely for
+      a matching seller.
+
+\item \textbf{\textsc{market}}: fill at whatever price is available
+      right now; never rest on the book. ``Buy 100 at any price.''
+      Executes immediately or not at all.
+
+\item \textbf{\textsc{market-to-limit} (MTL)}: aggressive first, then
+      patient. Match at any available price; lock to the first execution
+      price; rest any unfilled remainder as a limit order at that price.
+
+\item \textbf{\textsc{stop\_limit}}: dormant until a trigger event,
+      then active. ``Once the last trade price reaches \$155, enter a
+      buy limit order at \$156.'' Used for stop-loss and momentum
+      strategies.
+
+\item \textbf{\textsc{stop\_market}}: same trigger logic, but converts
+      to a market order on activation rather than a limit order.
+\end{itemize}
+
+Orders also carry \emph{modifiers} that change their behavior:
+
+\begin{itemize}[nosep]
+\item \textbf{Iceberg} (display quantity): only a small ``visible
+      slice'' is shown to the market. When that slice fills, the order
+      reloads a fresh slice from its hidden reserve---but loses its
+      place in the queue and joins the back of the line at its price.
+
+\item \textbf{Post-only}: the order must not aggress against the
+      opposite side. If it would immediately trade, it is rejected.
+      Useful for market makers who want to add liquidity, not consume
+      it.
+
+\item \textbf{Fill-or-Kill (FOK)}: fill the entire order immediately,
+      or cancel it entirely. No partial fills, no resting.
+
+\item \textbf{Minimum quantity (MinQty)}: the first fill must be at
+      least this large; after the initial threshold is met, the
+      remainder may rest and fill in smaller pieces.
+
+\item \textbf{Self-trade prevention (STP)}: four policies govern what
+      happens when an incoming order would trade against a resting order
+      from the same participant. Options: cancel the incoming order
+      (\textsc{cancel\_newest}), cancel the resting order
+      (\textsc{cancel\_oldest}), cancel both
+      (\textsc{cancel\_both}), or reduce both quantities by the
+      overlapping amount (\textsc{decrement}).
+\end{itemize}
+
+\subsection{The Order Book}
+\label{sec:book-intro}
+
+The order book is the matching engine's central data structure. It has
+two sides: bids (buy orders) and asks (sell orders). Each side is
+organized by price, with the most competitive prices at the top.
+
+\begin{center}
+\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize,frame=single,xleftmargin=0pt,framexleftmargin=0pt]
+         BIDS (buyers)          ASKS (sellers)
+  Price    Qty   Orders    |  Price    Qty   Orders
+  ------  -----  -------   |  ------  -----  -------
+  $151     200   [B, C]    |  $152     100   [D]
+  $150     500   [A]       |  $153     300   [E, F]
+  $149     150   [G]       |  $155     200   [H]
+
+         Best bid: $151          Best ask: $152
+         Spread: $1
+\end{lstlisting}
+\end{center}
+
+In this book, the best bid is \$151 and the best ask is \$152. The
+\emph{spread} is \$1. No immediate trade is possible because no buyer
+is willing to pay as much as the cheapest seller is asking.
+
+When a new buy order arrives at \$152 or higher, it \emph{crosses the
+spread}: it is willing to pay the ask price, so a trade occurs. The
+matching engine fills the incoming order against the cheapest resting
+ask, consuming quantity from the front of that level's queue, and
+repeating until the incoming order is satisfied or no crossable orders
+remain.
+
+Within each price level, orders are served in \emph{first-in,
+first-out} (FIFO) order: the order that arrived earliest has
+highest priority. This is the ``time priority'' in price-time priority.
+It means that among all sellers willing to sell at \$152, the one who
+submitted first gets filled first.
+
+\subsection{What Must Be True---Always}
+\label{sec:invariants-intro}
+
+A matching engine makes a set of guarantees. These must hold after
+every single operation, no exceptions:
+
 \begin{enumerate}[nosep]
-\item A TLA+ formalization of a feature-rich price-time-priority
-      matching-engine specification, together with a suite of
-      invariants covering book consistency, queue fairness, and
-      order-type safety.
-\item A concrete TLC counterexample showing that triggered stop
-      orders can violate FIFO if activation does not refresh queue
-      priority, and identification of a second defect in the
-      interaction between STP DECREMENT and iceberg visibility
-      management.
-\item A mechanized Lean~4 proof that the processing pipeline
-      preserves the combined book invariant \texttt{AllInv}
-      (uncrossed plus sorted on both sides) under a minimal
-      well-formedness precondition, for arbitrary book sizes, with
-      the matching-loop fuel bound computed from the book state and
-      proved sufficient rather than assumed.
-\item Two complementary proof artifacts with no open obligations:
-      a 3{,}986-line constructive proof of the full preservation
-      theorem by branch-by-branch induction, and a 312-line
-      structural proof of the matching-and-dispose core by
-      three-case analysis of the matching termination condition.
-      The contrast illustrates two complementary proof styles.
-\item A methodological observation from the proof effort itself:
-      the original arbitrary fuel bound
-      (\texttt{defaultFuel~=~100}) made the preservation theorem
-      false for sufficiently populated books.
-\item A discussion of specification-guided implementation
-      generation, framed as an engineering observation about how a
-      precise formal specification constrains downstream coding,
-      \emph{not} as a claim of end-to-end refinement between the
-      Lean reference and any systems-language implementation.
+\item \textbf{The book is not crossed.} The best bid is always strictly
+      less than the best ask (or one side is empty). If the bid were
+      higher than the ask, a trade should have occurred.
+
+\item \textbf{The book is sorted.} Bids are arranged in strictly
+      descending price order; asks in strictly ascending order. A buyer
+      willing to pay more always has higher priority than one willing to
+      pay less.
+
+\item \textbf{FIFO within each price level.} Among orders at the same
+      price, earlier arrivals are served first. Timestamps are
+      strictly increasing down each level's queue.
+
+\item \textbf{No ghost orders.} Every resting order has a positive
+      remaining quantity. An order with zero quantity left must have
+      been removed.
+
+\item \textbf{Post-only safety.} A post-only order never results in a
+      trade. If it would have aggressed, it was rejected before any
+      trade occurred.
+
+\item \textbf{Self-trade prevention.} No trade occurs between two
+      orders belonging to the same STP group.
 \end{enumerate}
 
-\subsection{Note on the Development Process}
-\label{sec:intro-ai}
+These rules sound obvious. They are obvious---individually. The
+difficulty is maintaining all of them simultaneously when multiple
+features interact. Guaranteeing rule~3 (FIFO) requires careful handling
+of every path by which an order can enter the book. Guaranteeing
+rule~6 (STP) requires careful handling of every order type, including
+stop orders that re-enter the pipeline from a dormant state. Features
+that interact with each other create combinatorial cases that no single
+human reviewer is likely to hold in mind simultaneously.
 
-The TLA+ model, the Lean~4 proofs, and the C/C++ implementations
-discussed in \S\ref{sec:synthesis} were developed interactively with
-a large language model acting as a coding assistant. Strategic
-decisions---the progress-lemma decomposition, the three-case
-analysis in the elegant proof, and the side-parameterization refactor---were human
-contributions. The bulk of tactic scripting and operator translation
-was produced by the model under that guidance. We mention this
-because the per-file size and per-lemma count reported in later
-sections reflect that mode of work; the methodology described in
-this paper is independent of whether the implementer is a single
-engineer, a team, or an AI-augmented workflow.
+\subsection{Where Bugs Hide: Feature Interactions}
+\label{sec:feature-interactions}
 
-\subsection{Paper Organization}
+Each feature in a matching engine can be specified correctly in
+isolation. The danger is interactions. Consider:
 
-The paper is organized as follows.
-Section~\ref{sec:semantics} describes the matching-engine semantics
-under study. Section~\ref{sec:model} presents the TLA+ model and
-the scope of the bounded exploration.
-Section~\ref{sec:invariants} enumerates the invariants checked.
-Section~\ref{sec:findings} presents the two TLC findings with
-counterexample traces, and Section~\ref{sec:fixes} gives the
-corresponding specification fixes. Section~\ref{sec:lean} presents
-the Lean~4 proof of \texttt{AllInv} preservation: the termination
-measure, the progress-lemma decomposition, the mutual induction
-across the processing pipeline, and a second, shorter proof via
-case analysis of the matching termination condition. An
-observation from the proof effort itself---the constant-fuel
-soundness issue---is reported in the same section. Section~\ref{sec:synthesis} describes how the
-fixed specification was carried into C and C++ implementations and
-why we stop short of a refinement claim.
-Section~\ref{sec:lessons} collects lessons on feature composition;
-Section~\ref{sec:related} positions the work against prior
-literature; Section~\ref{sec:limitations} states limitations and
-reproducibility conditions; Section~\ref{sec:conclusion} concludes.
+\begin{itemize}[nosep]
+\item Stop orders are correctly described: they are dormant until
+      triggered, then converted and processed.
+\item FIFO insertion is correctly described: orders are appended to the
+      back of their price level's queue, with a timestamp reflecting
+      their arrival time.
+\end{itemize}
+
+These two descriptions are each locally correct. But they interact:
+when a stop order is triggered, it is converted and re-enters the
+pipeline. If its timestamp is not updated at trigger time, it carries
+its original submission timestamp---which may be earlier than orders
+already resting on the book. It will be appended to the back of the
+queue, but its timestamp will be out of order. FIFO is violated.
+
+A human reviewer reading the stop section and the FIFO section
+separately will not see this. Both sections are individually correct.
+The interaction is invisible unless you hold both simultaneously.
+
+A second example: iceberg reload is correctly described for the fill
+path. But STP DECREMENT reduces a resting order's visible quantity
+without generating a trade---so it is not the fill path. If DECREMENT
+drives visible quantity to zero while hidden quantity remains, the
+iceberg never reloads, and the order is permanently stranded: it sits
+on the book, cannot match, and cannot reload.
+
+This is the problem we set out to solve. The goal is a verification
+approach that does not read features section by section, but evaluates
+all of them simultaneously. The rest of this paper describes what we
+built and what we found.
 
 
 % ============================================================================
-\section{Matching-Engine Semantics Under Study}
-\label{sec:semantics}
+\section{How We Checked It---Overview}
+\label{sec:overview}
 % ============================================================================
 
-\subsection{Specification Source}
+We verified the engine at two complementary levels, each with a
+different scope and a different kind of guarantee.
+
+\subsection{Level 1: Try Every Combination (Bounded Model Checking)}
+\label{sec:overview-tlc}
+
+The first approach is exhaustive state-space exploration. We encoded
+the engine's rules as a mathematical model in TLA+ and used the TLC
+model checker to enumerate \emph{every possible sequence of events}
+within a set of small configurations: up to 2 orders, quantities up to
+2, prices drawn from a set of 2 or 3 values.
+
+TLC is a brute-force tool. It generates every reachable state of the
+model and checks that each one satisfies every stated invariant. If any
+invariant is ever violated, TLC returns a concrete counterexample trace
+showing exactly which sequence of orders produced the violation.
+
+Within the configurations we explored, TLC generated 36 million
+distinct states. \textbf{This found two bugs.}
+
+The limitation of this approach is its scope. Production matching
+engines hold millions of orders at prices across a continuous range. No
+model checker can enumerate those states. A clean pass means ``no
+violation found in the explored region,'' not ``no violation exists.''
+
+\subsection{Level 2: Prove It for All Sizes (Theorem Proving)}
+\label{sec:overview-lean}
+
+The second approach is mechanized proof. We implemented the engine in
+Lean~4---a programming language that also serves as a proof assistant---and
+wrote a machine-checked proof that the engine's key guarantee holds not
+for small configurations, but for \emph{all possible inputs of all
+sizes}.
+
+A Lean proof is verified by the proof checker on every build. There is
+no ``trust me, I checked it carefully.'' Either the proof compiles or
+it does not. When it compiles, the guarantee is unconditional within
+the stated preconditions.
+
+\textbf{This process discovered a third bug}: the matching loop's
+original termination bound was an arbitrary constant, which made the
+key theorem false for large books. Discovering this required a
+universally quantified statement---bounded model checking had never
+reached configurations large enough for the constant to matter.
+
+\subsection{What We Found}
+\label{sec:findings-summary}
+
+\begin{center}
+\small
+\begin{tabular}{@{}lL{4cm}L{7cm}@{}}
+\toprule
+Finding & Tool & Description \\
+\midrule
+1 & Bounded model checking (TLC) & FIFO violation: triggered stop orders retain their original submission timestamp, producing a non-monotonic queue when the triggered order rests \\
+\addlinespace
+2 & Bounded model checking (TLC) & Iceberg stranding: STP DECREMENT can drive visible quantity to zero without triggering iceberg reload, permanently stranding the order \\
+\addlinespace
+3 & Theorem proving (Lean~4) & Unsound fuel bound: the matching loop's constant limit of 100 steps makes the preservation theorem false for books with more than 100 contra-side orders \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+% ============================================================================
+\section{What Model Checking Found}
+\label{sec:findings}
+% ============================================================================
+
+\subsection{Bug 1: The Stale Timestamp}
+\label{sec:bug1}
+
+\paragraph{The scenario.} A stop order is submitted early---say at
+time~2---with a stop price of \$1. It goes dormant, waiting for the
+last trade price to reach \$1. Meanwhile, another order arrives at
+time~3 and rests on the bid side at \$1.
+
+Later, a trade occurs at \$1, triggering the stop order. The stop
+converts to a live limit order and enters the matching pipeline. It
+does not fill immediately (the ask side is now empty), so it rests on
+the bid side at \$1. It is appended to the back of that price level's
+queue---behind the order that arrived at time~3.
+
+The queue at price \$1 now reads: [order at time~3, order at time~2].
+But time~3 $>$ time~2, so the queue is not in ascending timestamp order.
+FIFO is violated.
+
+\paragraph{The exact trace.} TLC produced the following minimal
+counterexample:
+
+\begin{figure}[H]
+\centering
+\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize,frame=single,xleftmargin=0pt,framexleftmargin=0pt]
+Step 1: Submit SELL LIMIT  qty=1, price=1      (id=1, ts=1)
+        -> Rests on ask:  askQ[1] = [order1(ts=1)]
+
+Step 2: Submit BUY STOP_LIMIT  stop=1, price=1, qty=1  (id=2, ts=2)
+        -> lastTradePrice = NULL -> does not trigger
+        -> Placed in stops = {order2(ts=2)}
+
+Step 3: Submit BUY LIMIT  qty=2, price=1       (id=3, ts=3)
+        -> Matches askQ[1]: fills order1 fully (fillQty=1)
+        -> Trade: price=1, aggressor=3, passive=1
+        -> lastTradePrice = 1
+        -> order3: remainingQty=1, rests on bid
+           bidQ[1] = [order3(ts=3)]
+        -> Stop cascade: lastTradePrice(1) >= stopPrice(1)
+           -> order2 triggers, converts to BUY LIMIT
+           -> Timestamp NOT updated: ts=2 (STALE)
+           -> Ask side empty, no fill
+           -> Dispose: order2 rests on bid
+              bidQ[1] = [order3(ts=3), order2(ts=2)]
+
+        FIFOWithinLevel check:
+            bidQ[1][1].timestamp = 3
+            bidQ[1][2].timestamp = 2
+            3 < 2 ?  FALSE  ->  INVARIANT VIOLATED
+\end{lstlisting}
+\caption{TLC counterexample trace for the FIFO violation. The triggered
+stop order (id=2) retains its original timestamp (ts=2) and is appended
+behind an order with a later timestamp (ts=3), producing a
+non-monotonic queue.}
+\label{fig:trace}
+\end{figure}
+
+\paragraph{Why manual review missed this.} The prose specification
+treats stop triggering (\S10.1) and order insertion (\S6.1) as separate
+sections. Each section is locally correct. The interaction---that
+converted stops carry stale timestamps into insertion---is invisible
+when reading either section in isolation. TLC holds all three
+simultaneously by construction.
+
+\paragraph{The fix.} One line in the stop-trigger procedure: assign a
+fresh timestamp before re-entering the pipeline.
+
+\begin{lstlisting}[language=tlaplus]
+converted == [ConvertStop(s) EXCEPT !.timestamp = tm]
+\end{lstlisting}
+
+In prose: after converting a stop to its base type and before calling
+\texttt{PROCESS}, assign the stop a fresh timestamp reflecting the
+current time. This ensures the triggered order's queue priority reflects
+when it entered the live matching pipeline, not when it was originally
+submitted.
+
+\subsection{Bug 2: The Stranded Iceberg}
+\label{sec:bug2}
+
+\paragraph{The scenario.} A resting iceberg order has total quantity~2
+and display quantity~1, so its visible slice is~1 and its hidden
+reserve is~1. An incoming order from the same STP group arrives with
+STP policy \textsc{decrement}.
+
+DECREMENT reduces both sides by the minimum of the two visible
+quantities, without generating a trade. It reduces the resting order's
+visible quantity by~1 (to~0) and its remaining quantity by~1 (to~1).
+The incoming order is consumed and cancelled.
+
+The resting order now has visible quantity~0 and remaining quantity~1.
+It should reload its visible slice from its hidden reserve. But the
+reload logic is only specified in the fill path. DECREMENT is not the
+fill path. The reload never triggers.
+
+The result is a permanently stranded order: visible quantity~0 means
+\texttt{fillQty = min(incoming, 0) = 0}, so matching never touches it.
+It sits on the book indefinitely, occupying a queue slot, blocking
+nothing, and unreachable except by explicit cancel.
+
+\paragraph{The illustrative state.}
+
+\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize,frame=single,xleftmargin=0pt,framexleftmargin=0pt]
+Resting iceberg: qty=2, displayQty=1, visibleQty=1,
+                 remainingQty=2, stpGroup="G1"        (id=R)
+Incoming:        qty=1, stpGroup="G1", stpPolicy=DECREMENT  (id=I)
+
+DECREMENT:
+    reduceQty = min(1, 1) = 1
+    I.remainingQty = 0   -> I is cancelled
+    R.visibleQty   = 0
+    R.remainingQty = 1   -> R remains on book
+
+Post-decrement state of R:
+    visibleQty=0, remainingQty=1, displayQty=1
+    -> Reload path not invoked
+    -> R sits on book, invisible, unreachable by matching
+\end{lstlisting}
+
+\paragraph{Note on claim level.} This scenario is reachable in the
+prose specification as written. However, the TLA+ model as checked
+incorporates the fix because the stranded state would cause the model
+checker to loop: subsequent orders would find visible quantity~0 and
+skip the order without decrementing fuel, creating an effective infinite
+loop in the matching operator. The bug is presented as a specification
+gap---a path the spec silently omits---rather than as a TLC invariant
+violation with a counterexample trace.
+
+\paragraph{The fix.} After DECREMENT, check whether the resting order
+is an iceberg with visible quantity~0 and hidden reserve remaining. If
+so, reload:
+
+\begin{lstlisting}[language=tlaplus]
+ELSE IF newRest.visibleQty = 0 /\ newRest.displayQty /= NULL THEN
+    LET reloadQty == Min(newRest.displayQty, newRest.remainingQty)
+        reloaded  == [newRest EXCEPT !.visibleQty = reloadQty,
+                                     !.timestamp = tm,
+                                     !.status = "PARTIAL"]
+        sc == SetContra(side, bQ, aQ, bestP,
+                        restTail \o <<reloaded>>)
+    IN DoMatch(newInc, sc.bQ, sc.aQ, tds, tm + 1, fuel - 1)
+\end{lstlisting}
+
+This mirrors the reload behavior in the normal fill path, extending it
+consistently to the DECREMENT path.
+
+\subsection{What Else We Noticed}
+\label{sec:observations}
+
+Three additional interactions were noted during model exploration as
+potential specification ambiguities. No invariant violation was produced
+for them; they are reported as design observations.
+
+FOK combined with STP DECREMENT creates an ambiguity: the FOK pre-check
+counts non-conflicting visible quantity to ensure full fill is possible,
+but DECREMENT can consume the incoming order's quantity without
+generating trades. Whether the result constitutes a FOK violation
+depends on whether ``fully filled'' means ``fully traded'' or
+``remaining quantity reaches zero''---the spec does not address this
+case. Similarly, MinQty combined with STP DECREMENT may produce a
+situation where the minimum-quantity pre-check passes but the actual
+traded quantity falls below the minimum because DECREMENT consumed
+quantity before any fills occurred. Finally, the spec clears
+\texttt{minQty} in two separate places (the MTL path and the normal
+matching path)---a duplication that is currently correct but fragile
+under any future addition of routing paths.
+
+\subsection{The Scope and Limits of Model Checking}
+\label{sec:tlc-limits}
+
+The configurations we explored generated 36 million distinct states.
+This is large enough to find the feature-interaction bugs above. It is
+not large enough to reason about production-scale books.
+
+A production matching engine may hold thousands of resting orders per
+price level. Model checking with 2 orders, quantities up to 2, and 3
+prices cannot say anything about whether a matching loop terminates
+correctly with 200 orders at one price. For that kind of guarantee, we
+need a proof.
+
+
+% ============================================================================
+\section{The Lean Proof---Key Ideas}
+\label{sec:lean}
+% ============================================================================
+
+TLC searches a bounded state space. Production engines hold millions of
+orders, far beyond any configuration TLC can enumerate. To establish
+correctness at arbitrary scale, we translated the fixed specification
+into Lean~4 and proved the key preservation property mechanically.
+
+\subsection{The Goal}
+\label{sec:lean-goal}
+
+We want to prove: after processing any valid order on any valid book,
+the book is still uncrossed and sorted on both sides. For any number of
+orders, any book size, forever.
+
+The formal statement defines the combined invariant
+\[
+\texttt{AllInv}(b) \;\equiv\;
+\texttt{BookUncrossed}(b) \land
+\texttt{bidsSortedDesc}(b) \land
+\texttt{asksSortedAsc}(b),
+\]
+and the main theorem is:
+
+\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
+theorem processOrder_preserves_AllInv
+    (fuel : Nat) (o : Order) (b : BookState)
+    (hpok : OrderProcOk o)
+    (hstops : StopsNoPostOnly b)
+    (h : AllInv b) :
+    AllInv (processOrder fuel o b).book
+\end{lstlisting}
+
+The sortedness conjuncts are not cosmetic. \texttt{BookUncrossed} alone
+is not sufficient for the induction to close: the induction hypothesis
+needs to know that both sides of the book are monotone in price. This
+was established empirically---the proof refused to close under the
+weaker hypothesis, at which point the invariant was strengthened and the
+proof proceeded. The proof refined the invariant.
+
+\subsection{The First Surprise: The Theorem Was False}
+\label{sec:lean-fuel}
+
+Lean's termination checker requires every recursive function to be
+provably total. The matching loop \texttt{doMatch} is recursive, so the
+original implementation used an explicit \emph{fuel} argument with a
+constant bound:
+
+\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
+def defaultFuel : Nat := 100
+def doMatch (fuel : Nat) ... : MatchResult :=
+  match fuel with
+  | 0       => /* fuel exhausted: return as-is */
+  | fuel'+1 => /* one step, recurse with fuel' */
+\end{lstlisting}
+
+This hides an assumption: matching always completes within 100 steps.
+That assumption does not hold at arbitrary scale. Consider a book with
+200 resting asks at price~\$50 and one incoming buy at price~\$100.
+\texttt{doMatch} consumes the first 100 asks, exhausts its fuel, and
+returns---with the incoming order still having remaining quantity and
+100 asks still resting at price~\$50. The disposition phase then inserts
+the buy at \$100 on the bid side. Now the best bid is \$100 and the
+best ask is \$50. The book is crossed. \texttt{AllInv} is false.
+
+This is precisely where bounded model checking and theorem proving
+diverge. TLC's explored configurations never exceeded a handful of
+orders per side, so the constant bound was never a binding constraint.
+Only the universally quantified Lean statement forced the question: is
+the fuel bound sufficient, or is it just an assumption?
+
+\subsection{The Core Insight: Every Step Makes Progress}
+\label{sec:lean-fuel-fix}
+
+The fix is to compute the fuel bound from the book state and prove that
+it is always sufficient:
+
+\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
+def matchMeasure (contra : List PriceLevel) (_inc : Order) : Nat :=
+    totalRemaining contra + orderCount contra + contra.length
+
+def computeMatchFuel (b : BookState) (side : Side) : Nat :=
+    matchMeasure (contraLevels b side) dummyInc + 1
+\end{lstlisting}
+
+The measure has three components. \texttt{totalRemaining}---the sum of
+all remaining quantities on the contra side---accounts for fills.
+\texttt{orderCount}---the number of individual orders---accounts for
+orders that are skipped without a fill (STP cancellations, zero-visible
+iceberg slots). \texttt{contra.length}---the number of price
+levels---accounts for level exhaustion steps that remove an empty level.
+
+The key technical lemma is the \emph{progress lemma}: every
+non-terminal step of \texttt{doMatch} strictly decreases this measure.
+Table~\ref{tab:branches} gives the branch-by-branch analysis.
+
+\begin{table}[H]
+\centering
+\caption{Progress analysis for \texttt{doMatch} branches. Terminal
+branches stop the loop; measure-decreasing branches recurse on a
+strictly smaller state.}
+\label{tab:branches}
+\small
+\begin{tabular}{@{}llL{5.5cm}@{}}
+\toprule
+Branch & Kind & Why the measure decreases \\
+\midrule
+Full fill (resting consumed)    & Decrease  & \texttt{orderCount} drops by 1 \\
+Partial fill (incoming done)    & Terminal  & $\mathit{remainingQty}=0$ \\
+STP cancel newest               & Terminal  & incoming cancelled \\
+STP cancel oldest               & Decrease  & one order removed \\
+STP cancel both                 & Terminal  & incoming cancelled \\
+STP decrement                   & Decrease  & resting qty strictly reduced \\
+Iceberg fill + reload           & Decrease  & fill reduced
+                                              \texttt{totalRemaining} before reload \\
+Level exhausted                 & Decrease  & empty level removed \\
+Zero-visible skip               & Decrease  & one order removed \\
+No crossable orders             & Terminal  & $\lnot\,\texttt{canMatchPrice}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The iceberg reload case is the subtlest. Reload appears to ``add
+liquidity back'': the resting order's visible quantity jumps from zero
+to the display quantity. But \texttt{totalRemaining} is not affected by
+this redistribution---only the visible/hidden split changes---and the
+fill step that triggered the reload strictly decreased
+\texttt{totalRemaining} by the filled quantity. The composition is a
+net decrease.
+
+\subsection{The Elegant Argument}
+\label{sec:lean-elegant}
+
+Once the constructive proof of the full pipeline was complete, a second
+shorter proof was developed for the matching-and-dispose core, in the
+file \texttt{TheoremsElegant.lean} (312 lines, 6 theorems).
+
+The insight is that when \texttt{doMatch} terminates on a
+fuel-sufficient run, the resulting state falls into exactly one of
+three cases:
+
+\begin{enumerate}[nosep]
+\item \textbf{Aggressor consumed.} Remaining quantity is zero (or the
+      order was cancelled). The incoming order is gone.
+      \texttt{doMatch} only removes orders from the contra side, never
+      adds to it; removing orders cannot create a cross.
+
+\item \textbf{Contra side empty.} Nothing left on the opposite side to
+      cross against. An empty side is vacuously non-crossing.
+
+\item \textbf{Non-crossing head.} Both sides are non-empty but the
+      contra head does not cross the incoming price. This is the only
+      way \texttt{doMatch} can stop with both sides active: if prices
+      crossed, the loop guard \texttt{canMatchPrice} would fire and
+      matching would take another step. Since it stopped, prices do not
+      cross.
+\end{enumerate}
+
+There is no fourth case. A state where both sides are active and still
+crossing is not a terminal state---fuel sufficiency rules it out. The
+three cases compose with the disposition step directly: Case~1 returns
+the book unchanged, Case~2 inserts on an empty contra side (vacuously
+non-crossing), Case~3 inserts at a price strictly separated from the
+contra head.
+
+This 312-line proof treats \texttt{doMatch} as a black box
+characterized by its termination condition. It reuses the constructive
+proof's fuel-sufficiency lemma as an imported fact. The contrast
+between the two proof styles is instructive:
+
+\begin{center}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+                        & Constructive              & Structural              \\
+\midrule
+File                    & \texttt{Theorems.lean}    & \texttt{TheoremsElegant.lean} \\
+Lines                   & 3{,}986                   & 312                     \\
+Theorems/lemmas         & 74                        & 6                       \\
+Argument                & Branch-by-branch          & Three-case analysis     \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The constructive proof discharges fuel sufficiency, sortedness
+preservation, side isolation, and the mutual pipeline theorem. The
+structural proof reuses those lemmas and shows that, once the
+termination condition is established, the matching-and-dispose argument
+itself is short.
+
+\subsection{What Else the Proof Discovered}
+\label{sec:lean-discovered}
+
+Two things were discovered during the proof that were not in the original
+specification's list of things to worry about.
+
+\textbf{Sortedness is load-bearing.} The prose specification states
+\texttt{BookUncrossed} as the key invariant. The Lean proof required
+\texttt{AllInv}---uncrossed plus sorted on both sides---because the
+induction step on the matching loop needed to know that the contra side
+was monotone in price to establish that the residual order's price was
+separated from the contra head. Sortedness is not a cosmetic property.
+
+\textbf{Well-formedness constraints are discovered, not guessed.} The
+proof required two fragments of the specification's well-formedness
+rules as explicit preconditions: post-only orders have a defined price,
+and stop orders are not post-only. Neither was included in the initial
+proof attempt. The proof failed at specific branches, and the failures
+pointed precisely to these missing hypotheses. The proof told us which
+constraints were load-bearing.
+
+
+% ============================================================================
+\section{From Specification to Code}
+\label{sec:synthesis}
+% ============================================================================
+
+\subsection{The Specification as a Blueprint}
+\label{sec:synthesis-blueprint}
+
+The fixed specification---prose amended by the two bug fixes---served as
+the primary input for C and C++ implementations. The implementations
+follow the phase structure of the specification one for one, apply both
+bug fixes explicitly (stop-trigger timestamps are refreshed before
+re-entry; the STP DECREMENT path reloads iceberg visible quantity when
+it would otherwise reach zero), and include an
+\texttt{engine\_check\_invariants} routine that translates the
+TLC-checked invariants into runtime assertions.
+
+The runtime assertions are not a proof. An invariant assertion fires
+after state has already diverged. But they narrow the gap between
+specification and implementation and have caught regressions during
+development.
+
+\subsection{What This Does and Does Not Mean}
+\label{sec:synthesis-gap}
+
+This is not a proof that the C++ code is correct. The Lean proof
+establishes \texttt{AllInv} preservation for the Lean reference
+implementation. It does not transfer automatically to C or C++. Those
+implementations are validated by shared test suites derived from the
+specification, not by a formal correspondence argument.
+
+For the Lean reference implementation, the gap is closed: the code that
+tests run against is the same code the theorems reference. There is no
+extraction layer, no refinement obligation. For the systems-language
+implementations, a gap remains.
+
+A genuine end-to-end guarantee would require a refinement argument
+connecting the Lean reference to the C/C++ code. That is beyond the
+scope of this paper and is a natural next step.
+
+
+% ============================================================================
+\section{Discussion}
+\label{sec:lessons}
+% ============================================================================
+
+\subsection{Feature Composition Is Where Bugs Hide}
+\label{sec:lessons-composition}
+
+Both model-checking findings share a structural pattern: each involved
+feature is correctly specified in isolation, but the specification omits
+a clause covering their interaction. Stop orders are correctly
+described; iceberg reload is correctly described; FIFO insertion is
+correctly described. None of these sections contains an error when read
+alone. The bug lives in the intersection: what happens to an iceberg
+order's timestamp when the mechanism that zeros its visible quantity is
+not the fill path but the STP DECREMENT path?
+
+This is not a failure of careful writing. It is a structural limitation
+of prose specifications. Prose sections have natural scope boundaries.
+Interactions between features that span sections are systematically
+harder to see than behaviors within a single section.
+
+A formal model collapses all features into a single operational
+semantics and evaluates invariants globally. The intersection cases are
+not special---they are just more states.
+
+A more robust specification of iceberg reload would state the reload
+condition declaratively as an invariant on resting order state:
+``a resting order must not have visible quantity~$= 0$ and remaining
+quantity~$> 0$.'' Rather than specifying reload as a step triggered by
+the fill path, it would be specified as a consequence of this invariant:
+any action that could produce this state must be followed by a reload.
+This declarative framing would make the omission in DECREMENT
+immediately apparent.
+
+\subsection{Model Checking and Theorem Proving Are Complementary}
+\label{sec:lessons-complementary}
+
+TLC and Lean surfaced different classes of issue. TLC produced the two
+feature-composition defects as concrete multi-step traces within minutes
+of starting the exploration. A proof attempt would not have generated
+those traces directly; the proof effort is focused on establishing what
+holds, not on constructing witnesses for what fails.
+
+Lean's universal quantification, in turn, made the constant-fuel
+assumption visible. TLC did not reach configurations where the fuel
+bound mattered. Only the universally quantified statement forced the
+question.
+
+The cost profiles differ dramatically. TLC returned its first
+counterexample in 102 seconds of wall time. The Lean proof accumulated
+several weeks of interactive development and produced a 4{,}298-line
+artifact. The two are complementary rather than substitutable: TLC's
+speed is useful early in specification work; Lean's guarantees scale
+beyond any bounded configuration.
+
+\subsection{The Role of AI}
+\label{sec:lessons-ai}
+
+The TLA+ model, the Lean~4 proofs, and the C/C++ implementations were
+developed interactively with a large language model acting as a coding
+assistant. Strategic decisions---the progress-lemma decomposition, the
+three-case analysis in the elegant proof, and the side-parameterization
+refactor---were human contributions. The bulk of tactic scripting and
+operator translation was produced by the model under that guidance.
+
+We mention this because the per-file size and per-lemma count reported
+in the paper reflect this mode of work. The methodology described is
+independent of whether the implementer is a single engineer, a team, or
+an AI-augmented workflow. Neither layer alone would have produced the
+artifact: the strategic decompositions guided the model to close proofs
+it would not have closed autonomously, and the model produced the
+thousands of lines of case-splitting and arithmetic invocations that
+the human-directed strategy required.
+
+\subsection{Cost and Value}
+\label{sec:lessons-cost}
+
+TLA+ and TLC took approximately two days of work and found two bugs.
+The Lean proof took approximately four weeks and produced a universal
+guarantee plus discovered one additional bug. These have different
+return-on-investment profiles.
+
+For a specification that is still under active development, TLC's rapid
+feedback is most valuable: a two-day investment finds concrete
+counterexamples before any code is written. For a specification that is
+considered stable and whose correctness matters at production scale,
+Lean's universal guarantee is the appropriate next step. The two levels
+are designed to be used in sequence, not as alternatives.
+
+
+% ============================================================================
+\section{Technical Details}
+\label{sec:technical}
+% ============================================================================
+
+\subsection{The Specification Source}
+\label{sec:spec-source}
 
 The object of study is an internal prose specification,
-\texttt{matching-engine-formal-spec.md} version~1.2.0, describing a generic
-asset-agnostic order matching engine with price-time priority (FIFO). The
-specification defines primitive domains, order well-formedness constraints, the
-order book structure, a core matching algorithm, post-match disposition, six
-order types, four STP policies, iceberg reload semantics, stop triggering with
-cascading evaluation, cancel, and amend.
-
-The specification is 900 lines of structured pseudocode. It was written with
-care---well-formedness constraints are enumerated, invariants are stated
+\texttt{matching-engine-formal-spec.md} version~1.2.0, describing a
+generic asset-agnostic order matching engine with price-time priority.
+The specification is 900 lines of structured pseudocode covering
+primitive domains, order well-formedness constraints, the order book
+structure, a core matching algorithm, post-match disposition, six order
+types, four STP policies, iceberg reload semantics, stop triggering with
+cascading evaluation, cancel, and amend. It was written with care:
+well-formedness constraints are enumerated, invariants are stated
 formally, and edge cases such as MTL price derivation and FOK dry-run
-semantics are treated explicitly. It is not a toy specification.
-
-
-\subsection{Order Types and Features}
-
-The engine supports five order types:
-\begin{itemize}[nosep]
-\item \textbf{LIMIT}: rests at a specified price; fills at that price or better.
-\item \textbf{MARKET}: fills at any available price; never rests on the book.
-\item \textbf{MARKET-TO-LIMIT (MTL)}: aggressively matches at any price; locks
-      to the first execution price and rests any remainder as a LIMIT order.
-\item \textbf{STOP\_LIMIT / STOP\_MARKET}: dormant until a trigger condition on
-      the last trade price is satisfied, then converted to LIMIT or MARKET
-      respectively and re-entered into the matching pipeline.
-\end{itemize}
-
-Order modifiers include:
-\begin{itemize}[nosep]
-\item \textbf{Iceberg} (\texttt{displayQty}): only
-      $\mathit{visibleQty} \leq \mathit{displayQty}$ is shown to the market;
-      after the visible slice is consumed, the order reloads with a fresh
-      visible slice and loses time priority.
-\item \textbf{Post-Only}: the order must not aggress; rejected (under the
-      REJECT policy) if it would cross the spread.
-\item \textbf{TimeInForce}: GTC, GTD, IOC, FOK, DAY.
-\item \textbf{MinQty}: requires a minimum fill on first execution; the
-      constraint is cleared after the initial threshold is met, allowing the
-      remainder to rest.
-\item \textbf{Self-Trade Prevention (STP)}: four policies
-      (\textsc{cancel\_newest}, \textsc{cancel\_oldest},
-      \textsc{cancel\_both}, \textsc{decrement}) govern what
-      happens when an incoming order would trade against a resting
-      order in the same STP group. The incoming order's policy
-      governs.
-\end{itemize}
-
+semantics are treated explicitly.
 
 \subsection{Well-Formedness Constraints}
 \label{sec:wf}
 
 The prose specification enumerates 23 well-formedness constraints
-(WF-1 through WF-20 plus three a/b suffixed refinements) that define
-the \emph{valid inputs} to the engine. Every theorem in the Lean
-proof, every TLC invariant, and every rejection message in the
-synthesized C++ code traces back to a subset of these constraints.
-They are grouped by feature and summarized in
-Table~\ref{tab:wf}. The full text with exact quantifiers appears in
-\texttt{matching-engine-formal-spec.md~\S2.2}.
+(WF-1 through WF-20 plus three a/b suffixed refinements) defining the
+valid inputs to the engine. Table~\ref{tab:wf} summarizes them.
 
 \begin{table}[H]
 \centering
@@ -319,32 +988,36 @@ WF-20      & MinQty  & \textsc{fok}$\Rightarrow$$\mathit{minQty}=\bot$ \\
 \end{tabular}
 \end{table}
 
-The Lean predicate \texttt{OrderProcOk} used in the main theorem is
-the minimum subset of these constraints that the matching loop
-actually depends on. It does not admit every WF-valid order---it
-admits every WF-valid order that can enter the matching phase---and
-its two conjuncts are refinements of WF-13
-(post-only$\Rightarrow$\textsc{limit}, and hence post-only orders
-carry a defined price) and a consequence of the same WF-13
-(stop orders are not \textsc{limit}$\Rightarrow$$\neg$post-only). The fact that
-these two minimal fragments---and no more---suffice was discovered
-\emph{during} the proof: earlier attempts omitted them and every
-branch of the matching loop that case-split on an undefined price
-failed. The proof told us which WF clauses were load-bearing.
+The Lean predicate \texttt{OrderProcOk} used in the main theorem is the
+minimum subset of these constraints that the matching loop actually
+depends on:
 
-\subsection{Core Invariants Stated in the Specification}
-\label{sec:inv}
+\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
+def OrderProcOk (o : Order) : Prop :=
+    (o.postOnly = true -> o.price.isSome = true) /\
+    ((o.orderType = .stopLimit \/ o.orderType = .stopMarket) ->
+       o.postOnly = false)
+\end{lstlisting}
 
-The prose specification states 14 invariants that must hold after
-every \texttt{PROCESS} call completes (\S13 of the spec).
-Table~\ref{tab:inv-summary} gives the book-structural core; the
-complete TLC-checked inventory including safety and progress
-properties is given in Table~\ref{tab:invariants}
-(\S\ref{sec:invariants}).
+The first conjunct rules out the post-only / no-price configuration
+(WF-13: post-only $\Rightarrow$ LIMIT; WF-2: LIMIT $\Rightarrow$ price
+defined). The second conjunct---stop orders are not post-only---is a
+consequence by contrapositive. Both were discovered during the proof:
+earlier attempts omitted them and branches of the matching loop that
+case-split on an undefined price failed. The proof told us which WF
+clauses were load-bearing.
+
+\subsection{Invariant Suite}
+\label{sec:invariants}
+
+The prose specification states 14 invariants that must hold after every
+\texttt{PROCESS} call. Table~\ref{tab:inv-summary} gives the
+book-structural core; Table~\ref{tab:invariants} gives the complete
+TLC-checked inventory.
 
 \begin{table}[H]
 \centering
-\caption{Core book invariants (excerpt).}
+\caption{Core book invariants.}
 \label{tab:inv-summary}
 \small
 \begin{tabular}{@{}llL{7cm}@{}}
@@ -369,21 +1042,44 @@ INV-14  & Content    & No $\mathit{minQty}$ is set on any resting order \\
 \end{tabular}
 \end{table}
 
-The FIFO invariant INV-7 is central to this paper's first bug. Its
-formal statement is:
-\begin{quote}
-For every price level, consecutive orders satisfy
-$o_1.\mathit{timestamp} < o_2.\mathit{timestamp}$.
-\end{quote}
-This is the formal statement of price-time priority. A violation
-means an order with a later arrival time has higher queue position
-than one that arrived earlier---the queue is out of order.
+\begin{table}[H]
+\centering
+\caption{Invariants checked by TLC and Lean.}
+\label{tab:invariants}
+\small
+\begin{tabular}{@{}llL{4.8cm}ll@{}}
+\toprule
+ID & TLA+ Operator & Description & TLC & Lean \\
+\midrule
+INV-1  & \texttt{NoEmptyLevels}    & Every price level has a non-empty order queue & trivial & trivial \\
+INV-2  & (sortedness)              & Bids strictly descending & by constr. & $\checkmark$ \\
+INV-3  & (sortedness)              & Asks strictly ascending & by constr. & $\checkmark$ \\
+INV-4  & \texttt{BookUncrossed}    & $\mathit{bestBid} < \mathit{bestAsk}$ or either side empty & $\checkmark$ & $\checkmark$ \\
+INV-5  & \texttt{NoGhosts}         & Every resting order has $\mathit{remainingQty} > 0$ & $\checkmark$ & --- \\
+INV-6  & \texttt{StatusConsistency}& Resting orders have status \textsc{new} or \textsc{partial} & $\checkmark$ & --- \\
+INV-7  & \texttt{FIFOWithinLevel}  & FIFO within level (strictly increasing timestamps) & fixed$^{\star}$ & --- \\
+INV-8  & \texttt{NoRestingMarkets} & \textsc{market} orders never appear on the book & $\checkmark$ & --- \\
+INV-9  & (construction)            & Trade price equals the passive order's price & by constr. & by constr. \\
+INV-11 & \texttt{PostOnlyGuarantee}& No trade where the aggressor was post-only & $\checkmark$ & --- \\
+INV-12 & \texttt{STPGuarantee}     & No trade between orders in the same STP group & $\checkmark$ & --- \\
+INV-13 & \texttt{NoRestingMTL}     & \textsc{mtl} orders are converted before resting & $\checkmark$ & --- \\
+INV-14 & \texttt{NoRestingMinQty}  & $\mathit{minQty}$ is cleared before an order rests & $\checkmark$ & --- \\
+\bottomrule
+\end{tabular}
 
-\subsection{The \texttt{canMatch} Predicate}
-\label{sec:canmatch}
+\medskip
+\raggedright\footnotesize
+IDs match the canonical \S13 summary of the prose specification.
+TLC column: $\checkmark$ means bounded exhaustive pass across all
+configurations in Table~\ref{tab:configs}. Lean column:
+$\checkmark$ means part of \texttt{AllInv} and mechanically proved
+for all book sizes by \texttt{process\_preserves\_AllInv}; ---
+means not yet lifted to Lean.
+$^{\star}$INV-7 was violated under the original specification and
+passes after the fix described in \S\ref{sec:bug1}.
+\end{table}
 
 A single predicate governs the matching loop's continuation:
-
 \[
 \texttt{canMatchPrice}(o, p) \;\equiv\;
 \begin{cases}
@@ -394,22 +1090,145 @@ o.\mathit{price} \leq p & o.\mathit{side}=\textsc{sell},\; o\text{ priced} \\
 \text{derived price} & o.\mathit{type}=\textsc{mtl},\text{ after first fill}
 \end{cases}
 \]
-
 This predicate is the loop guard of \texttt{doMatch}. When the loop
-terminates in a non-empty contra side, it terminates \emph{because}
-$\neg\texttt{canMatchPrice}(o, \mathit{bestContra})$. This observation
-is the seed of the elegant proof in \S\ref{sec:lean-elegant}: if
-matching stopped because prices no longer cross, then the book cannot
-be crossed after disposition places the residual on the same side as
-the aggressor.
+terminates in a non-empty contra side, it terminates because
+$\neg\texttt{canMatchPrice}(o, \mathit{bestContra})$. This is the seed
+of the three-case elegant proof: if matching stopped because prices no
+longer cross, then the book cannot be crossed after disposition places
+the residual on the same side as the aggressor.
 
-\subsection{From Specification to Proof: Traceability}
+\subsection{TLA+ Model Structure}
+\label{sec:model}
+
+The TLA+ specification (\texttt{MatchingEngine.tla}, approximately 850
+lines) is a direct translation of the prose specification. The state
+consists of eight variables:
+
+\begin{lstlisting}[language=tlaplus]
+bidQ           : PRICES -> Seq(Order)   (* per-price bid queues *)
+askQ           : PRICES -> Seq(Order)   (* per-price ask queues *)
+stops          : Set(Order)             (* dormant stop orders *)
+lastTradePrice : PRICES \cup {NULL}     (* last execution price *)
+postOnlyOK     : Bool                   (* no post-only aggressor trade *)
+stpOK          : Bool                   (* no same-group trade *)
+nextId         : Nat                    (* next order ID *)
+clock          : Nat                    (* logical clock *)
+\end{lstlisting}
+
+The model has four actions: \texttt{SubmitOrder}, \texttt{CancelOrder},
+\texttt{AmendOrder}, and \texttt{TimeAdvance}. \texttt{SubmitOrder}
+nondeterministically selects all valid order parameters and invokes the
+full processing pipeline. TLC's exhaustive exploration therefore
+considers every valid combination of order type, side, price, quantity,
+TIF, STP policy, iceberg flag, post-only flag, and minimum quantity,
+within the configured bounds.
+
+The model is parameterized by \texttt{PRICES}, \texttt{MAX\_QTY},
+\texttt{MAX\_ORDERS}, and \texttt{MAX\_CLOCK}. The configurations
+explored are shown in Table~\ref{tab:configs}.
+
+\begin{table}[H]
+\centering
+\caption{Model checking configurations and statistics.}
+\label{tab:configs}
+\small
+\begin{tabular}{@{}lccclrrll@{}}
+\toprule
+Configuration & Orders & Qty & Prices & Amend & States Gen. & Distinct & Runtime & Result \\
+\midrule
+Tiny          & 2 & 1 & \{1,2\}   & No  &    2,979,719 &  1,123,333 & 20\,s     & Pass \\
+Small         & 2 & 2 & \{1,2\}   & No  &   11,528,343 &  6,037,674 & 1\,m\,42\,s & Pass \\
+Medium        & 2 & 2 & \{1,2,3\} & No  &   36,700,016 & 21,261,901 & 5\,m\,34\,s & Pass \\
+With Amend    & 2 & 2 & \{1,2\}   & Yes &   25,209,607 &  9,104,902 & 3\,m\,33\,s & Pass \\
+3-order       & 3 & 2 & \{1,2\}   & No  & $>$45\,M     & $>$26\,M   & $>$10\,m  & \emph{partial} \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\raggedright\footnotesize
+All ``Pass'' results above are post-fix. Prior to fixing the stop-timestamp
+bug, the Small configuration produced a counterexample on the
+\texttt{FIFOWithinLevel} invariant within the first 11.5 million states. The
+3-order run was interrupted before state-space exhaustion; ``partial'' means no
+violation was found in the explored states, not clean passage under all
+3-order behaviors.
+\end{table}
+
+The model does not cover: multiple STP group identifiers (only
+\texttt{"G1"} is used); GTD expiry without wall-clock constraints;
+event ordering (INV-10); or implementation correctness as opposed to
+specification consistency.
+
+\subsection{Lean Proof Architecture}
+\label{sec:lean-arch}
+
+The Lean proof artifacts are summarized in Table~\ref{tab:lean-stats}.
+
+\begin{table}[H]
+\centering
+\caption{Lean~4 proof artifacts (final state).}
+\label{tab:lean-stats}
+\small
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+File & Lines & Theorems & Proof style \\
+\midrule
+\texttt{Theorems.lean}         & 3{,}986 & 74 & Constructive, branch-by-branch \\
+\texttt{TheoremsElegant.lean}  &    312  &  6 & Three-case trichotomy \\
+\midrule
+\textbf{Total}                 & \textbf{4{,}298} & \textbf{80} & Complementary proof artifacts \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The mutual induction covers three functions---\texttt{processOrder},
+\texttt{processCascade}, and \texttt{processTriggeredStops}---which are
+mutually recursive because a trade can trigger a dormant stop, which
+converts to a market order and re-enters the pipeline, which can in
+turn produce more trades and trigger more stops:
+
+\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
+theorem process_all_preserve_AllInv : forall fuel,
+  (forall o b, OrderProcOk o -> StopsNoPostOnly b -> AllInv b ->
+    AllInv (processOrder fuel o b).book) /\
+  (forall ts b, StopsNoPostOnly b -> AllInv b ->
+    AllInv (processCascade fuel ts b).book) /\
+  (forall os b, (forall o in os, o.postOnly = false) ->
+                StopsNoPostOnly b -> AllInv b ->
+    AllInv (processTriggeredStops fuel os b).book)
+\end{lstlisting}
+
+Induction proceeds on \texttt{fuel}. The base case (\texttt{fuel = 0})
+is trivial because all three functions return the book unchanged. The
+step case discharges every phase of \texttt{processOrder}: stop
+handling, post-only rejection, FOK pre-check, MinQty pre-check,
+market-to-limit routing, normal matching, dispose, and stop cascade.
+
+The subtlest sub-case is MTL Phase~4 case~3: a
+\textsc{market-to-limit} order that fills partially, converts to a
+\textsc{limit} order, then runs a second matching pass with the derived
+limit price. The second \texttt{doMatch} operates on the post-first-match
+book with a freshly constructed incoming order, and the non-crossing
+precondition for the subsequent dispose must be extracted from a
+\texttt{doMatch} call that does not match the form of any existing
+helper lemma. The resolution was to parameterize the non-crossing
+extraction helpers by the starting timestamp so they apply uniformly to
+both the first matching pass (which uses \texttt{b.clock + 1}) and the
+MTL second pass (which uses \texttt{mr.clock}).
+
+Every matching lemma has both a buy-side and a sell-side form. The first
+proof attempt duplicated every lemma across sides. The fix was to
+parameterize each lemma by a \texttt{Side} value and perform
+\texttt{cases side} only at the leaves where the concrete direction of
+the inequality matters. After side-parameterization, the sell mirror of
+the fuel-sufficiency proof compiled on the first try.
+
+\subsection{Traceability}
 \label{sec:traceability}
 
-The specification is not documentation---it is the shared vocabulary
-that binds TLC and Lean. Every numbered clause appears in at least one
-of the two. Table~\ref{tab:trace} makes the chain explicit for the
-clauses exercised in this paper.
+Table~\ref{tab:trace} makes the chain from specification clause to TLA+
+artifact to Lean artifact explicit for the clauses exercised in the main
+theorem.
 
 \begin{table}[H]
 \centering
@@ -449,1051 +1268,8 @@ a \texttt{List PriceLevel} and the induction needs to know both sides
 are monotone. This mismatch was discovered \emph{during} the proof:
 \texttt{BookUncrossed} alone is not inductive, which forced the
 addition of \texttt{AllInv = BookUncrossed $\land$ bidsSortedDesc
-$\land$ asksSortedAsc}. The proof refined the invariant.
+$\land$ asksSortedAsc}.
 \end{table}
-
-The lesson is that invariants are \emph{discovered}, not merely
-declared. The first row of surprises in Table~\ref{tab:trace}
-(sortedness) came from the Lean induction refusing to close;
-\texttt{AllInv} is what the proof requires, not what the prose spec
-emphasizes. The second row of surprises (\texttt{OrderProcOk} as a
-minimal precondition fragment) came from the proof refusing to close
-without WF-13 and WF-15. In both cases the proof told us the
-specification was under-emphasizing something that was, on reflection,
-quite obvious.
-
-
-% ============================================================================
-\section{TLA+ Model and Bounded Exploration}
-\label{sec:model}
-% ============================================================================
-
-\subsection{Model Structure}
-
-The TLA+ specification (\texttt{MatchingEngine.tla}, approximately 850 lines)
-is a direct translation of the prose specification. The state consists of
-eight variables:
-
-\begin{lstlisting}[language=tlaplus]
-bidQ           : PRICES -> Seq(Order)   (* per-price bid queues *)
-askQ           : PRICES -> Seq(Order)   (* per-price ask queues *)
-stops          : Set(Order)             (* dormant stop orders *)
-lastTradePrice : PRICES \cup {NULL}     (* last execution price *)
-postOnlyOK     : Bool                   (* no post-only aggressor trade *)
-stpOK          : Bool                   (* no same-group trade *)
-nextId         : Nat                    (* next order ID *)
-clock          : Nat                    (* logical clock *)
-\end{lstlisting}
-
-The model has four actions: \texttt{SubmitOrder}, \texttt{CancelOrder},
-\texttt{AmendOrder}, and \texttt{TimeAdvance}. \texttt{SubmitOrder}
-nondeterministically selects all valid order parameters and invokes the full
-processing pipeline. TLC's exhaustive exploration therefore considers every
-valid combination of order type, side, price, quantity, TIF, STP policy,
-iceberg flag, post-only flag, and minimum quantity, within the configured
-bounds.
-
-
-\subsection{Processing Pipeline}
-
-The pipeline operator \texttt{ProcessOrder} implements all phases of the prose
-specification's \texttt{PROCESS} procedure, including recursive operators for
-the matching loop (\texttt{DoMatch}) and stop-trigger cascade
-(\texttt{ProcessCascade}, \texttt{ProcessTriggeredStops}). Mutual recursion
-between these operators is required to model cascading stop triggers correctly:
-a triggered stop may generate trades, which may trigger further stops.
-
-A \texttt{fuel} parameter on \texttt{DoMatch} bounds recursion depth for TLC
-termination safety. Under the small quantity bounds used in model checking,
-this bound is never reached in practice.
-
-
-\subsection{Scope of Exploration}
-
-The model is parameterized by \texttt{PRICES}, \texttt{MAX\_QTY},
-\texttt{MAX\_ORDERS}, and \texttt{MAX\_CLOCK}. Configurations explored are
-shown in Table~\ref{tab:configs}. All configurations include the full
-order-type suite, all four STP policies, icebergs, post-only, FOK, MinQty, and
-DAY expiry. The ``With Amend'' configuration adds the \texttt{AmendOrder}
-action.
-
-\begin{table}[H]
-\centering
-\caption{Model checking configurations and statistics.}
-\label{tab:configs}
-\small
-\begin{tabular}{@{}lccclrrll@{}}
-\toprule
-Configuration & Orders & Qty & Prices & Amend & States Gen. & Distinct & Runtime & Result \\
-\midrule
-Tiny          & 2 & 1 & \{1,2\}   & No  &    2,979,719 &  1,123,333 & 20\,s     & Pass \\
-Small         & 2 & 2 & \{1,2\}   & No  &   11,528,343 &  6,037,674 & 1\,m\,42\,s & Pass \\
-Medium        & 2 & 2 & \{1,2,3\} & No  &   36,700,016 & 21,261,901 & 5\,m\,34\,s & Pass \\
-With Amend    & 2 & 2 & \{1,2\}   & Yes &   25,209,607 &  9,104,902 & 3\,m\,33\,s & Pass \\
-3-order       & 3 & 2 & \{1,2\}   & No  & $>$45\,M     & $>$26\,M   & $>$10\,m  & \emph{partial} \\
-\bottomrule
-\end{tabular}
-
-\medskip
-\raggedright\footnotesize
-All ``Pass'' results above are post-fix. Prior to fixing the stop-timestamp
-bug, the Small configuration produced a counterexample on the
-\texttt{FIFOWithinLevel} invariant within the first 11.5 million states. The
-3-order run was interrupted before state-space exhaustion; ``partial'' means no
-violation was found in the explored states, not clean passage under all
-3-order behaviors.
-\end{table}
-
-
-\subsection{What the Model Does Not Cover}
-
-\begin{itemize}[nosep]
-\item The model uses a single STP group identifier (\texttt{"G1"}). Multiple
-      independent groups are not explored.
-\item GTD expiry is modeled via \texttt{TimeAdvance} but without wall-clock
-      constraints.
-\item Event ordering (INV-10) and market-data publication are not modeled.
-\item The model checks specification consistency, not implementation
-      correctness.
-\end{itemize}
-
-
-% ============================================================================
-\section{Invariants Checked}
-\label{sec:invariants}
-% ============================================================================
-
-All invariants are checked as TLA+ safety properties (\texttt{INVARIANT}
-declarations in the TLC configuration). TLC verifies that each invariant
-holds in every reachable state within the explored configurations.
-
-\begin{table}[H]
-\centering
-\caption{Invariants checked.}
-\label{tab:invariants}
-\small
-\begin{tabular}{@{}llL{4.8cm}ll@{}}
-\toprule
-ID & TLA+ Operator & Description & TLC & Lean \\
-\midrule
-INV-1  & \texttt{NoEmptyLevels}    & Every price level has a non-empty order queue & trivial & trivial \\
-INV-2  & (sortedness)              & Bids strictly descending & by constr. & $\checkmark$ \\
-INV-3  & (sortedness)              & Asks strictly ascending & by constr. & $\checkmark$ \\
-INV-4  & \texttt{BookUncrossed}    & $\mathit{bestBid} < \mathit{bestAsk}$ or either side empty & $\checkmark$ & $\checkmark$ \\
-INV-5  & \texttt{NoGhosts}         & Every resting order has $\mathit{remainingQty} > 0$ & $\checkmark$ & --- \\
-INV-6  & \texttt{StatusConsistency}& Resting orders have status \textsc{new} or \textsc{partial} & $\checkmark$ & --- \\
-INV-7  & \texttt{FIFOWithinLevel}  & FIFO within level (strictly increasing timestamps) & fixed$^{\star}$ & --- \\
-INV-8  & \texttt{NoRestingMarkets} & \textsc{market} orders never appear on the book & $\checkmark$ & --- \\
-INV-9  & (construction)            & Trade price equals the passive order's price & by constr. & by constr. \\
-INV-11 & \texttt{PostOnlyGuarantee}& No trade where the aggressor was post-only & $\checkmark$ & --- \\
-INV-12 & \texttt{STPGuarantee}     & No trade between orders in the same STP group & $\checkmark$ & --- \\
-INV-13 & \texttt{NoRestingMTL}     & \textsc{mtl} orders are converted before resting & $\checkmark$ & --- \\
-INV-14 & \texttt{NoRestingMinQty}  & $\mathit{minQty}$ is cleared before an order rests & $\checkmark$ & --- \\
-\bottomrule
-\end{tabular}
-
-\medskip
-\raggedright\footnotesize
-IDs match the canonical \S13 summary of the prose specification.
-TLC column: $\checkmark$ means bounded exhaustive pass across all
-configurations in Table~\ref{tab:configs}. Lean column:
-$\checkmark$ means part of \texttt{AllInv} and mechanically proved
-for all book sizes by \texttt{process\_preserves\_AllInv}; ---
-means not yet lifted to Lean.
-$^{\star}$INV-7 was violated under the original specification and
-passes after the fix described in \S\ref{sec:bug1}.
-\end{table}
-
-
-% ============================================================================
-\section{Findings and Counterexamples}
-\label{sec:findings}
-% ============================================================================
-
-\subsection{Finding 1: FIFO Violation via Missing Timestamp on Triggered Stops}
-\label{sec:bug1}
-
-\paragraph{Severity.} High---directly violates INV-7 (FIFO within price level).
-
-\paragraph{Root cause location.} \S10.1 \texttt{EVALUATE\_STOPS} interaction
-with \S6.1 \texttt{INSERT}.
-
-\subsubsection*{The Mechanism}
-
-The prose specification's stop-trigger procedure (\S10.1) converts a dormant
-stop order to its base type (LIMIT or MARKET) and re-enters it into the
-\texttt{PROCESS} pipeline. The stop order's \texttt{timestamp} field is not
-updated at trigger time. It retains the timestamp assigned when the order was
-originally submitted and placed into dormancy.
-
-When the triggered LIMIT order does not fully fill and rests on the book via
-\texttt{DISPOSE} (\S5.2), it is appended to the back of the appropriate
-price-level queue per \S6.1---giving it the lowest priority at that level.
-However, \texttt{FIFOWithinLevel} requires that the newly appended order have
-a timestamp strictly greater than all orders already in the queue. Because
-orders already in the queue arrived after the stop was submitted---they carry
-later timestamps---the stop's original timestamp is numerically earlier. The
-queue is now out of order.
-
-
-\subsubsection*{Counterexample Trace}
-
-TLC produced the following minimal counterexample. Times shown are logical
-clock values.
-
-\begin{figure}[H]
-\centering
-\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize,frame=single,xleftmargin=0pt,framexleftmargin=0pt]
-Step 1: Submit SELL LIMIT  qty=1, price=1      (id=1, ts=1)
-        -> Rests on ask:  askQ[1] = [order1(ts=1)]
-
-Step 2: Submit BUY STOP_LIMIT  stop=1, price=1, qty=1  (id=2, ts=2)
-        -> lastTradePrice = NULL -> does not trigger
-        -> Placed in stops = {order2(ts=2)}
-
-Step 3: Submit BUY LIMIT  qty=2, price=1       (id=3, ts=3)
-        -> Matches askQ[1]: fills order1 fully (fillQty=1)
-        -> Trade: price=1, aggressor=3, passive=1
-        -> lastTradePrice = 1
-        -> order3: remainingQty=1, rests on bid
-           bidQ[1] = [order3(ts=3)]
-        -> Stop cascade: lastTradePrice(1) >= stopPrice(1)
-           -> order2 triggers, converts to BUY LIMIT
-           -> Timestamp NOT updated: ts=2 (STALE)
-           -> Ask side empty, no fill
-           -> Dispose: order2 rests on bid
-              bidQ[1] = [order3(ts=3), order2(ts=2)]
-
-        FIFOWithinLevel check:
-            bidQ[1][1].timestamp = 3
-            bidQ[1][2].timestamp = 2
-            3 < 2 ?  FALSE  ->  INVARIANT VIOLATED
-\end{lstlisting}
-\caption{TLC counterexample trace for the FIFO violation. The triggered stop
-order (id=2) retains its original timestamp (ts=2) and is appended behind an
-order with a later timestamp (ts=3), producing a non-monotonic queue.}
-\label{fig:trace}
-\end{figure}
-
-\subsubsection*{Why Manual Review Missed This}
-
-The prose specification treats stop triggering and order insertion as separate
-sections (\S10.1 and \S6.1 respectively). Each section is locally correct:
-\S10.1 correctly describes conversion, and \S6.1 correctly describes
-insertion. The interaction---that converted stops carry stale
-timestamps---is invisible when reading either section in isolation. A
-reviewer must simultaneously hold the conversion path, the insertion path, and
-the FIFO invariant in mind to see the problem. TLC holds all three
-simultaneously by construction.
-
-
-\subsection{Finding 2: Iceberg Stranding Under STP DECREMENT}
-\label{sec:bug2}
-
-\paragraph{Severity.} Medium---creates a reachable book state with invalid
-order geometry.
-
-\paragraph{Root cause location.} \S8.3 DECREMENT case; missing interaction
-with \S7.5 iceberg reload.
-
-\subsubsection*{The Mechanism}
-
-The STP DECREMENT policy reduces both the incoming order's
-$\mathit{remainingQty}$ and the resting order's $\mathit{visibleQty}$ and
-$\mathit{remainingQty}$ by
-$\min(\mathit{incoming.remainingQty},\, \mathit{resting.visibleQty})$, without
-generating a trade. The iceberg reload logic (\S7.5 step 3) specifies:
-
-\begin{quote}
-When $\mathit{visibleQty} = 0$ and $\mathit{remainingQty} > 0$, reload the
-visible slice, assign a new timestamp, and move the order to the back of the
-queue.
-\end{quote}
-
-However, this reload is only specified inside the fill path. The DECREMENT
-action (\S8.3) does not reference \S7.5. There is no clause in \S8.3 for the
-case where DECREMENT drives $\mathit{visibleQty}$ to zero while
-$\mathit{remainingQty} > 0$.
-
-The result is a resting iceberg order with $\mathit{visibleQty} = 0$ and
-$\mathit{remainingQty} > 0$. It cannot be matched---$\mathit{fillQty} =
-\min(\mathit{incoming.remainingQty}, 0) = 0$---and cannot reload because the
-reload trigger is only in the fill path. The order is stranded: it occupies a
-queue position, blocks no fills, and cannot be removed except by explicit
-cancel.
-
-\subsubsection*{Illustrative Scenario}
-
-\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize,frame=single,xleftmargin=0pt,framexleftmargin=0pt]
-Resting iceberg: qty=2, displayQty=1, visibleQty=1,
-                 remainingQty=2, stpGroup="G1"        (id=R)
-Incoming:        qty=1, stpGroup="G1", stpPolicy=DECREMENT  (id=I)
-
-DECREMENT:
-    reduceQty = min(1, 1) = 1
-    I.remainingQty = 0   -> I is cancelled
-    R.visibleQty   = 0
-    R.remainingQty = 1   -> R remains on book
-
-Post-decrement state of R:
-    visibleQty=0, remainingQty=1, displayQty=1
-    -> Reload path not invoked
-    -> R sits on book, invisible, unreachable by matching
-\end{lstlisting}
-
-\paragraph{Note on claim level.} This scenario is reachable in the prose
-specification as written. However, the TLA+ model as checked incorporates the
-fix (iceberg reload after DECREMENT) because the stranded state would cause
-the model checker itself to loop: subsequent orders would find
-$\mathit{visibleQty} = 0$ and skip the order without decrementing fuel,
-creating an effective infinite loop in \texttt{DoMatch}. The bug is therefore
-presented as a specification gap---a path the spec silently omits---rather
-than as a TLC-witnessed invariant violation with a precise counterexample
-trace.
-
-
-\subsection{Design Observations (Not Demonstrated Bugs)}
-
-The following interactions are noted as potential specification ambiguities.
-They are not presented as verified bugs because no invariant violation was
-produced for them.
-
-\paragraph{Observation 1---FOK + STP DECREMENT.}
-The FOK pre-check counts non-conflicting visible quantity. During matching,
-DECREMENT can consume the incoming order's $\mathit{remainingQty}$ without
-generating trades. The incoming order reaches $\mathit{remainingQty} = 0$ and
-is treated as cancelled, but with fewer trade fills than $\mathit{qty}$.
-Whether this constitutes a FOK violation depends on whether FOK is defined as
-``fully traded'' or ``$\mathit{remainingQty}$ fully consumed.'' The spec does
-not address this interaction.
-
-\paragraph{Observation 2---MinQty + STP DECREMENT.}
-Analogously, the MinQty pre-check guarantees
-$\mathit{filled\_quantity} \geq \mathit{minQty}$ (\S5.4), but if DECREMENT
-consumes part of the incoming quantity before any fills occur, the traded
-quantity may fall below $\mathit{minQty}$ even though the pre-check passed.
-
-\paragraph{Observation 3---MTL + MinQty clearing.}
-The spec clears $\mathit{minQty}$ in two places: once in the MTL path (Phase
-4) and once in the normal matching path (Phase 5a). This duplication is
-currently correct but fragile---adding a new order type or routing path
-requires remembering to add a third clearing point.
-
-
-% ============================================================================
-\section{Specification Fixes}
-\label{sec:fixes}
-% ============================================================================
-
-Both confirmed issues were fixed in the TLA+ model. The fixes are minimal and
-directly address the root causes.
-
-\begin{table}[H]
-\centering
-\caption{Bug and fix summary.}
-\label{tab:fixes}
-\small
-\begin{tabular}{@{}lL{3cm}L{3.5cm}L{4.5cm}l@{}}
-\toprule
-ID & Location & Description & Fix & Invariant \\
-\midrule
-BUG-1 & \S10.1 \texttt{EVALUATE\_STOPS}
-      & Triggered stop retains original timestamp; violates FIFO when resting
-      & Assign \texttt{stop.timestamp = currentTimestamp()} before re-entering pipeline
-      & INV-7 \\
-\addlinespace
-BUG-2 & \S8.3 DECREMENT
-      & Iceberg $\mathit{visibleQty}$ driven to 0 without reload; order stranded
-      & After DECREMENT: if $\mathit{visibleQty} = 0 \land \mathit{remainingQty} > 0 \land \mathit{displayQty} \neq \bot$, reload visible slice, refresh timestamp, move to back
-      & Spec gap \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-\subsection{Fix for BUG-1 (Stop Timestamp)}
-
-The fix is a one-line addition to \S10.1. In the TLA+ model,
-\texttt{ProcessTriggeredStops} applies the fix:
-
-\begin{lstlisting}[language=tlaplus]
-converted == [ConvertStop(s) EXCEPT !.timestamp = tm]
-\end{lstlisting}
-
-The corresponding prose amendment to \S10.1:
-
-\begin{lstlisting}[language={}]
--- After "Convert to base type":
-stop.timestamp = currentTimestamp()   -- Assign trigger-time priority
-PROCESS(stop, book)
-\end{lstlisting}
-
-This ensures that a triggered stop order receives a timestamp reflecting when
-it entered the live matching pipeline, not when it was originally submitted.
-
-
-\subsection{Fix for BUG-2 (Iceberg Reload After DECREMENT)}
-
-The fix adds a post-DECREMENT iceberg check to \S8.3. In the TLA+ model:
-
-\begin{lstlisting}[language=tlaplus]
-ELSE IF newRest.visibleQty = 0 /\ newRest.displayQty /= NULL THEN
-    LET reloadQty == Min(newRest.displayQty, newRest.remainingQty)
-        reloaded  == [newRest EXCEPT !.visibleQty = reloadQty,
-                                     !.timestamp = tm,
-                                     !.status = "PARTIAL"]
-        sc == SetContra(side, bQ, aQ, bestP,
-                        restTail \o <<reloaded>>)
-    IN DoMatch(newInc, sc.bQ, sc.aQ, tds, tm + 1, fuel - 1)
-\end{lstlisting}
-
-The corresponding prose amendment to \S8.3, after the DECREMENT quantity
-update:
-
-\begin{lstlisting}[language={}]
-IF resting.visibleQty = 0 AND resting.remainingQty > 0
-   AND resting.displayQty != null:
-    resting.visibleQty = min(resting.displayQty, resting.remainingQty)
-    resting.timestamp  = currentTimestamp()
-    MOVE resting TO back OF level.orders
-\end{lstlisting}
-
-This mirrors the iceberg reload behavior specified in \S7.5 for the normal
-fill path, extending it to the DECREMENT path for consistency.
-
-
-% ============================================================================
-\section{Lean~4 Mechanized Proof}
-\label{sec:lean}
-% ============================================================================
-
-TLC searches a bounded state space and cannot establish correctness
-for arbitrary book sizes. Production matching engines routinely hold
-millions of orders, well beyond the configurations TLC can
-enumerate. To lift the argument above that bound we translated the
-fixed specification into a Lean~4 reference implementation and
-mechanized a proof of the principal preservation property. This
-section states the theorem, describes an early soundness issue with
-a constant fuel bound, and presents two complementary proof
-artifacts: a long constructive proof of the full preservation
-theorem by branch-by-branch induction and a shorter structural proof
-of the matching-and-dispose core by case analysis of the matching
-termination condition.
-
-Both proof files live in the same Lean project as the executable
-matching engine and are type-checked on every build, with no open
-obligations remaining. Table~\ref{tab:lean-stats} summarises their
-sizes.
-
-\begin{table}[H]
-\centering
-\caption{Lean~4 proof artifacts (final state).}
-\label{tab:lean-stats}
-\small
-\begin{tabular}{@{}lrrl@{}}
-\toprule
-File & Lines & Theorems & Proof style \\
-\midrule
-\texttt{Theorems.lean}         & 3{,}986 & 74 & Constructive, branch-by-branch \\
-\texttt{TheoremsElegant.lean}  &    312  &  6 & Three-case trichotomy \\
-\midrule
-\textbf{Total}                 & \textbf{4{,}298} & \textbf{80} & Complementary proof artifacts \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{Goal and Statement}
-\label{sec:lean-goal}
-
-Define the combined book invariant
-\[
-\texttt{AllInv}(b) \;\equiv\;
-\texttt{BookUncrossed}(b) \land
-\texttt{bidsSortedDesc}(b) \land
-\texttt{asksSortedAsc}(b).
-\]
-The principal result we establish is that \texttt{AllInv} is
-preserved by the full processing pipeline under a minimal
-well-formedness precondition. In Lean it is stated first as a mutual
-induction over \texttt{processOrder}, \texttt{processCascade}, and
-\texttt{processTriggeredStops}; the exported single-order theorem is:
-
-\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
-theorem processOrder_preserves_AllInv
-    (fuel : Nat) (o : Order) (b : BookState)
-    (hpok : OrderProcOk o)
-    (hstops : StopsNoPostOnly b)
-    (h : AllInv b) :
-    AllInv (processOrder fuel o b).book
-\end{lstlisting}
-
-The corresponding \texttt{process}-level \texttt{AllInv} corollary is
-immediate because \texttt{process} only adds metadata updates
-(\texttt{id}, \texttt{timestamp}, \texttt{nextId}, \texttt{clock})
-and does not change bids or asks. We state the uncrossed-book
-projection separately under the name
-\texttt{process\_preserves\_uncrossed} because it is the property
-most directly comparable to the TLC invariant
-\texttt{BookUncrossed}, but the underlying proved result is the
-stronger \texttt{AllInv} preservation statement.
-
-The sortedness conjuncts of \texttt{AllInv} are not cosmetic.
-\texttt{BookUncrossed} alone is not inductive with respect to the
-matching loop: the proof does not close unless the induction
-hypothesis also records that both sides of the book are monotone in
-price. This was established by the induction refusing to close under
-the weaker hypothesis, at which point the invariant was strengthened
-to \texttt{AllInv} and the proof proceeded. We report this as an
-example of the proof refining the invariant the specification should
-have emphasized.
-
-The preconditions \texttt{OrderProcOk} and \texttt{StopsNoPostOnly}
-are not arbitrary hypotheses: they are minimal fragments of the
-specification's own well-formedness rules (WF-13: post-only
-$\Rightarrow$ LIMIT, and the derived LIMIT $\Rightarrow$ price
-defined), also surfaced by the proof itself. We return to them in
-\S\ref{sec:lean-wf}.
-
-\subsection{The Fuel Problem}
-\label{sec:lean-fuel}
-
-Lean~4's termination checker requires every recursive function to be
-provably total. The matching loop \texttt{doMatch} is recursive: one
-step consumes a resting order, reduces the incoming order's quantity,
-or removes a crossing price level, and recurses on the remainder.
-Because the Lean termination checker cannot synthesize the measure
-automatically, the original implementation used an explicit
-\texttt{fuel~:~Nat} argument and a \emph{constant} bound:
-
-\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
-def defaultFuel : Nat := 100
-def doMatch (fuel : Nat) ... : MatchResult :=
-  match fuel with
-  | 0       => /* fuel exhausted: return as-is */
-  | fuel'+1 => /* one step, recurse with fuel' */
-\end{lstlisting}
-
-This hides the assumption that matching always completes within 100
-steps, which does not hold at arbitrary scale. Consider a book with
-$200$ resting asks at price $50$ and one incoming BUY at price $100$.
-\texttt{doMatch} consumes the first $100$ asks, exhausts its fuel,
-and returns the incoming order with $100$ asks still resting at
-price~$50$. The disposition phase then inserts the buy at price $100$
-on the bid side, producing $\mathit{bestBid}=100 > \mathit{bestAsk}=50$---a
-crossed book. The preservation theorem does not hold under the
-constant-fuel assumption, and the proof fails to close.
-
-This is the point at which the difference between the two
-verification levels becomes concrete. TLC's explored configurations
-never exceeded a handful of orders on either side, so the bounded
-model-checking pass did not expose the issue; only the universally
-quantified Lean statement forced the fuel bound to become a proof
-obligation rather than an assumption. The arbitrary constant turned a
-semantic property---``matching completes''---into a syntactic one---``matching
-completes in $\leq 100$ steps''---and only the syntactic version was
-provable.
-
-\subsection{Computed Fuel and the Progress Lemma}
-\label{sec:lean-fuel-fix}
-
-The fix for the fuel unsoundness is to compute the fuel bound from the
-book state and prove that the bound is always sufficient:
-
-\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
-def matchMeasure (contra : List PriceLevel) (_inc : Order) : Nat :=
-    totalRemaining contra + orderCount contra + contra.length
-
-def computeMatchFuel (b : BookState) (side : Side) : Nat :=
-    matchMeasure (contraLevels b side) dummyInc + 1
-\end{lstlisting}
-
-The measure has three components:
-\texttt{totalRemaining}~$= \sum_{o \in \text{contra}}
-o.\mathit{remainingQty}$ accounts for fills, \texttt{orderCount} accounts
-for orders whose visible quantity is skipped without a fill (STP
-cancellation, zero-visible iceberg slots), and \texttt{contra.length}
-accounts for level exhaustion steps that remove an empty price level.
-
-The key technical lemma---the \emph{progress lemma}---is that every
-non-terminal step of \texttt{doMatch} strictly decreases this measure.
-A single monolithic induction over all of \texttt{doMatch}'s branches
-(there are 14) was intractable in our experience. The decomposition
-that worked is per-branch: each branch becomes its own 10--25-line
-lemma proving progress, and the 14 lemmas compose into a single
-termination-and-stability theorem.
-Table~\ref{tab:branches} summarizes the branches and the decrement each
-one contributes.
-
-\begin{table}[H]
-\centering
-\caption{Progress analysis for \texttt{doMatch} branches. Terminal
-branches stop the loop; measure-decreasing branches recurse on a
-strictly smaller state.}
-\label{tab:branches}
-\small
-\begin{tabular}{@{}llL{5.5cm}@{}}
-\toprule
-Branch & Kind & Why the measure decreases \\
-\midrule
-Full fill (resting consumed)    & Decrease  & \texttt{orderCount} drops by 1 \\
-Partial fill (incoming done)    & Terminal  & $\mathit{remainingQty}=0$ \\
-STP cancel newest               & Terminal  & incoming cancelled \\
-STP cancel oldest               & Decrease  & one order removed \\
-STP cancel both                 & Terminal  & incoming cancelled \\
-STP decrement                   & Decrease  & resting qty strictly reduced \\
-Iceberg fill + reload           & Decrease  & fill reduced
-                                              \texttt{totalRemaining} before reload \\
-Level exhausted                 & Decrease  & empty level removed \\
-Zero-visible skip               & Decrease  & one order removed \\
-No crossable orders             & Terminal  & $\lnot\,\texttt{canMatchPrice}$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The iceberg reload case is the subtlest. Reload appears to ``add
-liquidity back'': the resting order's visible quantity jumps from zero
-to the display quantity. But \texttt{totalRemaining} is not affected by
-this redistribution---only the visible/hidden split changes---and the
-fill step that triggered the reload strictly decreased
-\texttt{totalRemaining} by the filled quantity. The composition of the
-two steps is a net decrease. The proof carries this through explicitly;
-the reload is not a no-op, it is a book-keeping update that leaves the
-measure strictly below its pre-step value.
-
-With the progress lemma in place, the terminal states of
-\texttt{doMatch} (on sufficient fuel) fall into a four-way stable
-predicate: the incoming is consumed, the incoming is cancelled, the
-contra side is empty, or the contra head does not cross the incoming
-price. This predicate (\texttt{buyMatchStable}~/
-\texttt{sellMatchStable}) is the black-box characterization that the
-elegant proof in \S\ref{sec:lean-elegant} relies on.
-
-\subsection{Side Parameterization}
-\label{sec:lean-side}
-
-Every matching lemma has both a buy-side and a sell-side form. The
-first attempt duplicated every proof---\texttt{doMatch\_buy\_preserves\_bids}
-alongside \texttt{doMatch\_sell\_preserves\_asks}, and so on for
-fourteen branches on each side. The duplication doubled the proof
-effort and made any change require two coordinated edits.
-
-The fix is to parameterize every lemma by a \texttt{Side} value:
-
-\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
-theorem doMatch_preserves_uncrossed
-    (fuel : Nat) (inc : Order) (b : BookState)
-    (tm : Timestamp) (side : Side)
-    (hside : inc.side = side)
-    (h : AllInv b) :
-    BookUncrossed { b with
-        bids := (doMatch fuel inc b.bids b.asks [] tm).bids,
-        asks := (doMatch fuel inc b.bids b.asks [] tm).asks }
-\end{lstlisting}
-
-The proof then performs \texttt{cases side} \emph{only at the leaves}
-where the concrete direction of the inequality matters. Everything
-above the leaves is shared. After side-parameterization the sell mirror
-of the fuel-sufficiency proof---which had been the bottleneck---compiled
-on the first try.
-
-\subsection{Mutual Induction Across the Cascade}
-\label{sec:lean-mutual}
-
-\texttt{processOrder}, \texttt{processCascade}, and
-\texttt{processTriggeredStops} are mutually recursive: a trade can
-trigger a dormant stop, which converts to a market order and re-enters
-the pipeline, which can produce more trades, which can trigger more
-stops. Proving \texttt{AllInv} preservation for any one of them
-requires proving it for all three simultaneously:
-
-\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
-theorem process_all_preserve_AllInv : forall fuel,
-  (forall o b, OrderProcOk o -> StopsNoPostOnly b -> AllInv b ->
-    AllInv (processOrder fuel o b).book) /\
-  (forall ts b, StopsNoPostOnly b -> AllInv b ->
-    AllInv (processCascade fuel ts b).book) /\
-  (forall os b, (forall o in os, o.postOnly = false) ->
-                StopsNoPostOnly b -> AllInv b ->
-    AllInv (processTriggeredStops fuel os b).book)
-\end{lstlisting}
-
-Induction proceeds on \texttt{fuel}. The base case (\texttt{fuel = 0})
-is trivial because all three functions return the book unchanged.
-The step case must discharge every phase of \texttt{processOrder}:
-stop handling, post-only rejection, FOK pre-check, MinQty pre-check,
-market-to-limit routing, normal matching, dispose, and stop cascade.
-Each phase follows the same template: apply
-\texttt{doMatch\_preserves\_AllInv} to the matching step, extract the
-non-crossing precondition from the termination-stability predicate,
-apply \texttt{dispose\_preserves\_AllInv} to the disposition step, and
-thread the cascade through the inductive hypothesis for
-\texttt{processCascade}.
-
-The subtlest sub-case is \emph{MTL Phase~4 case~3}: a MARKET-TO-LIMIT
-order that fills partially, converts to a LIMIT order, then runs a
-\emph{second} matching pass with the derived limit price, then
-disposes. The second \texttt{doMatch} operates on the post-first-match
-book with a freshly constructed incoming order, and the non-crossing
-precondition for the subsequent dispose must be extracted from a
-\texttt{doMatch} call that does not match the form of any of the
-existing helper lemmas. We resolved this by parameterizing the
-non-crossing extraction helpers by the starting timestamp
-(\texttt{matching\_dispose\_noCross\_buy}~/~\texttt{sell} each take an
-explicit \texttt{tm}) so they apply uniformly to both the first
-matching pass (which uses \texttt{b.clock + 1}) and the MTL second pass
-(which uses \texttt{mr.clock}).
-
-\subsection{Minimal Well-Formedness Preconditions}
-\label{sec:lean-wf}
-
-The precondition \texttt{OrderProcOk~o} captures two facts that the
-proof cannot avoid:
-
-\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
-def OrderProcOk (o : Order) : Prop :=
-    (o.postOnly = true -> o.price.isSome = true) /\
-    ((o.orderType = .stopLimit \/ o.orderType = .stopMarket) ->
-       o.postOnly = false)
-\end{lstlisting}
-
-The first conjunct rules out the post-only / no-price configuration
-that the spec forbids via WF-13 (\emph{post-only $\Rightarrow$
-LIMIT}) and WF-2 (\emph{LIMIT $\Rightarrow$ price defined}). In the
-proof, this hypothesis discharges the otherwise-unreachable branch in
-which \texttt{wouldCross} returns false for a post-only order with
-\texttt{price = none}. Without it, the Phase-2 case of
-\texttt{processOrder} has a genuinely crossed output.
-
-The second conjunct---stop orders are not post-only---is a
-consequence of the same WF-13 by contrapositive: post-only
-$\Rightarrow$ LIMIT, and stop types are not LIMIT. It is needed
-when the stop-cascade arm of \texttt{processOrder} converts a
-triggered stop and re-enters the pipeline.
-
-A separate precondition,
-\texttt{StopsNoPostOnly~b}~$\equiv~\forall s \in
-b.\mathit{stops},~s.\mathit{postOnly} = \texttt{false}$, lifts the
-same constraint to the resting stop pool. It is preserved by every
-pipeline phase and is used by the stop-cascade case.
-
-Both preconditions were \emph{discovered}, not guessed. We first
-attempted the proof without them; the proof failed at a specific
-branch with a concrete counterexample; the counterexample corresponded
-exactly to a state that the spec's own WF rules forbid. The fragment
-we added is strictly weaker than the full \texttt{Order.wellFormed}
-predicate---we only require what the proof actually needs. In
-particular, we do \emph{not} require the incoming order to pass the
-full twenty-constraint WF check; only the two clauses above. This is
-the honest precondition: the proof tells us what matters.
-
-\subsection{The Elegant Alternative Proof}
-\label{sec:lean-elegant}
-
-Once the constructive proof was complete, we developed a second
-proof component, in the file \texttt{TheoremsElegant.lean}
-(6~theorems, 312~lines), that recasts the matching-and-dispose
-core as a shorter structural argument.
-
-When \texttt{doMatch} terminates on a fuel-sufficient run, the
-resulting state falls into one of three cases:
-
-\begin{enumerate}[nosep]
-\item \textbf{Aggressor consumed.} $\mathit{remainingQty} = 0$ (or the
-      order has been cancelled). The incoming order is gone;
-      \texttt{doMatch} only removes orders from the contra side, never
-      adds to it; removing orders cannot create a cross.
-\item \textbf{Contra side empty.} There is nothing left on the
-      opposite side to cross against; an empty side is vacuously
-      non-crossing.
-\item \textbf{Non-crossing head.} Both sides are non-empty but the
-      contra head does \emph{not} cross the incoming price. This is
-      the only way \texttt{doMatch} can stop with both sides active:
-      if prices crossed, the loop guard \texttt{canMatchPrice} would
-      fire and matching would take another step. Since it stopped,
-      prices do not cross.
-\end{enumerate}
-
-A fourth case---both sides active and still crossing---is not
-reachable at termination: such a state is not terminal under the
-loop guard, so fuel sufficiency rules it out. The three cases
-compose with \texttt{dispose} directly: Case~1 returns the book
-unchanged, Case~2 inserts on a book whose contra side is empty
-(vacuously non-crossing), and Case~3 inserts at a price strictly
-separated from the contra head.
-
-The second proof treats \texttt{doMatch} as a black box
-characterised by its termination condition rather than by the
-control-flow path that produced it. It reuses the constructive
-proof's fuel-sufficiency lemma (\texttt{doMatch\_output\_stable}) as
-an imported fact.
-
-\begin{center}
-\small
-\begin{tabular}{@{}lll@{}}
-\toprule
-                        & Constructive              & Structural              \\
-\midrule
-File                    & \texttt{Theorems.lean}    & \texttt{TheoremsElegant.lean} \\
-Lines                   & 3{,}986                   & 312                     \\
-Theorems/lemmas         & 74                        & 6                       \\
-Argument                & Branch-by-branch          & Three-case analysis     \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-Both are machine-checked, and both live in the build. The
-constructive proof discharges fuel sufficiency, sortedness
-preservation, side isolation, and the mutual pipeline theorem. The
-structural file reuses those lemmas and shows that, once the
-termination condition is fixed, the matching-and-dispose argument
-itself is short.
-
-\subsection{Model Checking and Theorem Proving Are Complementary}
-\label{sec:lean-complementary}
-
-TLC and Lean surfaced different classes of issue. TLC produced the
-two feature-composition defects (FIFO via stale timestamps; iceberg
-stranding under STP DECREMENT) as concrete multi-step traces that a
-proof attempt would not have generated directly. Lean's universal
-quantification, in turn, made the constant-fuel assumption
-(\S\ref{sec:lean-fuel}) visible; TLC did not reach scopes where
-the fuel bound mattered.
-
-At the level of cost, TLC returned its first counterexample in 102
-seconds of wall time, while the Lean proof accumulated weeks of
-interactive development and produced a 4{,}298-line artifact. The
-two are complementary rather than substitutable: TLC's speed is
-useful early, and the Lean statement scales beyond any bounded
-configuration.
-
-
-% ============================================================================
-\section{Specification-Guided Implementation}
-\label{sec:synthesis}
-% ============================================================================
-
-For completeness we describe how the fixed specification was carried
-forward into systems-language implementations. We frame this as an
-engineering observation, not as an additional verification result:
-we do not prove refinement between the Lean reference and the C or
-C++ code, and the assurance we obtain at the implementation level is
-bounded by shared tests and runtime invariant checks rather than by
-a mechanized proof.
-
-Prose and TLA+ artifacts from \S\ref{sec:semantics}--\S\ref{sec:fixes}
-were used as the input to a language-model-assisted coding workflow,
-augmented with two architectural directives: intrusive doubly-linked
-lists for $O(1)$ order removal and FIFO management, and a pool
-allocator to bound allocation latency. The resulting C and C++
-implementations follow the phase structure of the specification one
-for one, and apply the two defect fixes introduced in \S\ref{sec:fixes}:
-stop-trigger timestamps are refreshed before re-entry into the
-matching pipeline, and the STP DECREMENT path reloads iceberg
-visible quantity when it would otherwise reach zero.
-
-The C implementation additionally includes an
-\texttt{engine\_check\_invariants} routine that translates the
-TLC-checked invariants into runtime assertions, giving a form of
-continuous conformance checking between the running engine and the
-invariant suite. This is weaker than a refinement proof---an
-invariant assertion fires after state has already diverged---but it
-narrows the gap between specification and implementation and has
-caught regressions during development.
-
-We deliberately avoid framing this step as ``correct-by-construction''
-code generation. A precise specification is an unusually good input
-for an implementation effort, and a feature-rich matching engine is
-an unusually tractable target because its control-flow structure is
-exposed by the specification itself. The two defect fixes were
-carried across because the specification was explicit about them,
-not because the generation step carried any inherent guarantee. A
-genuine end-to-end guarantee would require a refinement argument
-connecting the Lean reference to the systems-language code, and that
-is beyond the scope of this paper.
-
-
-% ============================================================================
-\section{Lessons Learned}
-\label{sec:lessons}
-% ============================================================================
-
-\subsection{Feature Composition Is Where Bugs Hide}
-
-Both findings share a structural pattern: each involved feature is correctly
-specified in isolation, but the specification omits a clause covering their
-interaction. Stop orders are correctly described; iceberg reload is correctly
-described; FIFO insertion is correctly described. None of these sections
-contains an error when read alone. The bug lives in the intersection: what
-happens to an iceberg order's timestamp when the mechanism that zeros its
-visible quantity is not the fill path but the STP DECREMENT path?
-
-This is not a failure of careful writing---it is a structural limitation of
-prose specifications. Prose sections have natural scope boundaries.
-Interactions between features that span sections are systematically harder to
-see than behaviors within a single section.
-
-A formal model collapses all features into a single operational semantics and
-evaluates invariants globally. The intersection cases are not special---they
-are just more states.
-
-
-\subsection{Logical Clocks Amplify Ordering Bugs}
-
-The FIFO invariant is stated in terms of timestamps. Because the
-specification uses a monotonically increasing logical clock, any state
-transition that fails to advance the clock before inserting an order can
-produce a stale timestamp that violates ordering. The stop-trigger bug is
-exactly this: the clock was not advanced before the triggered stop was assigned
-to the book.
-
-Timestamp-based ordering invariants are fragile in the presence of features
-(like stop triggers) that re-enter orders into the pipeline from a dormant
-pool. Wherever an order exits a dormant state and re-enters an active queue,
-its timestamp must be refreshed. The fix is simple; the risk is that prose
-specifications do not enumerate every re-entry point.
-
-
-\subsection{Iceberg Reload Is Not Tied Tightly Enough to Its Trigger Condition}
-
-The iceberg reload semantics in \S7.5 are described in terms of the fill path:
-``when $\mathit{visibleQty}$ is fully consumed [by a fill].'' The prose
-implicitly assumes that $\mathit{visibleQty}$ can only reach zero through the
-fill path. STP DECREMENT provides a second path to zero
-$\mathit{visibleQty}$ that the reload trigger does not anticipate.
-
-A more robust specification would state the reload condition declaratively as
-an invariant on the resting order state:
-
-\begin{quote}
-A resting order must not have $\mathit{visibleQty} = 0$ and
-$\mathit{remainingQty} > 0$.
-\end{quote}
-
-\noindent Rather than specifying reload as a step triggered by the fill path,
-it would be specified as a consequence of this invariant: any action that could
-produce this state must be followed by a reload. This declarative framing
-would make the omission in DECREMENT immediately apparent.
-
-
-\subsection{The Specification Artifact Has Independent Value}
-
-The TLA+ model serves as a precise, executable reference for the prose
-specification. Independently of the bugs found, it forces every semantic
-choice to be made explicit: what is the recursion structure of stop cascades?
-What exactly does ``timestamp'' mean for a triggered order? At what point
-does MTL price derivation occur relative to the cascade? These questions have
-definite answers in the model even when the prose is ambiguous.
-
-
-% ============================================================================
-\section{Limitations and Reproducibility}
-\label{sec:limitations}
-% ============================================================================
-
-\subsection{Bounded Exhaustive Exploration, Not Proof (for TLA+)}
-
-TLC performs bounded exhaustive state enumeration: it finds every state
-reachable from \texttt{Init} via the \texttt{Next} relation, within the
-parameter bounds. A clean run means no invariant violation was found within
-the explored configurations. It does not mean no violation exists for larger
-configurations, more orders, or more price levels. We do not claim the
-TLA+ model is correct in any unbounded sense.
-
-Specifically:
-\begin{itemize}[nosep]
-\item The 3-order partial run did not complete state-space exploration.
-\item No configuration with more than two distinct STP groups was checked.
-\item GTD time-based expiry was checked only via the simplified
-      \texttt{TimeAdvance} action, not against wall-clock constraints.
-\item The event-ordering invariant (INV-10) is not formalized in the model.
-\end{itemize}
-
-\paragraph{Lean closes the unbounded gap for \texttt{AllInv}, not
-for the full invariant suite.} The Lean proof in
-\S\ref{sec:lean} establishes \texttt{process\_preserves\_AllInv}
-for arbitrary book sizes and arbitrary order counts, under the
-minimal preconditions \texttt{OrderProcOk} and
-\texttt{StopsNoPostOnly}. The corollary
-\texttt{process\_preserves\_uncrossed} is an immediate consequence.
-Among the broader TLC-checked invariants, only the \texttt{AllInv}
-portion (INV-2, INV-3, INV-4) has been lifted to Lean. The
-remaining invariants---no ghosts (INV-5), status consistency
-(INV-6), FIFO within level (INV-7), no resting markets
-(INV-8), post-only safety (INV-11), STP guarantee (INV-12), no
-resting MTL (INV-13), no resting MinQty (INV-14)---remain at the
-bounded level of assurance provided by TLC. Lifting them to Lean is
-future work.
-
-
-\subsection{Specification vs.\ Implementation}
-
-\textbf{For the Lean reference implementation, the gap is closed.} The
-Lean~4 code that \texttt{\#eval} runs in tests is the same code that
-the theorems reference---there is no separate model, no extraction
-layer, and no refinement proof obligation. For the Lean artifact, the
-semantic gap between tested behavior and proved behavior is zero.
-
-\textbf{For the C and C++ synthesized implementations, a gap
-remains.} The Lean proof does not transfer automatically to C or C++;
-those implementations are validated by shared test suites derived from
-the specification, not by a formal correspondence argument. An
-implementation that correctly implements the (fixed) specification
-could still contain implementation bugs---off-by-one errors,
-concurrency hazards, data-structure corruption---that are outside the
-scope of this work. A refinement proof connecting the Lean reference
-to the systems-language implementations would close the remaining gap
-and is a natural next step.
-
-
-\subsection{Reproducibility}
-
-All artifacts described in this paper---the prose specification,
-the TLA+ model and configurations, the Lean~4 project, and the
-paper source---are available in a public Git repository at
-\url{https://github.com/formally-verified-exchange/verified-matching-engine}.
-The top-level \texttt{README.md} lists prerequisites and gives
-step-by-step commands for building the Lean proofs and running
-TLC against each configuration. The complete artifacts are:
-\begin{itemize}[nosep]
-\item \texttt{matching-engine-formal-spec.md}---the prose specification.
-\item \texttt{spec/MatchingEngine.tla}---the TLA+ specification
-      ($\sim$950 lines).
-\item \texttt{spec/MatchingEngine.cfg} and the per-configuration files
-      \texttt{spec/MatchingEngine\_*.cfg} for Table~\ref{tab:configs}.
-\item \texttt{spec/REPORT.md}---model checking output and bug descriptions.
-\item \texttt{MatchingEngine/}---the Lean~4 project (11 source
-      files). The two proof files are
-      \texttt{Theorems.lean} (3{,}986 lines, 74 theorems) and
-      \texttt{TheoremsElegant.lean} (312 lines, 6 theorems), both
-      under the \texttt{MatchingEngine/} directory. Both are built
-      and type-checked by \texttt{lake build} and are imported from
-      the library root \texttt{MatchingEngine.lean}.
-\item Synthesized C/C++ implementations (available in related
-      repositories).
-\end{itemize}
-
-To reproduce the FIFO counterexample:
-\begin{enumerate}[nosep]
-\item Revert the stop timestamp fix in \texttt{ProcessTriggeredStops}: replace\\
-      \texttt{[ConvertStop(s) EXCEPT !.timestamp = tm]} with
-      \texttt{ConvertStop(s)}.
-\item Run TLC with the Small configuration
-      (\texttt{MAX\_ORDERS=2, MAX\_QTY=2, PRICES=\{1,2\}}, amend disabled).
-\item TLC will find a violation of \texttt{FIFOWithinLevel} within the first
-      several million states.
-\end{enumerate}
-
-To reproduce the fuel-unsoundness counterexample (\S\ref{sec:lean-fuel}):
-\begin{enumerate}[nosep]
-\item Revert \texttt{computeMatchFuel} in
-      \texttt{MatchingEngine/Process.lean} to the constant
-      \texttt{defaultFuel~:=~100}.
-\item Re-run \texttt{lake build}.  The proof of
-      \texttt{doMatch\_preserves\_AllInv} will fail: the measure
-      argument no longer dominates the recursive call bound, and any
-      book with more than $100$ contra-side orders produces a
-      concrete cross after one application of \texttt{process}.
-\end{enumerate}
 
 
 % ============================================================================
@@ -1503,41 +1279,38 @@ To reproduce the fuel-unsoundness counterexample (\S\ref{sec:lean-fuel}):
 
 The work we know of falls into three largely disjoint literatures:
 formal specification and model checking of distributed systems,
-mechanized proof of systems software, and economic analysis of
-exchange microstructure. Each addresses part of what this paper
-covers, but none combines a feature-rich limit-order-book
-specification with both bounded bug-finding and mechanized
-theorem-level assurance. The positioning below maps the closest
-neighbors.
+mechanized proof of systems software, and economic analysis of exchange
+microstructure. Each addresses part of what this paper covers, but none
+combines a feature-rich limit-order-book specification with both bounded
+bug-finding and mechanized theorem-level assurance.
 
 \paragraph{TLA+ in industry.}
 TLA+ has been applied at scale at Amazon Web
 Services~\cite{Newcombe2015}, where engineers used it to model DynamoDB,
-S3, and other distributed services and uncovered design-level bugs
-that would have been difficult to find through testing. Similar
-reports have come from Microsoft (Azure Cosmos DB), MongoDB, and
-Elastic. Our work follows the Newcombe et al.\ template---use TLC to
-explore a specification's state space and find interaction bugs
-before coding---but differs in the target domain (a financial
-matching engine rather than a distributed storage protocol) and in
-the follow-through to a machine-checked proof in a different tool
-(Lean~4) rather than stopping at bounded model checking.
+S3, and other distributed services and uncovered design-level bugs that
+would have been difficult to find through testing. Similar reports have
+come from Microsoft (Azure Cosmos DB), MongoDB, and Elastic. Our work
+follows the Newcombe et~al.\ template---use TLC to explore a
+specification's state space and find interaction bugs before
+coding---but differs in the target domain (a financial matching engine
+rather than a distributed storage protocol) and in the follow-through
+to a machine-checked proof in a different tool (Lean~4) rather than
+stopping at bounded model checking.
 
 \paragraph{Mechanized proof of systems software.}
 The largest-scale machine-checked software artifacts---the seL4
 microkernel~\cite{Klein2009}, CompCert~\cite{Leroy2009}, and
 CertiKOS~\cite{Gu2016}---prove functional correctness or refinement
-between a high-level specification and a C-level implementation,
-and consumed person-decades of effort. The present work is
-considerably narrower in both ambition and cost: we prove
-preservation of a single book invariant (\texttt{AllInv}) for the
-Lean reference implementation of a feature-rich matching engine
-and rely on a separate testing-and-assertion path to connect that
-reference to systems-language code. The investment is
-correspondingly smaller (weeks rather than years), but the target
-is a different class of system---one whose complexity lives in
-feature composition rather than in concurrency or low-level memory
-semantics.
+between a high-level specification and a C-level implementation, and
+consumed person-decades of effort. The present work is considerably
+narrower in both ambition and cost: we prove preservation of a single
+book invariant (\texttt{AllInv}) for the Lean reference implementation
+of a feature-rich matching engine and rely on a separate
+testing-and-assertion path to connect that reference to systems-language
+code. The investment is correspondingly smaller (weeks rather than
+years), but the target is a different class of system---one whose
+complexity lives in feature composition rather than in concurrency or
+low-level memory semantics.
 
 \paragraph{Formal methods for financial systems.}
 Prior formal work on financial infrastructure has focused mostly on
@@ -1545,47 +1318,147 @@ auction-theoretic properties of matching
 algorithms~\cite{Budish2015} and on smart-contract verification
 for decentralized exchanges~\cite{Bhargavan2016,Grishchenko2018}.
 Property-based testing tools like QuickCheck~\cite{Claessen2000} are
-used at some trading firms for engine validation, but published
-accounts of end-to-end formal verification of a production-style
-limit-order-book engine with the full order-type suite (icebergs,
-stops, STP, post-only, FOK, MinQty) are, to our knowledge, absent
-from the literature. A TLA+ specification of an order book has been
-circulated informally in the TLA+ user community, but with a
-substantially smaller feature set and no mechanized proof layer.
+used at some trading firms for engine validation, but published accounts
+of end-to-end formal verification of a production-style limit-order-book
+engine with the full order-type suite (icebergs, stops, STP, post-only,
+FOK, MinQty) are, to our knowledge, absent from the literature. A TLA+
+specification of an order book has been circulated informally in the
+TLA+ user community, but with a substantially smaller feature set and no
+mechanized proof layer.
 
 \paragraph{Termination proofs and well-founded recursion.}
 The core technical device in \S\ref{sec:lean-fuel-fix}---replacing an
 arbitrary fuel bound with a state-derived measure and a progress
 lemma---is a standard pattern in mechanized proofs of imperative
 programs~\cite{Manolios2006,Leino2013}. Our contribution is not the
-pattern itself but a concrete demonstration that an LLM-assisted
-proof can be pushed through the per-branch progress argument for a
+pattern itself but a concrete demonstration that an AI-augmented proof
+effort can be pushed through the per-branch progress argument for a
 matching-loop implementation with 14 interacting branches, closing
 the bug introduced by the arbitrary constant.
 
 \paragraph{LLM-assisted formal verification.}
 A growing body of work explores the use of large language models to
-draft Lean, Coq, or Isabelle tactics~\cite{Yang2023,First2023}.
-These systems focus on automating tactic search. Our experience is
+draft Lean, Coq, or Isabelle tactics~\cite{Yang2023,First2023}. These
+systems focus on automating tactic search. Our experience is
 complementary: the AI did not autonomously close the proof through
-tactic search; it wrote naturalistic Lean proofs under human
-strategic direction. The progress-lemma decomposition, the
-side-parameterization refactor, and the three-case trichotomy were
-human contributions. The ~4{,}000 lines of case-splitting and
-omega invocations were the AI's contribution. Neither layer alone
-would have produced the artifact.
+tactic search; it wrote naturalistic Lean proofs under human strategic
+direction. The progress-lemma decomposition, the side-parameterization
+refactor, and the three-case trichotomy were human contributions. The
+$\sim$4{,}000 lines of case-splitting and omega invocations were the
+AI's contribution. Neither layer alone would have produced the artifact.
 
 \paragraph{Spec-to-implementation synthesis.}
 Program synthesis from formal specifications is a classical research
 area~\cite{Manna1980}. Recent work on LLM-driven
 synthesis~\cite{Jain2022} has reached practical levels for small
-programs. Our ``Guided Synthesis'' paradigm differs in that the
-specification is both the logical source of truth \emph{and} the
-prompt, and architectural hints (intrusive lists, pool allocation)
-are provided as orthogonal performance directives. The result is
-then validated for conformance via shared test vectors derived from
-the spec. A formal refinement argument between the Lean reference
-and the synthesized C/C++ is future work.
+programs. The approach taken in \S\ref{sec:synthesis} differs in that
+the specification is both the logical source of truth and the primary
+input, with architectural hints provided as orthogonal performance
+directives. A formal refinement argument between the Lean reference
+and the synthesized C/C++ remains future work.
+
+
+% ============================================================================
+\section{Limitations and Reproducibility}
+\label{sec:limitations}
+% ============================================================================
+
+\subsection{Bounded Exploration, Not Proof (for TLA+)}
+
+TLC performs bounded exhaustive state enumeration. A clean run means no
+invariant violation was found within the explored configurations. It
+does not mean no violation exists for larger configurations, more
+orders, or more price levels.
+
+Specific gaps:
+\begin{itemize}[nosep]
+\item The 3-order partial run did not complete state-space exploration.
+\item No configuration with more than two distinct STP groups was
+      checked.
+\item GTD time-based expiry was checked only via the simplified
+      \texttt{TimeAdvance} action, not against wall-clock constraints.
+\item The event-ordering invariant (INV-10) is not formalized in the
+      model.
+\end{itemize}
+
+\paragraph{Lean closes the unbounded gap for \texttt{AllInv}, not for
+the full invariant suite.} The Lean proof establishes
+\texttt{process\_preserves\_AllInv} for arbitrary book sizes and
+arbitrary order counts, under the minimal preconditions
+\texttt{OrderProcOk} and \texttt{StopsNoPostOnly}. Among the broader
+TLC-checked invariants, only the \texttt{AllInv} portion (INV-2, INV-3,
+INV-4) has been lifted to Lean. The remaining invariants---no ghosts
+(INV-5), status consistency (INV-6), FIFO within level (INV-7), no
+resting markets (INV-8), post-only safety (INV-11), STP guarantee
+(INV-12), no resting MTL (INV-13), no resting MinQty (INV-14)---remain
+at the bounded level of assurance provided by TLC. Lifting them to Lean
+is future work.
+
+\subsection{Specification vs.\ Implementation}
+
+For the Lean reference implementation, the gap is closed. The Lean~4
+code that tests run is the same code the theorems reference---there is
+no separate model, no extraction layer, and no refinement obligation.
+The semantic gap between tested behavior and proved behavior is zero.
+
+For the C and C++ synthesized implementations, a gap remains. The Lean
+proof does not transfer automatically to C or C++. Those implementations
+are validated by shared test suites derived from the specification, not
+by a formal correspondence argument. A refinement proof connecting the
+Lean reference to the systems-language implementations is a natural
+next step.
+
+\subsection{Reproducibility}
+
+All artifacts---the prose specification, the TLA+ model and
+configurations, the Lean~4 project, and the paper source---are available
+in a public Git repository at
+\url{https://github.com/formally-verified-exchange/verified-matching-engine}.
+The top-level \texttt{README.md} lists prerequisites and gives
+step-by-step commands for building the Lean proofs and running TLC
+against each configuration. The complete artifacts are:
+
+\begin{itemize}[nosep]
+\item \texttt{matching-engine-formal-spec.md}---the prose specification.
+\item \texttt{spec/MatchingEngine.tla}---the TLA+ specification
+      ($\sim$950 lines).
+\item \texttt{spec/MatchingEngine.cfg} and the per-configuration files
+      \texttt{spec/MatchingEngine\_*.cfg} for Table~\ref{tab:configs}.
+\item \texttt{spec/REPORT.md}---model checking output and bug
+      descriptions.
+\item \texttt{MatchingEngine/}---the Lean~4 project (11 source files).
+      The two proof files are \texttt{Theorems.lean} (3{,}986 lines,
+      74 theorems) and \texttt{TheoremsElegant.lean} (312 lines,
+      6 theorems), both under the \texttt{MatchingEngine/} directory.
+      Both are built and type-checked by \texttt{lake build} and are
+      imported from the library root \texttt{MatchingEngine.lean}.
+\item Synthesized C/C++ implementations (available in related
+      repositories).
+\end{itemize}
+
+To reproduce the FIFO counterexample:
+\begin{enumerate}[nosep]
+\item Revert the stop timestamp fix in \texttt{ProcessTriggeredStops}:
+      replace \texttt{[ConvertStop(s) EXCEPT !.timestamp = tm]} with
+      \texttt{ConvertStop(s)}.
+\item Run TLC with the Small configuration
+      (\texttt{MAX\_ORDERS=2, MAX\_QTY=2, PRICES=\{1,2\}}, amend
+      disabled).
+\item TLC will find a violation of \texttt{FIFOWithinLevel} within the
+      first several million states.
+\end{enumerate}
+
+To reproduce the fuel-unsoundness issue (\S\ref{sec:lean-fuel}):
+\begin{enumerate}[nosep]
+\item Revert \texttt{computeMatchFuel} in
+      \texttt{MatchingEngine/Process.lean} to the constant
+      \texttt{defaultFuel~:=~100}.
+\item Re-run \texttt{lake build}. The proof of
+      \texttt{doMatch\_preserves\_AllInv} will fail: the measure
+      argument no longer dominates the recursive call bound, and any
+      book with more than $100$ contra-side orders produces a concrete
+      cross after one application of \texttt{process}.
+\end{enumerate}
 
 
 % ============================================================================
@@ -1593,54 +1466,49 @@ and the synthesized C/C++ is future work.
 \label{sec:conclusion}
 % ============================================================================
 
-We formalized a feature-rich matching-engine specification in TLA+
-and ran bounded exhaustive exploration across several configurations
-totaling over 36~million distinct states. TLC identified one
-specification defect---a FIFO violation caused by a triggered stop
-order retaining its original submission timestamp---and one
-specification gap in the interaction between STP DECREMENT and
-iceberg visibility. The FIFO counterexample is a three-order
-sequence whose minimality is part of the finding: reading the stop,
-insertion, and FIFO sections of the prose specification individually
-does not expose it, but an operational model that composes all three
-does.
+We formalized a feature-rich matching-engine specification in TLA+ and
+ran bounded exhaustive exploration across several configurations totaling
+over 36 million distinct states. TLC identified one specification
+defect---a FIFO violation caused by a triggered stop order retaining its
+original submission timestamp---and one specification gap in the
+interaction between STP DECREMENT and iceberg visibility. The FIFO
+counterexample is a three-order sequence whose minimality is part of the
+finding: reading the stop, insertion, and FIFO sections of the prose
+specification individually does not expose it, but an operational model
+that composes all three does.
 
-We then proved, in Lean~4, that the processing pipeline preserves
-the combined book invariant \texttt{AllInv} (uncrossed plus sorted
-on both sides) under a minimal well-formedness precondition, for
-arbitrary book sizes. The matching-loop fuel bound is derived from
-the book state rather than assumed as a constant.
-\texttt{Theorems.lean} (3{,}986 lines, 74 theorems) proves the full
-preservation theorem branch-by-branch through the 14 branches of the
-matching loop and the 11 phases of \texttt{processOrder}.
-\texttt{TheoremsElegant.lean} (312 lines, 6 theorems) adds a shorter
-structural argument for the matching-and-dispose core via a
-three-case analysis of the matching termination condition. Both
-files are type-checked by every build and contain no open
-obligations.
-
-One issue surfaced during the proof effort itself: the original
-arbitrary fuel bound made the preservation statement false for
-sufficiently populated books. Replacing it with a state-derived
+We then proved in Lean~4 that the processing pipeline preserves the
+combined book invariant \texttt{AllInv} (uncrossed plus sorted on both
+sides) under a minimal well-formedness precondition, for arbitrary book
+sizes. \texttt{Theorems.lean} (3{,}986 lines, 74 theorems) proves the
+full preservation theorem branch-by-branch. \texttt{TheoremsElegant.lean}
+(312 lines, 6 theorems) adds a shorter structural argument for the
+matching-and-dispose core via a three-case analysis of the matching
+termination condition. Both files are type-checked by every build and
+contain no open obligations. One issue surfaced during the proof effort
+itself: the original arbitrary fuel bound made the preservation statement
+false for sufficiently populated books. Replacing it with a state-derived
 measure and a progress lemma restores soundness.
 
 The broader takeaway is that bounded model checking and mechanized
-theorem proving play complementary roles on the same specification.
-TLC is effective at surfacing concrete feature-composition defects
-inside small state bounds and at speeds useful during early
-specification work. Lean provides guarantees that hold for arbitrary
-scale and, as a side effect, exposes pipeline issues that bounded
-exploration cannot reach. Neither tool substitutes for the other.
+theorem proving play complementary roles on the same specification. TLC
+is effective at surfacing concrete feature-composition defects inside
+small state bounds at speeds useful during early specification work.
+Lean provides guarantees that hold for arbitrary scale and, as a side
+effect, exposes pipeline issues that bounded exploration cannot reach.
+Neither tool substitutes for the other. The combination---a few days of
+model checking followed by weeks of theorem proving---represents a
+tractable investment for systems where feature interactions can move
+real money in the wrong direction.
 
 
 \section*{Acknowledgments}
 
 The TLA+ model, the Lean~4 proofs, and the C/C++ implementations
 discussed in \S\ref{sec:synthesis} were developed interactively with
-the assistance of a large language model, using the formal
-specification as the primary input. The constant-fuel soundness
-issue described in \S\ref{sec:lean} was encountered during this
-process.
+the assistance of a large language model, using the formal specification
+as the primary input. The constant-fuel soundness issue described in
+\S\ref{sec:lean} was encountered during this process.
 
 % ============================================================================
 \begin{thebibliography}{99}
