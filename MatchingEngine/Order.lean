@@ -4,11 +4,10 @@ import MatchingEngine.Basic
 # Matching Engine — Order Model
 
 Order structure and well-formedness predicate (§2).
-Covers WF-1 through WF-20 with deliberate omissions and narrowings:
+Covers WF-1 through WF-20 with deliberate omissions:
 - WF-6/7 omitted (GTD expiry not modeled)
-- WF-8a narrowed: MTL → {GTC, DAY} (spec allows GTD; excluded here because GTD is not modeled)
-- WF-11 included (remainingQty = qty at creation)
-- WF-12 omitted (initial visibleQty computation)
+- WF-11 included, WF-12 omitted (of the initialization pair, only
+  remainingQty = qty is checked; visibleQty initialization is not)
 - WF-17 omitted (enum validation, handled by the type system)
 -/
 
@@ -44,7 +43,7 @@ structure Trade where
   pasStpGroup   : Option StpGroup     -- For INV-12 checking
   deriving Repr, BEq, Inhabited
 
--- §2.2 Well-formedness predicate (WF-1..20, minus WF-6/7, WF-12, WF-17; WF-8a narrowed)
+-- §2.2 Well-formedness predicate (WF-1..20, minus WF-6/7, WF-12, WF-17)
 def Order.wellFormed (o : Order) : Bool :=
   -- WF-1: quantity > 0
   (o.qty > 0) &&

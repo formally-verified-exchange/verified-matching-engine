@@ -175,6 +175,7 @@ def test_mtl : IO Unit := do
   assert! s2.book.bids.length == 1
   assert! (bestBidPrice s2.book).getD 0 == 100
   assert! noRestingMarketsB s2.book
+  assert! noRestingMtlB s2.book
   IO.println "✓ Test 7: MTL fill-convert-rest"
 
 def test_postOnly : IO Unit := do

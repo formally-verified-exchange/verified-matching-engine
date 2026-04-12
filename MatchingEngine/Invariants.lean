@@ -54,16 +54,23 @@ def FIFOWithinLevel (b : BookState) : Prop :=
   (∀ l ∈ b.bids, FIFOLevel l.orders) ∧
   (∀ l ∈ b.asks, FIFOLevel l.orders)
 
--- §13 INV-8/INV-13: No MARKET or MTL orders on book
+-- §13 INV-8: No MARKET orders on book
 def noRestingMarketsB (b : BookState) : Bool :=
-  (b.bids.all fun l => l.orders.all fun o =>
-    o.orderType != .market && o.orderType != .marketToLimit) &&
-  (b.asks.all fun l => l.orders.all fun o =>
-    o.orderType != .market && o.orderType != .marketToLimit)
+  (b.bids.all fun l => l.orders.all fun o => o.orderType != .market) &&
+  (b.asks.all fun l => l.orders.all fun o => o.orderType != .market)
 
 def NoRestingMarkets (b : BookState) : Prop :=
-  (∀ l ∈ b.bids, ∀ o ∈ l.orders, o.orderType ≠ .market ∧ o.orderType ≠ .marketToLimit) ∧
-  (∀ l ∈ b.asks, ∀ o ∈ l.orders, o.orderType ≠ .market ∧ o.orderType ≠ .marketToLimit)
+  (∀ l ∈ b.bids, ∀ o ∈ l.orders, o.orderType ≠ .market) ∧
+  (∀ l ∈ b.asks, ∀ o ∈ l.orders, o.orderType ≠ .market)
+
+-- §13 INV-13: No MTL orders on book
+def noRestingMtlB (b : BookState) : Bool :=
+  (b.bids.all fun l => l.orders.all fun o => o.orderType != .marketToLimit) &&
+  (b.asks.all fun l => l.orders.all fun o => o.orderType != .marketToLimit)
+
+def NoRestingMTL (b : BookState) : Prop :=
+  (∀ l ∈ b.bids, ∀ o ∈ l.orders, o.orderType ≠ .marketToLimit) ∧
+  (∀ l ∈ b.asks, ∀ o ∈ l.orders, o.orderType ≠ .marketToLimit)
 
 -- §13 INV-14: No resting minQty
 def noRestingMinQtyB (b : BookState) : Bool :=
@@ -112,6 +119,7 @@ def bookInvariantB (b : BookState) : Bool :=
   statusConsistencyB b &&
   fifoWithinLevelB b &&
   noRestingMarketsB b &&
+  noRestingMtlB b &&
   noRestingMinQtyB b &&
   noEmptyLevelsB b
 
@@ -120,6 +128,7 @@ def BookInvariant (b : BookState) : Prop :=
   BookUncrossed b ∧
   NoGhosts b ∧
   NoRestingMarkets b ∧
+  NoRestingMTL b ∧
   NoRestingMinQty b ∧
   NoEmptyLevels b ∧
   FIFOWithinLevel b

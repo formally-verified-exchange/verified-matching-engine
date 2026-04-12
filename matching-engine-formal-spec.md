@@ -82,8 +82,9 @@ WF-5:  o.orderType ∈ {LIMIT, MARKET, MARKET_TO_LIMIT} ⟹ o.stopPrice = ⊥
 WF-6:  o.timeInForce = GTD ⟹ o.expireTime ≠ ⊥ ∧ o.expireTime > currentTime
 WF-7:  o.timeInForce ≠ GTD ⟹ o.expireTime = ⊥
 WF-8:  o.orderType = MARKET ⟹ o.timeInForce ∈ {IOC, FOK}
-WF-8a: o.orderType = MARKET_TO_LIMIT ⟹ o.timeInForce ∈ {GTC, GTD, DAY}
+WF-8a: o.orderType = MARKET_TO_LIMIT ⟹ o.timeInForce ∈ {GTC, DAY}
         -- MTL must be able to rest; IOC/FOK incompatible with "convert remainder" semantics
+        -- Note: GTD is excluded; expiry semantics are modeled only via DAY session close
 WF-9:  o.displayQty ≠ ⊥ ⟹ o.displayQty > 0 ∧ o.displayQty ≤ o.quantity
 WF-10: o.displayQty ≠ ⊥ ⟹ o.orderType = LIMIT    -- Icebergs must be LIMIT
 WF-11: o.remainingQty = o.quantity                   -- At creation

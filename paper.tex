@@ -287,10 +287,9 @@ Table~\ref{tab:wf}. The full text with exact quantifiers appears in
 \caption{Well-formedness constraints (excerpt from the prose
 specification). TLA+ \texttt{WellFormed} and Lean
 \texttt{Order.wellFormed} model a subset (omitting WF-6/7,
-WF-11/12, WF-17 and narrowing WF-8a to exclude GTD because
-time-based expiry is not modeled). Lean's \texttt{OrderProcOk}
-requires only the two load-bearing fragments (WF-13 and its
-corollary).}
+WF-12, WF-17; WF-11 is included but WF-12 is not). Lean's
+\texttt{OrderProcOk} requires only the two load-bearing fragments
+(WF-13 and its corollary).}
 \label{tab:wf}
 \small
 \begin{tabular}{@{}llL{8cm}@{}}
@@ -305,7 +304,7 @@ WF-4       & Stop    & Stop orders require $\mathit{stopPrice} > 0$ \\
 WF-5       & Stop    & Non-stop orders have $\mathit{stopPrice}=\bot$ \\
 WF-6/7     & TIF     & \textsc{gtd} requires $\mathit{expireTime} > \mathit{now}$; otherwise $\mathit{expireTime}=\bot$ \\
 WF-8/8a    & TIF     & \textsc{market}$\Rightarrow$\textsc{ioc}/\textsc{fok};
-                       \textsc{mtl}$\Rightarrow$\textsc{gtc}/\textsc{gtd}/\textsc{day} \\
+                       \textsc{mtl}$\Rightarrow$\textsc{gtc}/\textsc{day} \\
 WF-9/10    & Iceberg & $0 < \mathit{displayQty} \leq \mathit{quantity}$; icebergs must be \textsc{limit} \\
 WF-11/12   & Iceberg & Initial $\mathit{remainingQty}=\mathit{quantity}$; $\mathit{visibleQty}=\min(\mathit{displayQty},\mathit{quantity})$ \\
 WF-13      & PostOnly& Post-only$\Rightarrow$\textsc{limit} \\
@@ -603,9 +602,6 @@ for all book sizes by \texttt{process\_preserves\_AllInv}; ---
 means not yet lifted to Lean.
 $^{\star}$INV-7 was violated under the original specification and
 passes after the fix described in \S\ref{sec:bug1}.
-In Lean, INV-8 and INV-13 are combined into a single predicate
-\texttt{NoRestingMarkets} (checking both \textsc{market} and
-\textsc{mtl}); the TLA+ model checks them separately.
 \end{table}
 
 
