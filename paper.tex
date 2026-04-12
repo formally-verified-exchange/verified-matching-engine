@@ -114,14 +114,12 @@ sufficient rather than assumed. The development consists of a
 together with a 312-line structural proof of the matching-and-dispose
 core via a three-case analysis of the termination condition.
 
-The proof effort itself surfaced two further issues that neither
+The proof effort itself surfaced a further issue that neither
 prose review nor bounded model checking had exposed: the original
 arbitrary fuel bound (\texttt{defaultFuel = 100}) made the
 preservation theorem false for books with more than a hundred
-contra-side orders, and a build-system configuration had left the
-theorem file outside the build closure so that earlier ``successful''
-builds did not in fact type-check the proofs. We report both as
-methodological observations on the verification pipeline.
+contra-side orders. We report this as a methodological observation
+on the verification pipeline.
 \end{abstract}
 
 
@@ -167,12 +165,10 @@ The paper's contributions are:
       structural proof of the matching-and-dispose core by
       three-case analysis of the matching termination condition.
       The contrast illustrates two complementary proof styles.
-\item Two methodological observations from the proof effort itself:
+\item A methodological observation from the proof effort itself:
       the original arbitrary fuel bound
       (\texttt{defaultFuel~=~100}) made the preservation theorem
-      false for sufficiently populated books, and the theorem file
-      was not in the library's build closure and therefore not
-      type-checked by earlier builds.
+      false for sufficiently populated books.
 \item A discussion of specification-guided implementation
       generation, framed as an engineering observation about how a
       precise formal specification constrains downstream coding,
@@ -187,8 +183,7 @@ The TLA+ model, the Lean~4 proofs, and the C/C++ implementations
 discussed in \S\ref{sec:synthesis} were developed interactively with
 a large language model acting as a coding assistant. Strategic
 decisions---the progress-lemma decomposition, the three-case
-analysis in the elegant proof, the side-parameterization refactor,
-and the diagnosis of the build-closure issue---were human
+analysis in the elegant proof, and the side-parameterization refactor---were human
 contributions. The bulk of tactic scripting and operator translation
 was produced by the model under that guidance. We mention this
 because the per-file size and per-lemma count reported in later
@@ -209,10 +204,9 @@ corresponding specification fixes. Section~\ref{sec:lean} presents
 the Lean~4 proof of \texttt{AllInv} preservation: the termination
 measure, the progress-lemma decomposition, the mutual induction
 across the processing pipeline, and a second, shorter proof via
-case analysis of the matching termination condition. Two
-observations from the proof effort itself---the constant-fuel
-soundness issue and the build-closure exclusion---are reported in
-the same section. Section~\ref{sec:synthesis} describes how the
+case analysis of the matching termination condition. An
+observation from the proof effort itself---the constant-fuel
+soundness issue---is reported in the same section. Section~\ref{sec:synthesis} describes how the
 fixed specification was carried into C and C++ implementations and
 why we stop short of a refinement claim.
 Section~\ref{sec:lessons} collects lessons on feature composition;
@@ -279,8 +273,8 @@ Order modifiers include:
 \subsection{Well-Formedness Constraints}
 \label{sec:wf}
 
-The prose specification enumerates 30 well-formedness constraints
-(WF-1 through WF-20 plus eight a/b suffixed refinements) that define
+The prose specification enumerates 23 well-formedness constraints
+(WF-1 through WF-20 plus three a/b suffixed refinements) that define
 the \emph{valid inputs} to the engine. Every theorem in the Lean
 proof, every TLC invariant, and every rejection message in the
 synthesized C++ code traces back to a subset of these constraints.
@@ -428,7 +422,7 @@ WF-13       & \texttt{ValidOrder} guard & \texttt{OrderProcOk} field 1 & Main-th
 WF-15       & \texttt{ValidOrder} guard & \texttt{OrderProcOk} field 2 & Main-theorem precondition \\
 INV-2/3     & not separately checked$^\dagger$ & \texttt{bidsSortedDesc}, \texttt{asksSortedAsc} & Discovered: needed for induction \\
 INV-4       & \texttt{BookUncrossed}    & \texttt{BookUncrossed}, part of \texttt{AllInv} & Main-theorem conclusion \\
-INV-5       & \texttt{NoGhosts}         & \texttt{NoGhosts} & Needed for iceberg reload case \\
+INV-5       & \texttt{NoGhosts}         & \texttt{NoGhosts} (definition only) & Not proved preserved \\
 INV-6       & \texttt{StatusConsistency}& \texttt{NoGhosts} (derived) & Not explicitly threaded in Lean \\
 INV-7       & \texttt{FIFOWithinLevel}  & --- & TLC-only \\
 INV-8       & \texttt{NoRestingMarkets} & --- & TLC-only \\
@@ -579,10 +573,10 @@ holds in every reachable state within the explored configurations.
 ID & TLA+ Operator & Description & TLC & Lean \\
 \midrule
 INV-1  & \texttt{NoEmptyLevels}    & Every price level has a non-empty order queue & trivial & trivial \\
-INV-2  & (sortedness)              & Bids strictly descending & $\checkmark$ & $\checkmark$ \\
-INV-3  & (sortedness)              & Asks strictly ascending & $\checkmark$ & $\checkmark$ \\
+INV-2  & (sortedness)              & Bids strictly descending & by constr. & $\checkmark$ \\
+INV-3  & (sortedness)              & Asks strictly ascending & by constr. & $\checkmark$ \\
 INV-4  & \texttt{BookUncrossed}    & $\mathit{bestBid} < \mathit{bestAsk}$ or either side empty & $\checkmark$ & $\checkmark$ \\
-INV-5  & \texttt{NoGhosts}         & Every resting order has $\mathit{remainingQty} > 0$ & $\checkmark$ & $\checkmark$ \\
+INV-5  & \texttt{NoGhosts}         & Every resting order has $\mathit{remainingQty} > 0$ & $\checkmark$ & --- \\
 INV-6  & \texttt{StatusConsistency}& Resting orders have status \textsc{new} or \textsc{partial} & $\checkmark$ & --- \\
 INV-7  & \texttt{FIFOWithinLevel}  & FIFO within level (strictly increasing timestamps) & fixed$^{\star}$ & --- \\
 INV-8  & \texttt{NoRestingMarkets} & \textsc{market} orders never appear on the book & $\checkmark$ & --- \\
@@ -995,27 +989,6 @@ semantic property---``matching completes''---into a syntactic one---``matching
 completes in $\leq 100$ steps''---and only the syntactic version was
 provable.
 
-\subsection{The Build-System Incident}
-\label{sec:lean-build}
-
-During the first weeks of proof work, \texttt{lake build} consistently
-reported success. A routine check of the default build target later
-revealed that the theorem file, \texttt{Theorems.lean}, was not in the
-import closure of any built artifact: the build root imported
-\texttt{Main} $\to$ \texttt{Tests} $\to$ \texttt{Process}, and
-\texttt{Tests.lean} did not import \texttt{Theorems}. As a result,
-\texttt{Theorems.lean} was not elaborated by those builds, and a
-successful build provided no guarantee about the contents of that
-file. When it was subsequently added to the build closure, roughly
-55 previously latent type errors appeared.
-
-We report this as a methodological observation about verification
-pipelines: build success is only evidence of proof checking for files
-that are actually in the build closure. We now import
-\texttt{MatchingEngine.Theorems} from the library root file
-\texttt{MatchingEngine.lean} and treat a non-zero exit of
-\texttt{lake build} as a proof failure.
-
 \subsection{Computed Fuel and the Progress Lemma}
 \label{sec:lean-fuel-fix}
 
@@ -1274,8 +1247,7 @@ two feature-composition defects (FIFO via stale timestamps; iceberg
 stranding under STP DECREMENT) as concrete multi-step traces that a
 proof attempt would not have generated directly. Lean's universal
 quantification, in turn, made the constant-fuel assumption
-(\S\ref{sec:lean-fuel}) and the build-closure issue
-(\S\ref{sec:lean-build}) visible; TLC did not reach scopes where
+(\S\ref{sec:lean-fuel}) visible; TLC did not reach scopes where
 the fuel bound mattered.
 
 At the level of cost, TLC returned its first counterexample in 102
@@ -1435,8 +1407,9 @@ minimal preconditions \texttt{OrderProcOk} and
 \texttt{StopsNoPostOnly}. The corollary
 \texttt{process\_preserves\_uncrossed} is an immediate consequence.
 Among the broader TLC-checked invariants, only the \texttt{AllInv}
-portion (INV-2, INV-3, INV-4, INV-5) has been lifted to Lean. The
-remaining invariants---FIFO within level (INV-7), no resting markets
+portion (INV-2, INV-3, INV-4) has been lifted to Lean. The
+remaining invariants---no ghosts (INV-5), status consistency
+(INV-6), FIFO within level (INV-7), no resting markets
 (INV-8), post-only safety (INV-11), STP guarantee (INV-12), no
 resting MTL (INV-13), no resting MinQty (INV-14)---remain at the
 bounded level of assurance provided by TLC. Lifting them to Lean is
@@ -1512,12 +1485,6 @@ To reproduce the fuel-unsoundness counterexample (\S\ref{sec:lean-fuel}):
       book with more than $100$ contra-side orders produces a
       concrete cross after one application of \texttt{process}.
 \end{enumerate}
-
-To reproduce the build-system incident (\S\ref{sec:lean-build}):
-delete \texttt{import MatchingEngine.Theorems} from the library root
-file \texttt{MatchingEngine.lean} and run \texttt{lake build}. The
-build completes successfully with no warnings, and \texttt{Theorems.lean}
-is not type-checked. Adding the import back restores full verification.
 
 
 % ============================================================================
@@ -1643,13 +1610,10 @@ three-case analysis of the matching termination condition. Both
 files are type-checked by every build and contain no open
 obligations.
 
-Two issues surfaced during the proof effort itself. The original
+One issue surfaced during the proof effort itself: the original
 arbitrary fuel bound made the preservation statement false for
-sufficiently populated books; replacing it with a state-derived
-measure and a progress lemma restores soundness. And for a period
-of time the theorem file was not in the build closure, so
-successful builds did not constitute proof checking for that file.
-We report both as observations about verification-pipeline hygiene.
+sufficiently populated books. Replacing it with a state-derived
+measure and a progress lemma restores soundness.
 
 The broader takeaway is that bounded model checking and mechanized
 theorem proving play complementary roles on the same specification.
@@ -1665,9 +1629,9 @@ exploration cannot reach. Neither tool substitutes for the other.
 The TLA+ model, the Lean~4 proofs, and the C/C++ implementations
 discussed in \S\ref{sec:synthesis} were developed interactively with
 the assistance of a large language model, using the formal
-specification as the primary input. The pipeline observations
-described in \S\ref{sec:lean} (the constant-fuel soundness issue and
-the build-closure exclusion) were encountered during this process.
+specification as the primary input. The constant-fuel soundness
+issue described in \S\ref{sec:lean} was encountered during this
+process.
 
 % ============================================================================
 \begin{thebibliography}{99}
