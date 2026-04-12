@@ -6,7 +6,7 @@ import MatchingEngine.Book
 All invariants from §13 as both decidable (Bool) and propositional (Prop) forms.
 -/
 
--- §13 INV-4/5: Book is uncrossed
+-- §13 INV-4: Book is uncrossed
 def bookUncrossedB (b : BookState) : Bool :=
   match bestBidPrice b, bestAskPrice b with
   | some bid, some ask => bid < ask
@@ -21,7 +21,7 @@ instance : Decidable (BookUncrossed b) := by
   unfold BookUncrossed
   cases bestBidPrice b <;> cases bestAskPrice b <;> simp <;> exact inferInstance
 
--- §13 INV-5/6: No ghost orders (remainingQty > 0)
+-- §13 INV-5: No ghost orders (remainingQty > 0)
 def noGhostsB (b : BookState) : Bool :=
   (b.bids.all fun l => l.orders.all fun o => o.remainingQty > 0) &&
   (b.asks.all fun l => l.orders.all fun o => o.remainingQty > 0)
@@ -30,14 +30,14 @@ def NoGhosts (b : BookState) : Prop :=
   (∀ l ∈ b.bids, ∀ o ∈ l.orders, o.remainingQty > 0) ∧
   (∀ l ∈ b.asks, ∀ o ∈ l.orders, o.remainingQty > 0)
 
--- §13 INV-6/7: Status consistency
+-- §13 INV-6: Status consistency
 def statusConsistencyB (b : BookState) : Bool :=
   (b.bids.all fun l => l.orders.all fun o =>
     o.status == .new_ || o.status == .partiallyFilled) &&
   (b.asks.all fun l => l.orders.all fun o =>
     o.status == .new_ || o.status == .partiallyFilled)
 
--- §13 INV-7/8: FIFO within price level (timestamps strictly increasing)
+-- §13 INV-7: FIFO within price level (timestamps strictly increasing)
 def fifoLevelB (orders : List Order) : Bool :=
   match orders with
   | [] | [_] => true
@@ -54,7 +54,7 @@ def FIFOWithinLevel (b : BookState) : Prop :=
   (∀ l ∈ b.bids, FIFOLevel l.orders) ∧
   (∀ l ∈ b.asks, FIFOLevel l.orders)
 
--- §13 INV-8/9: No MARKET or MTL orders on book
+-- §13 INV-8/INV-13: No MARKET or MTL orders on book
 def noRestingMarketsB (b : BookState) : Bool :=
   (b.bids.all fun l => l.orders.all fun o =>
     o.orderType != .market && o.orderType != .marketToLimit) &&
@@ -74,7 +74,7 @@ def NoRestingMinQty (b : BookState) : Prop :=
   (∀ l ∈ b.bids, ∀ o ∈ l.orders, o.minQty = none) ∧
   (∀ l ∈ b.asks, ∀ o ∈ l.orders, o.minQty = none)
 
--- §13 INV-1/2: No empty price levels
+-- §13 INV-1: No empty price levels
 def noEmptyLevelsB (b : BookState) : Bool :=
   (b.bids.all fun l => !l.orders.isEmpty) &&
   (b.asks.all fun l => !l.orders.isEmpty)
@@ -83,7 +83,7 @@ def NoEmptyLevels (b : BookState) : Prop :=
   (∀ l ∈ b.bids, l.orders ≠ []) ∧
   (∀ l ∈ b.asks, l.orders ≠ [])
 
--- §13 INV-2/3: Price level sorting
+-- §13 INV-2 (bids), INV-3 (asks): Price level sorting
 def bidsSortedDescB (levels : List PriceLevel) : Bool :=
   match levels with
   | [] | [_] => true

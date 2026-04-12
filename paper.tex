@@ -280,13 +280,14 @@ proof, every TLC invariant, and every rejection message in the
 synthesized C++ code traces back to a subset of these constraints.
 They are grouped by feature and summarized in
 Table~\ref{tab:wf}. The full text with exact quantifiers appears in
-\texttt{matching-engine-formal-spec.md~\S2.4}.
+\texttt{matching-engine-formal-spec.md~\S2.2}.
 
 \begin{table}[H]
 \centering
-\caption{Well-formedness constraints (excerpt). These are the
-preconditions of every theorem in the Lean proof and the admission
-criteria for the TLA+ \texttt{SubmitOrder} action.}
+\caption{Well-formedness constraints (excerpt from the prose
+specification). TLA+ \texttt{WellFormed} models a subset (omitting
+WF-6/7, WF-11/12, WF-17); Lean's \texttt{OrderProcOk} requires
+only the two load-bearing fragments (WF-13 and its corollary).}
 \label{tab:wf}
 \small
 \begin{tabular}{@{}llL{8cm}@{}}
@@ -320,9 +321,10 @@ The Lean predicate \texttt{OrderProcOk} used in the main theorem is
 the minimum subset of these constraints that the matching loop
 actually depends on. It does not admit every WF-valid order---it
 admits every WF-valid order that can enter the matching phase---and
-its two conjuncts are refinements of WF-13 (post-only$\Rightarrow$\textsc{limit},
-and hence post-only orders carry a defined price) and WF-15
-(\textsc{stop\_market}$\Rightarrow$$\neg$post-only). The fact that
+its two conjuncts are refinements of WF-13
+(post-only$\Rightarrow$\textsc{limit}, and hence post-only orders
+carry a defined price) and a consequence of the same WF-13
+(stop orders are not \textsc{limit}$\Rightarrow$$\neg$post-only). The fact that
 these two minimal fragments---and no more---suffice was discovered
 \emph{during} the proof: earlier attempts omitted them and every
 branch of the matching loop that case-split on an undefined price
@@ -331,8 +333,8 @@ failed. The proof told us which WF clauses were load-bearing.
 \subsection{Core Invariants Stated in the Specification}
 \label{sec:inv}
 
-The prose specification states 23 invariants that must hold after
-every \texttt{PROCESS} call completes (\S3 and \S13 of the spec).
+The prose specification states 14 invariants that must hold after
+every \texttt{PROCESS} call completes (\S13 of the spec).
 Table~\ref{tab:inv-summary} gives the book-structural core; the
 complete TLC-checked inventory including safety and progress
 properties is given in Table~\ref{tab:invariants}
@@ -418,12 +420,12 @@ touched by the main theorem. The Lean column refers to
 \toprule
 Spec clause & TLA+ artefact & Lean artefact & Role \\
 \midrule
-WF-13       & \texttt{ValidOrder} guard & \texttt{OrderProcOk} field 1 & Main-theorem precondition \\
-WF-15       & \texttt{ValidOrder} guard & \texttt{OrderProcOk} field 2 & Main-theorem precondition \\
+WF-13       & \texttt{WellFormed} guard & \texttt{OrderProcOk} field 1 & Main-theorem precondition \\
+WF-13 (derived) & \texttt{WellFormed} guard & \texttt{OrderProcOk} field 2 & Main-theorem precondition \\
 INV-2/3     & not separately checked$^\dagger$ & \texttt{bidsSortedDesc}, \texttt{asksSortedAsc} & Discovered: needed for induction \\
 INV-4       & \texttt{BookUncrossed}    & \texttt{BookUncrossed}, part of \texttt{AllInv} & Main-theorem conclusion \\
 INV-5       & \texttt{NoGhosts}         & \texttt{NoGhosts} (definition only) & Not proved preserved \\
-INV-6       & \texttt{StatusConsistency}& \texttt{NoGhosts} (derived) & Not explicitly threaded in Lean \\
+INV-6       & \texttt{StatusConsistency}& \texttt{statusConsistencyB} (definition only) & Not proved preserved \\
 INV-7       & \texttt{FIFOWithinLevel}  & --- & TLC-only \\
 INV-8       & \texttt{NoRestingMarkets} & --- & TLC-only \\
 INV-11      & \texttt{PostOnlyGuarantee}& --- & TLC-only \\
@@ -1152,20 +1154,25 @@ def OrderProcOk (o : Order) : Prop :=
        o.postOnly = false)
 \end{lstlisting}
 
-The first clause rules out the post-only / no-price configuration that
-the spec forbids via WF-13 (\emph{post-only $\Rightarrow$ LIMIT}) and
-WF-2 (\emph{LIMIT $\Rightarrow$ price defined}). In the proof, this
-hypothesis discharges the otherwise-unreachable branch in which
-\texttt{wouldCross} returns false for a post-only order with
+The first conjunct rules out the post-only / no-price configuration
+that the spec forbids via WF-13 (\emph{post-only $\Rightarrow$
+LIMIT}) and WF-2 (\emph{LIMIT $\Rightarrow$ price defined}). In the
+proof, this hypothesis discharges the otherwise-unreachable branch in
+which \texttt{wouldCross} returns false for a post-only order with
 \texttt{price = none}. Without it, the Phase-2 case of
 \texttt{processOrder} has a genuinely crossed output.
 
-The second clause is a companion invariant
+The second conjunct---stop orders are not post-only---is a
+consequence of the same WF-13 by contrapositive: post-only
+$\Rightarrow$ LIMIT, and stop types are not LIMIT. It is needed
+when the stop-cascade arm of \texttt{processOrder} converts a
+triggered stop and re-enters the pipeline.
+
+A separate precondition,
 \texttt{StopsNoPostOnly~b}~$\equiv~\forall s \in
-b.\mathit{stops},~s.\mathit{postOnly} = \texttt{false}$, which is
-preserved by every pipeline phase (none of them introduce a new stop
-order with \texttt{postOnly = true}) and is used by the stop-cascade
-case.
+b.\mathit{stops},~s.\mathit{postOnly} = \texttt{false}$, lifts the
+same constraint to the resting stop pool. It is preserved by every
+pipeline phase and is used by the stop-cascade case.
 
 Both preconditions were \emph{discovered}, not guessed. We first
 attempted the proof without them; the proof failed at a specific

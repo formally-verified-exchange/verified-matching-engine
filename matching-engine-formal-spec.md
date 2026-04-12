@@ -149,21 +149,21 @@ oppSide(Book, side)  = sameSide(Book, oppositeSide(side))
 ### 3.3 Book Invariants (must hold at ALL times)
 
 ```
-INV-1:  ∀ level ∈ Book.bids: level.orders ≠ ∅
+INV-1:  ∀ level ∈ Book.bids ∪ Book.asks: level.orders ≠ ∅
         -- No empty price levels remain in the book
-INV-2:  ∀ level ∈ Book.asks: level.orders ≠ ∅
-INV-3:  ∀ consecutive (L1, L2) ∈ Book.bids: L1.price > L2.price
+INV-2:  ∀ consecutive (L1, L2) ∈ Book.bids: L1.price > L2.price
         -- Strict descending order
-INV-4:  ∀ consecutive (L1, L2) ∈ Book.asks: L1.price < L2.price
+INV-3:  ∀ consecutive (L1, L2) ∈ Book.asks: L1.price < L2.price
         -- Strict ascending order
-INV-5:  bestBid(Book) < bestAsk(Book) ∨ bestBid(Book) = ⊥ ∨ bestAsk(Book) = ⊥
+INV-4:  bestBid(Book) < bestAsk(Book) ∨ bestBid(Book) = ⊥ ∨ bestAsk(Book) = ⊥
         -- No crossed book (after matching completes)
-INV-6:  ∀ order ∈ Book: order.remainingQty > 0
+INV-5:  ∀ order ∈ Book: order.remainingQty > 0
         -- Fully filled orders never rest on the book
-INV-7:  ∀ order ∈ Book: order.status ∈ {NEW, PARTIALLY_FILLED}
-INV-8:  ∀ level ∈ Book.bids, ∀ (o1, o2) consecutive in level.orders:
+INV-6:  ∀ order ∈ Book: order.status ∈ {NEW, PARTIALLY_FILLED}
+INV-7:  ∀ level ∈ Book.bids ∪ Book.asks,
+        ∀ (o1, o2) consecutive in level.orders:
             o1.timestamp < o2.timestamp
-        -- FIFO within price level (same for asks)
+        -- FIFO within price level
 ```
 
 ---
@@ -662,7 +662,7 @@ CANCEL(orderId, book) → Result:
     REMOVE order FROM its price level
     order.status = CANCELLED
     
-    -- Clean up empty level (INV-1, INV-2)
+    -- Clean up empty level (INV-1)
     IF level.orders = ∅:
         REMOVE level FROM bookSide
 

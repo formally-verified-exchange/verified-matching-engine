@@ -54,7 +54,7 @@ def doMatch (fuel : Nat) (inc : Order) (bids asks : List PriceLevel)
         else
           match level.orders with
           | [] =>
-            -- Empty level, skip (shouldn't happen with INV-1/2, but defensive)
+            -- Empty level, skip (shouldn't happen with INV-1, but defensive)
             let setContra := fun lvls => match inc.side with
               | .buy  => (bids, lvls)
               | .sell => (lvls, asks)

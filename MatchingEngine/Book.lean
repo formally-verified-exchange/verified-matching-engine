@@ -78,7 +78,7 @@ def insertOrder (b : BookState) (o : Order) (hasTrades : Bool) : BookState :=
   | .sell => { b with asks := insertAsc  b.asks o' (o.price.getD 0) }
 
 /-- Remove an order by ID from a list of price levels.
-    Also removes the price level if it becomes empty (INV-1/2). -/
+    Also removes the price level if it becomes empty (INV-1). -/
 def removeLevels (levels : List PriceLevel) (oid : OrderId) : List PriceLevel :=
   levels.filterMap fun l =>
     let orders' := l.orders.filter (·.id != oid)

@@ -15,7 +15,7 @@ def findOrderOnBook (b : BookState) (oid : OrderId) : Option (Side × Order) :=
   | none => searchSide .sell b.asks
 
 /-- Remove an order by ID from a list of price levels.
-    Removes empty levels (INV-1/2). -/
+    Removes empty levels (INV-1). -/
 def removeLevelOrder (levels : List PriceLevel) (oid : OrderId) : List PriceLevel :=
   levels.filterMap fun l =>
     let orders' := l.orders.filter (·.id != oid)

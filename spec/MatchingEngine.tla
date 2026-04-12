@@ -103,7 +103,7 @@ SelfTradeConflict(inc, rest) ==
     /\ inc.stpGroup = rest.stpGroup
 
 (***************************************************************************)
-(* Well-Formedness predicate (§2.2)                                        *)
+(* Well-Formedness predicate (§2.2, minus WF-6/7, WF-11/12, WF-17)        *)
 (***************************************************************************)
 WellFormed(o) ==
     /\ o.qty > 0                                                           \* WF-1
@@ -800,37 +800,37 @@ TypeInvariant ==
     /\ nextId \in Nat
     /\ clock \in Nat
 
-\* INV-4/5: Book is uncrossed — bestBid < bestAsk (or either side empty)
+\* INV-4: Book is uncrossed — bestBid < bestAsk (or either side empty)
 BookUncrossed ==
     \/ BestBid = NULL
     \/ BestAsk = NULL
     \/ BestBid < BestAsk
 
-\* INV-1/2: No empty price levels
+\* INV-1: No empty price levels
 NoEmptyLevels ==
     /\ \A p \in PRICES : bidQ[p] /= <<>> => Len(bidQ[p]) > 0
     /\ \A p \in PRICES : askQ[p] /= <<>> => Len(askQ[p]) > 0
 
-\* INV-5/6: Every order on book has remainingQty > 0
+\* INV-5: Every order on book has remainingQty > 0
 NoGhosts ==
     /\ \A p \in PRICES : \A i \in 1..Len(bidQ[p]) : bidQ[p][i].remainingQty > 0
     /\ \A p \in PRICES : \A i \in 1..Len(askQ[p]) : askQ[p][i].remainingQty > 0
 
-\* INV-6/7: Resting orders have valid status
+\* INV-6: Resting orders have valid status
 StatusConsistency ==
     /\ \A p \in PRICES : \A i \in 1..Len(bidQ[p]) :
          bidQ[p][i].status \in {"NEW", "PARTIAL"}
     /\ \A p \in PRICES : \A i \in 1..Len(askQ[p]) :
          askQ[p][i].status \in {"NEW", "PARTIAL"}
 
-\* INV-7/8: FIFO within price level (timestamps strictly increasing)
+\* INV-7: FIFO within price level (timestamps strictly increasing)
 FIFOWithinLevel ==
     /\ \A p \in PRICES : \A i \in 1..(Len(bidQ[p]) - 1) :
          bidQ[p][i].timestamp < bidQ[p][i+1].timestamp
     /\ \A p \in PRICES : \A i \in 1..(Len(askQ[p]) - 1) :
          askQ[p][i].timestamp < askQ[p][i+1].timestamp
 
-\* INV-8/9: No MARKET orders resting on book
+\* INV-8: No MARKET orders resting on book
 NoRestingMarkets ==
     /\ \A p \in PRICES : \A i \in 1..Len(bidQ[p]) :
          bidQ[p][i].orderType /= "MARKET"

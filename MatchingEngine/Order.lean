@@ -4,7 +4,8 @@ import MatchingEngine.Basic
 # Matching Engine — Order Model
 
 Order structure and well-formedness predicate (§2).
-Includes all WF-1 through WF-20.
+Covers WF-1 through WF-20, omitting WF-6/7 (GTD expiry),
+WF-12 (initial visibleQty), and WF-17 (enum validation, handled by the type system).
 -/
 
 -- §2.1 Order definition
@@ -39,7 +40,7 @@ structure Trade where
   pasStpGroup   : Option StpGroup     -- For INV-12 checking
   deriving Repr, BEq, Inhabited
 
--- §2.2 Well-formedness predicate (all WF-1 through WF-20)
+-- §2.2 Well-formedness predicate (WF-1..20, minus WF-6/7, WF-12, WF-17)
 def Order.wellFormed (o : Order) : Bool :=
   -- WF-1: quantity > 0
   (o.qty > 0) &&
