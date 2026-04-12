@@ -103,7 +103,8 @@ SelfTradeConflict(inc, rest) ==
     /\ inc.stpGroup = rest.stpGroup
 
 (***************************************************************************)
-(* Well-Formedness predicate (§2.2, minus WF-6/7, WF-11/12, WF-17)        *)
+(* Well-Formedness predicate (§2.2, minus WF-6/7, WF-11/12, WF-17;        *)
+(* WF-8a narrowed: MTL -> {GTC,DAY} because GTD is not modeled)           *)
 (***************************************************************************)
 WellFormed(o) ==
     /\ o.qty > 0                                                           \* WF-1
@@ -115,7 +116,7 @@ WellFormed(o) ==
          (o.stopPrice /= NULL /\ o.stopPrice > 0)                          \* WF-4
     /\ o.orderType \in {"LIMIT", "MARKET", "MTL"} => o.stopPrice = NULL    \* WF-5
     /\ o.orderType = "MARKET" => o.tif \in {"IOC", "FOK"}                  \* WF-8
-    /\ o.orderType = "MTL" => o.tif \in {"GTC", "DAY"}                     \* WF-8a
+    /\ o.orderType = "MTL" => o.tif \in {"GTC", "DAY"}                     \* WF-8a (spec allows GTD; excluded since GTD not modeled)
     /\ o.displayQty /= NULL =>
          (o.displayQty > 0 /\ o.displayQty <= o.qty)                       \* WF-9
     /\ o.displayQty /= NULL => o.orderType = "LIMIT"                       \* WF-10
