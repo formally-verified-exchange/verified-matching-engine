@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <csetjmp>
 #include <csignal>
 #include <cstdio>
@@ -434,13 +435,18 @@ class ShadowEngine {
                 if (bestIdx == SIZE_MAX) {
                     better = true;
                 } else if (inc.m_side == Side::BUY) {
-                    // Contra is asks: lower price is better, then earlier ts
+                    // Contra is asks: lower price is better; on price tie,
+                    // first-encountered index wins (= insertion order / sequence
+                    // position), matching MatchingEngine.tla's `Head(restTail)`
+                    // semantics — NOT earliest timestamp. CPP-004 (resolved):
+                    // reloads and stop-triggered inserts can put an
+                    // older-timestamp order behind a newer-timestamp one in
+                    // the sequence; spec and engine both match by sequence.
                     if (r.m_price < bestPx) better = true;
-                    else if (r.m_price == bestPx && r.m_ts < bestTs) better = true;
                 } else {
-                    // Contra is bids: higher price is better, then earlier ts
+                    // Contra is bids: higher price is better; same sequence-
+                    // position rule on tie as above.
                     if (r.m_price > bestPx) better = true;
-                    else if (r.m_price == bestPx && r.m_ts < bestTs) better = true;
                 }
                 if (better) { bestIdx = i; bestPx = r.m_price; bestTs = r.m_ts; }
             }
@@ -1201,6 +1207,24 @@ int main(int argc, char** argv) {
     int bugCount      = 0;
     int knownCount    = 0;
 
+    // Stress-run statistics (independent of BUG oracle):
+    size_t peakOrderCount   = 0;
+    size_t peakStopCount    = 0;
+    size_t peakBidLevels    = 0;
+    size_t peakAskLevels    = 0;
+    size_t peakBidOrders    = 0;   // orders on bid side
+    size_t peakAskOrders    = 0;
+    size_t peakTradesInStep = 0;
+    uint64_t cumTrades      = 0;   // realEngine.tradeCount() cumulative
+    int sweepBidEvents      = 0;   // bid side: non-empty → empty in one step
+    int sweepAskEvents      = 0;
+    int crossingEvents      = 0;   // bestBid >= bestAsk with both > 0
+    int maxSingleStepFills  = 0;
+    bool prevBidNonEmpty    = false;
+    bool prevAskNonEmpty    = false;
+
+    const auto startTime = std::chrono::steady_clock::now();
+
     std::vector<Divergence> divergences;
 
     // Advance both engines' internal time by the same amount to stay in sync
@@ -1363,6 +1387,44 @@ int main(int argc, char** argv) {
 
         totalSteps++;
         totalTrades += (int)realRec.trades.size();
+
+        // ── Post-step invariants & stress statistics ──────────────────────
+        // Observed via the real engine (system under test).
+        {
+            size_t ordCount = realEngine.orderCount() - realEngine.stopCount();
+            size_t stpCount = realEngine.stopCount();
+            size_t bidLvls  = realEngine.bidLevelCount();
+            size_t askLvls  = realEngine.askLevelCount();
+            Price  bb = realEngine.bestBid();
+            Price  ba = realEngine.bestAsk();
+
+            // INV: book must not cross (both sides non-empty ⇒ bestBid < bestAsk).
+            if (bb > 0 && ba > 0 && bb >= ba) {
+                ++crossingEvents;
+                if (crossingEvents <= 3) {
+                    printf("  INV-CROSS step %d [%s] bestBid=%ld bestAsk=%ld\n",
+                           step + 1, actionStr.c_str(), (long)bb, (long)ba);
+                }
+            }
+
+            // Sweep events: whole side went from non-empty to empty in this step.
+            bool bidNow = (bidLvls > 0);
+            bool askNow = (askLvls > 0);
+            if (prevBidNonEmpty && !bidNow) ++sweepBidEvents;
+            if (prevAskNonEmpty && !askNow) ++sweepAskEvents;
+            prevBidNonEmpty = bidNow;
+            prevAskNonEmpty = askNow;
+
+            if (ordCount > peakOrderCount) peakOrderCount = ordCount;
+            if (stpCount > peakStopCount)  peakStopCount  = stpCount;
+            if (bidLvls  > peakBidLevels)  peakBidLevels  = bidLvls;
+            if (askLvls  > peakAskLevels)  peakAskLevels  = askLvls;
+
+            size_t fills = realRec.trades.size();
+            if (fills > peakTradesInStep) peakTradesInStep = fills;
+            if ((int)fills > maxSingleStepFills) maxSingleStepFills = (int)fills;
+        }
+        cumTrades = realEngine.tradeCount();
 
         if (verbose) {
             printf("step %d [%s]  shadow: bid=%ld ask=%ld cnt=%zu stp=%zu  real: bid=%ld ask=%ld cnt=%zu stp=%zu\n",
@@ -1534,6 +1596,26 @@ print_summary:
     printf("  Trades produced:   %d\n", totalTrades);
     printf("  Divergences total: %d  (BUG=%d  KNOWN=%d)\n",
            bugCount + knownCount, bugCount, knownCount);
+
+    // ── Stress statistics ─────────────────────────────────────────────────
+    {
+        auto endTime = std::chrono::steady_clock::now();
+        double elapsed = std::chrono::duration<double>(endTime - startTime).count();
+        double opsPerSec = elapsed > 0 ? totalSteps / elapsed : 0.0;
+        printf("\n");
+        printf("  ── Stress statistics ────────────────────────────────────\n");
+        printf("  Wall time:              %.3f s\n", elapsed);
+        printf("  Throughput:             %.0f steps/sec\n", opsPerSec);
+        printf("  Cumulative trades:      %llu\n", (unsigned long long)cumTrades);
+        printf("  Peak book orders:       %zu\n", peakOrderCount);
+        printf("  Peak stop orders:       %zu\n", peakStopCount);
+        printf("  Peak bid levels:        %zu\n", peakBidLevels);
+        printf("  Peak ask levels:        %zu\n", peakAskLevels);
+        printf("  Max fills in one step:  %d\n", maxSingleStepFills);
+        printf("  Sweep events (bid→0):   %d\n", sweepBidEvents);
+        printf("  Sweep events (ask→0):   %d\n", sweepAskEvents);
+        printf("  Book-cross violations:  %d\n", crossingEvents);
+    }
     printf("\n");
 
     if (!divergences.empty()) {

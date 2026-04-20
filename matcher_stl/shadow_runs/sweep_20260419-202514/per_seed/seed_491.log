@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  491
+
+  BUG   step 2338 [SUBMIT id=1923 BUY MARKET IOC px=0 q=15] field=trades shadow=[{agg=1923 pas=1830 @96 q=15}] real=[{agg=1923 pas=1918 @96 q=15}]
+  BUG   step 2339 [SUBMIT id=1924 BUY LIMIT FOK px=97 q=3 stg=1] field=trades shadow=[{agg=1924 pas=1918 @96 q=3}] real=[{agg=1924 pas=1830 @96 q=3}]
+  BUG   step 2340 [SUBMIT id=1925 BUY MARKET IOC px=0 q=2] field=trades shadow=[{agg=1925 pas=1918 @96 q=2}] real=[{agg=1925 pas=1830 @96 q=2}]
+  BUG   step 2341 [CANCEL id=1918] field=cancelled shadow=[{1918:USER_REQUESTED}] real=[]
+  BUG   step 2341 [CANCEL id=1918] field=bestAsk shadow=101 real=96
+  BUG   step 2341 [CANCEL id=1918] field=orderCount shadow=1 real=2
+  BUG   step 2342 [SUBMIT id=1926 SELL STP_MKT IOC px=0 q=3 sp=102] field=bestAsk shadow=101 real=96
+  BUG   step 2342 [SUBMIT id=1926 SELL STP_MKT IOC px=0 q=3 sp=102] field=orderCount shadow=1 real=2
+  BUG   step 2343 [SUBMIT id=1927 SELL STP_MKT FOK px=0 q=8 sp=93 stg=2] field=bestAsk shadow=101 real=96
+  BUG   step 2343 [SUBMIT id=1927 SELL STP_MKT FOK px=0 q=8 sp=93 stg=2] field=orderCount shadow=1 real=2
+  BUG   step 2344 [AMEND id=1891 px=105 qty=5] field=bestAsk shadow=105 real=96
+  BUG   step 2344 [AMEND id=1891 px=105 qty=5] field=orderCount shadow=1 real=2
+  BUG   step 2345 [SUBMIT id=1928 BUY LIMIT FOK px=105 q=8] field=trades shadow=[] real=[{agg=1928 pas=1830 @96 q=8}]
+  BUG   step 2345 [SUBMIT id=1928 BUY LIMIT FOK px=105 q=8] field=cancelled shadow=[{1928:FOK_NOT_SATISFIABLE}] real=[]
+  BUG   step 2345 [SUBMIT id=1928 BUY LIMIT FOK px=105 q=8] field=bestAsk shadow=105 real=96
+  BUG   step 2345 [SUBMIT id=1928 BUY LIMIT FOK px=105 q=8] field=orderCount shadow=1 real=2
+  BUG   step 2346 [CANCEL id=1891] field=bestAsk shadow=0 real=96
+  BUG   step 2346 [CANCEL id=1891] field=orderCount shadow=0 real=1
+  BUG   step 2347 [SUBMIT id=1929 BUY LIMIT IOC px=110 q=2] field=trades shadow=[] real=[{agg=1929 pas=1830 @96 q=2}]
+  BUG   step 2347 [SUBMIT id=1929 BUY LIMIT IOC px=110 q=2] field=cancelled shadow=[{1929:IOC_REMAINDER}] real=[]
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         2347
+  Submits:           1929
+  Cancels:           239
+  Amends:            179
+  Trades produced:   449
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 2338 [SUBMIT id=1923 BUY MARKET IOC px=0 q=15] trades:
+          shadow = [{agg=1923 pas=1830 @96 q=15}]
+          real   = [{agg=1923 pas=1918 @96 q=15}]
+    [BUG  ] step 2339 [SUBMIT id=1924 BUY LIMIT FOK px=97 q=3 stg=1] trades:
+          shadow = [{agg=1924 pas=1918 @96 q=3}]
+          real   = [{agg=1924 pas=1830 @96 q=3}]
+    [BUG  ] step 2340 [SUBMIT id=1925 BUY MARKET IOC px=0 q=2] trades:
+          shadow = [{agg=1925 pas=1918 @96 q=2}]
+          real   = [{agg=1925 pas=1830 @96 q=2}]
+    [BUG  ] step 2341 [CANCEL id=1918] cancelled:
+          shadow = [{1918:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 2341 [CANCEL id=1918] bestAsk:
+          shadow = 101
+          real   = 96
+    [BUG  ] step 2341 [CANCEL id=1918] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2342 [SUBMIT id=1926 SELL STP_MKT IOC px=0 q=3 sp=102] bestAsk:
+          shadow = 101
+          real   = 96
+    [BUG  ] step 2342 [SUBMIT id=1926 SELL STP_MKT IOC px=0 q=3 sp=102] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2343 [SUBMIT id=1927 SELL STP_MKT FOK px=0 q=8 sp=93 stg=2] bestAsk:
+          shadow = 101
+          real   = 96
+    [BUG  ] step 2343 [SUBMIT id=1927 SELL STP_MKT FOK px=0 q=8 sp=93 stg=2] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2344 [AMEND id=1891 px=105 qty=5] bestAsk:
+          shadow = 105
+          real   = 96
+    [BUG  ] step 2344 [AMEND id=1891 px=105 qty=5] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2345 [SUBMIT id=1928 BUY LIMIT FOK px=105 q=8] trades:
+          shadow = []
+          real   = [{agg=1928 pas=1830 @96 q=8}]
+    [BUG  ] step 2345 [SUBMIT id=1928 BUY LIMIT FOK px=105 q=8] cancelled:
+          shadow = [{1928:FOK_NOT_SATISFIABLE}]
+          real   = []
+    [BUG  ] step 2345 [SUBMIT id=1928 BUY LIMIT FOK px=105 q=8] bestAsk:
+          shadow = 105
+          real   = 96
+    [BUG  ] step 2345 [SUBMIT id=1928 BUY LIMIT FOK px=105 q=8] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2346 [CANCEL id=1891] bestAsk:
+          shadow = 0
+          real   = 96
+    [BUG  ] step 2346 [CANCEL id=1891] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 2347 [SUBMIT id=1929 BUY LIMIT IOC px=110 q=2] trades:
+          shadow = []
+          real   = [{agg=1929 pas=1830 @96 q=2}]
+    [BUG  ] step 2347 [SUBMIT id=1929 BUY LIMIT IOC px=110 q=2] cancelled:
+          shadow = [{1929:IOC_REMAINDER}]
+          real   = []
+
+  Result: FAIL
+=========================================================

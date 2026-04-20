@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  232
+
+  BUG   step 603 [SUBMIT id=502 SELL LIMIT FOK px=100 q=20] field=trades shadow=[{agg=502 pas=489 @105 q=18}, {agg=502 pas=482 @104 q=2}] real=[{agg=502 pas=489 @105 q=18}, {agg=502 pas=492 @104 q=2}]
+  BUG   step 603 [SUBMIT id=502 SELL LIMIT FOK px=100 q=20] field=orderCount shadow=3 real=2
+  BUG   step 604 [SUBMIT id=503 SELL MARKET FOK px=0 q=1] field=orderCount shadow=3 real=2
+  BUG   step 605 [SUBMIT id=504 SELL LIMIT FOK px=107 q=1] field=orderCount shadow=3 real=2
+  BUG   step 606 [SUBMIT id=505 SELL MTL DAY px=104 q=20 stg=1] field=orderCount shadow=3 real=2
+  BUG   step 607 [CANCEL id=482] field=bestBid shadow=104 real=98
+  BUG   step 607 [CANCEL id=482] field=orderCount shadow=2 real=1
+  BUG   step 608 [AMEND id=492 px=0 qty=18] field=bestBid shadow=104 real=98
+  BUG   step 608 [AMEND id=492 px=0 qty=18] field=orderCount shadow=2 real=1
+  BUG   step 609 [SUBMIT id=506 BUY MTL GTC px=104 q=3] field=bestBid shadow=104 real=98
+  BUG   step 609 [SUBMIT id=506 BUY MTL GTC px=104 q=3] field=orderCount shadow=2 real=1
+  BUG   step 610 [CANCEL id=486] field=bestBid shadow=104 real=0
+  BUG   step 610 [CANCEL id=486] field=orderCount shadow=1 real=0
+  BUG   step 611 [SUBMIT id=507 BUY STP_LIM GTC px=96 q=2 sp=103] field=bestBid shadow=104 real=96
+  BUG   step 611 [SUBMIT id=507 BUY STP_LIM GTC px=96 q=2 sp=103] field=orderCount shadow=2 real=1
+  BUG   step 612 [CANCEL id=507] field=bestBid shadow=104 real=0
+  BUG   step 612 [CANCEL id=507] field=orderCount shadow=1 real=0
+  BUG   step 613 [SUBMIT id=508 SELL STP_MKT FOK px=0 q=20 sp=102] field=bestBid shadow=104 real=0
+  BUG   step 613 [SUBMIT id=508 SELL STP_MKT FOK px=0 q=20 sp=102] field=orderCount shadow=1 real=0
+  BUG   step 614 [CANCEL id=492] field=cancelled shadow=[{492:USER_REQUESTED}] real=[]
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         614
+  Submits:           508
+  Cancels:           66
+  Amends:            40
+  Trades produced:   122
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 603 [SUBMIT id=502 SELL LIMIT FOK px=100 q=20] trades:
+          shadow = [{agg=502 pas=489 @105 q=18}, {agg=502 pas=482 @104 q=2}]
+          real   = [{agg=502 pas=489 @105 q=18}, {agg=502 pas=492 @104 q=2}]
+    [BUG  ] step 603 [SUBMIT id=502 SELL LIMIT FOK px=100 q=20] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 604 [SUBMIT id=503 SELL MARKET FOK px=0 q=1] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 605 [SUBMIT id=504 SELL LIMIT FOK px=107 q=1] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 606 [SUBMIT id=505 SELL MTL DAY px=104 q=20 stg=1] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 607 [CANCEL id=482] bestBid:
+          shadow = 104
+          real   = 98
+    [BUG  ] step 607 [CANCEL id=482] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 608 [AMEND id=492 px=0 qty=18] bestBid:
+          shadow = 104
+          real   = 98
+    [BUG  ] step 608 [AMEND id=492 px=0 qty=18] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 609 [SUBMIT id=506 BUY MTL GTC px=104 q=3] bestBid:
+          shadow = 104
+          real   = 98
+    [BUG  ] step 609 [SUBMIT id=506 BUY MTL GTC px=104 q=3] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 610 [CANCEL id=486] bestBid:
+          shadow = 104
+          real   = 0
+    [BUG  ] step 610 [CANCEL id=486] orderCount:
+          shadow = 1
+          real   = 0
+    [BUG  ] step 611 [SUBMIT id=507 BUY STP_LIM GTC px=96 q=2 sp=103] bestBid:
+          shadow = 104
+          real   = 96
+    [BUG  ] step 611 [SUBMIT id=507 BUY STP_LIM GTC px=96 q=2 sp=103] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 612 [CANCEL id=507] bestBid:
+          shadow = 104
+          real   = 0
+    [BUG  ] step 612 [CANCEL id=507] orderCount:
+          shadow = 1
+          real   = 0
+    [BUG  ] step 613 [SUBMIT id=508 SELL STP_MKT FOK px=0 q=20 sp=102] bestBid:
+          shadow = 104
+          real   = 0
+    [BUG  ] step 613 [SUBMIT id=508 SELL STP_MKT FOK px=0 q=20 sp=102] orderCount:
+          shadow = 1
+          real   = 0
+    [BUG  ] step 614 [CANCEL id=492] cancelled:
+          shadow = [{492:USER_REQUESTED}]
+          real   = []
+
+  Result: FAIL
+=========================================================

@@ -1,0 +1,16 @@
+{
+  "name": "stp_both_sides",
+  "description": "Two orders in the same STP group on opposite sides — STP resolution paths.",
+  "seed_orders": [
+    {"id": 1, "side": "BUY",  "price": 2, "qty": 1, "orderType": "LIMIT", "tif": "GTC", "stpGroup": "G1", "stpPolicy": "CANCEL_NEWEST"},
+    {"id": 2, "side": "SELL", "price": 4, "qty": 1, "orderType": "LIMIT", "tif": "GTC", "stpGroup": "G1", "stpPolicy": "CANCEL_NEWEST"}
+  ],
+  "tlc": {
+    "prices": [1, 2, 3, 4, 5],
+    "tick_size": 1,
+    "max_qty": 2,
+    "next_relation": "NextNoAmend",
+    "bounds_fast": {"max_orders_extra": 2, "max_clock_extra": 4},
+    "bounds_deep": {"max_orders_extra": 4, "max_clock_extra": 8}
+  }
+}

@@ -5,13 +5,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# TLSF allocator (header-only)
-add_subdirectory(tlsf-allocator)
-
 # Engine is header-only; create an interface target
 add_library(engine INTERFACE)
 target_include_directories(engine INTERFACE src)
-target_link_libraries(engine INTERFACE tlsf)
 
 # Correctness tests
 add_executable(test_correctness tests/test_correctness.cpp)

@@ -201,6 +201,34 @@ def parse_tlc_trace(text):
     return states
 
 
+def parse_tlc_simulate_trace(text):
+    """Parse a TLC -simulate trace module (headers: STATE_N == ...).
+
+    Simulate mode writes each random walk as a standalone TLA+ module where
+    each state is named STATE_1, STATE_2, etc., separated by blank lines.
+    Returns the same [{number, action, vars}, ...] structure as
+    parse_tlc_trace so downstream code (convert_trace) can reuse it.
+    """
+    header_re = re.compile(r'^STATE_(\d+)\s*==\s*$', re.MULTILINE)
+    headers = [(int(m.group(1)), m.start(), m.end())
+               for m in header_re.finditer(text)]
+    if not headers:
+        return []
+
+    states = []
+    for i, (num, start, end) in enumerate(headers):
+        var_start = end
+        var_end = headers[i + 1][1] if i + 1 < len(headers) else len(text)
+        block = text[var_start:var_end].strip()
+        variables = _parse_var_block(block)
+        action_name = 'Init' if num == 1 else (
+            variables.get('lastAction', {}).get('type') or 'Unknown'
+            if isinstance(variables.get('lastAction'), dict) else 'Unknown'
+        )
+        states.append({'number': num, 'action': action_name, 'vars': variables})
+    return states
+
+
 def _parse_var_block(block):
     """Parse a TLC variable block like:
     /\ bidQ = <<...>>
@@ -557,8 +585,13 @@ def project_state(vars_, prices):
     }
 
 
-def infer_fills(before, after, prices):
-    """Infer fills from state diff (orders that disappeared or had qty reduced)."""
+def infer_fills(before, after, prices, agg_side=None):
+    """Infer fills from state diff (orders that disappeared or had qty reduced).
+
+    agg_side: 'BUY' or 'SELL' — the aggressor's side, used to order fills by
+    price priority (best opposing price first). If None, falls back to
+    passiveId-ascending which is wrong for multi-level sweeps.
+    """
     bv = before['vars']
     av = after['vars']
 
@@ -604,10 +637,16 @@ def infer_fills(before, after, prices):
                 'quantity': delta
             })
 
-    # Sort fills by passive order ID (approximates FIFO — the first passive
-    # order with lowest timestamp should have lowest ID in these small traces)
-    # TODO: better FIFO ordering if needed
-    fills.sort(key=lambda f: f['passiveId'])
+    # Matching visits best opposing price first, then FIFO (lowest passiveId)
+    # within each level. For a SELL aggressor, best bid = highest price, so
+    # sort price DESC. For a BUY aggressor, best ask = lowest price, so ASC.
+    # Tiebreak on passiveId ASC (older orders have lower IDs in these traces).
+    if agg_side == 'SELL':
+        fills.sort(key=lambda f: (-f['price'], f['passiveId']))
+    elif agg_side == 'BUY':
+        fills.sort(key=lambda f: (f['price'], f['passiveId']))
+    else:
+        fills.sort(key=lambda f: f['passiveId'])
 
     return fills
 
@@ -625,9 +664,37 @@ def infer_prices(states):
     return sorted(prices) if prices else [1, 2, 3]
 
 
-def convert_trace(text, source_name='unknown'):
-    """Convert a TLC trace text to JSON trace format."""
-    states = parse_tlc_trace(text)
+def _seed_order_to_params(o, ts):
+    """Normalize a scenario seed order into the trace step-params shape
+    that conformance_harness.mapParams() already knows how to consume.
+    """
+    return {
+        'id': o['id'],
+        'side': o['side'],
+        'price': o.get('price'),
+        'quantity': o['qty'],
+        'orderType': o['orderType'],
+        'timeInForce': o['tif'],
+        'stopPrice': o.get('stopPrice'),
+        'displayQty': o.get('displayQty'),
+        'postOnly': o.get('postOnly', False),
+        'minQty': o.get('minQty'),
+        'stpGroup': o.get('stpGroup'),
+        'stpPolicy': o.get('stpPolicy'),
+    }
+
+
+def convert_trace(text, source_name='unknown', scenario=None, simulate=False):
+    """Convert a TLC trace text to JSON trace format.
+
+    If `scenario` is provided (parsed scenario JSON), its seed_orders are
+    embedded under metadata.seed so the harness can submit them before
+    replaying the TLC-generated steps.
+
+    If `simulate` is True, parse as a TLC -simulate trace module
+    (STATE_N ==) rather than a counterexample (State N: <Action>).
+    """
+    states = parse_tlc_simulate_trace(text) if simulate else parse_tlc_trace(text)
     if not states:
         return None
 
@@ -639,7 +706,8 @@ def convert_trace(text, source_name='unknown'):
         after = states[i]
 
         action_info = extract_action(after, prices)
-        fills = infer_fills(before, after, prices)
+        fills = infer_fills(before, after, prices,
+                            agg_side=action_info.get('params', {}).get('side'))
         projected = project_state(after['vars'], prices)
 
         step = {
@@ -653,13 +721,21 @@ def convert_trace(text, source_name='unknown'):
 
         steps.append(step)
 
+    metadata = {
+        'source': 'counterexample',
+        'trace_id': source_name,
+        'state_count': len(states),
+        'prices': prices,
+    }
+    if scenario is not None:
+        metadata['scenario'] = scenario.get('name')
+        metadata['seed'] = [
+            _seed_order_to_params(o, i + 1)
+            for i, o in enumerate(scenario.get('seed_orders', []))
+        ]
+
     return {
-        'metadata': {
-            'source': 'counterexample',
-            'trace_id': source_name,
-            'state_count': len(states),
-            'prices': prices
-        },
+        'metadata': metadata,
         'steps': steps
     }
 
@@ -669,12 +745,19 @@ def main():
     parser = argparse.ArgumentParser(description='Convert TLC traces to JSON')
     parser.add_argument('files', nargs='+', help='TLC trace files')
     parser.add_argument('-o', '--output-dir', help='Output directory (default: stdout)')
+    parser.add_argument('--seed', help='Scenario JSON whose seed_orders should be '
+                                       'embedded in metadata.seed for the harness to replay first')
+    parser.add_argument('--simulate', action='store_true',
+                        help='Parse TLC -simulate trace format (STATE_N ==) '
+                             'instead of counterexample format')
     args = parser.parse_args()
+
+    scenario = json.loads(Path(args.seed).read_text()) if args.seed else None
 
     for filepath in args.files:
         text = open(filepath).read()
         name = Path(filepath).stem
-        result = convert_trace(text, name)
+        result = convert_trace(text, name, scenario=scenario, simulate=args.simulate)
         if result is None:
             print(f"Warning: No trace found in {filepath}", file=sys.stderr)
             continue

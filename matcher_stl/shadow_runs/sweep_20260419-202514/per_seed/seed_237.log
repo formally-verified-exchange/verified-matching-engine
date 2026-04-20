@@ -1,0 +1,102 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  237
+
+  BUG   step 50 [SUBMIT id=45 BUY LIMIT FOK px=101 q=1] field=trades shadow=[{agg=45 pas=31 @100 q=1}] real=[{agg=45 pas=40 @100 q=1}]
+  BUG   step 52 [SUBMIT id=47 BUY LIMIT GTC px=105 q=8] field=trades shadow=[{agg=47 pas=31 @100 q=8}] real=[{agg=47 pas=40 @100 q=8}]
+  BUG   step 57 [SUBMIT id=49 BUY MARKET IOC px=0 q=15 stg=1] field=trades shadow=[{agg=49 pas=31 @100 q=6}, {agg=49 pas=39 @101 q=9}] real=[{agg=49 pas=31 @100 q=15}]
+  BUG   step 57 [SUBMIT id=49 BUY MARKET IOC px=0 q=15 stg=1] field=lastTradePrice shadow=101 real=100
+  BUG   step 58 [CANCEL id=16] field=lastTradePrice shadow=101 real=100
+  BUG   step 59 [SUBMIT id=50 BUY LIMIT DAY px=101 q=3] field=trades shadow=[{agg=50 pas=39 @101 q=1}] real=[{agg=50 pas=39 @101 q=3}]
+  BUG   step 59 [SUBMIT id=50 BUY LIMIT DAY px=101 q=3] field=bestBid shadow=101 real=0
+  BUG   step 59 [SUBMIT id=50 BUY LIMIT DAY px=101 q=3] field=bestAsk shadow=0 real=101
+  BUG   step 60 [SUBMIT id=51 BUY STP_MKT FOK px=0 q=3 sp=98] field=trades shadow=[] real=[{agg=51 pas=39 @101 q=3}]
+  BUG   step 60 [SUBMIT id=51 BUY STP_MKT FOK px=0 q=3 sp=98] field=cancelled shadow=[{51:FOK_NOT_SATISFIABLE}] real=[]
+  BUG   step 60 [SUBMIT id=51 BUY STP_MKT FOK px=0 q=3 sp=98] field=bestBid shadow=101 real=0
+  BUG   step 60 [SUBMIT id=51 BUY STP_MKT FOK px=0 q=3 sp=98] field=bestAsk shadow=0 real=101
+  BUG   step 61 [AMEND id=50 px=0 qty=8] field=bestBid shadow=101 real=0
+  BUG   step 61 [AMEND id=50 px=0 qty=8] field=bestAsk shadow=0 real=101
+  BUG   step 62 [CANCEL id=50] field=cancelled shadow=[{50:USER_REQUESTED}] real=[]
+  BUG   step 62 [CANCEL id=50] field=bestAsk shadow=0 real=101
+  BUG   step 62 [CANCEL id=50] field=orderCount shadow=0 real=1
+  BUG   step 63 [SUBMIT id=52 BUY MTL GTC px=102 q=20] field=bestAsk shadow=0 real=101
+  BUG   step 63 [SUBMIT id=52 BUY MTL GTC px=102 q=20] field=orderCount shadow=0 real=1
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         64
+  Submits:           53
+  Cancels:           9
+  Amends:            2
+  Trades produced:   13
+  Divergences total: 21  (BUG=21  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 50 [SUBMIT id=45 BUY LIMIT FOK px=101 q=1] trades:
+          shadow = [{agg=45 pas=31 @100 q=1}]
+          real   = [{agg=45 pas=40 @100 q=1}]
+    [BUG  ] step 52 [SUBMIT id=47 BUY LIMIT GTC px=105 q=8] trades:
+          shadow = [{agg=47 pas=31 @100 q=8}]
+          real   = [{agg=47 pas=40 @100 q=8}]
+    [BUG  ] step 57 [SUBMIT id=49 BUY MARKET IOC px=0 q=15 stg=1] trades:
+          shadow = [{agg=49 pas=31 @100 q=6}, {agg=49 pas=39 @101 q=9}]
+          real   = [{agg=49 pas=31 @100 q=15}]
+    [BUG  ] step 57 [SUBMIT id=49 BUY MARKET IOC px=0 q=15 stg=1] lastTradePrice:
+          shadow = 101
+          real   = 100
+    [BUG  ] step 58 [CANCEL id=16] lastTradePrice:
+          shadow = 101
+          real   = 100
+    [BUG  ] step 59 [SUBMIT id=50 BUY LIMIT DAY px=101 q=3] trades:
+          shadow = [{agg=50 pas=39 @101 q=1}]
+          real   = [{agg=50 pas=39 @101 q=3}]
+    [BUG  ] step 59 [SUBMIT id=50 BUY LIMIT DAY px=101 q=3] bestBid:
+          shadow = 101
+          real   = 0
+    [BUG  ] step 59 [SUBMIT id=50 BUY LIMIT DAY px=101 q=3] bestAsk:
+          shadow = 0
+          real   = 101
+    [BUG  ] step 60 [SUBMIT id=51 BUY STP_MKT FOK px=0 q=3 sp=98] trades:
+          shadow = []
+          real   = [{agg=51 pas=39 @101 q=3}]
+    [BUG  ] step 60 [SUBMIT id=51 BUY STP_MKT FOK px=0 q=3 sp=98] cancelled:
+          shadow = [{51:FOK_NOT_SATISFIABLE}]
+          real   = []
+    [BUG  ] step 60 [SUBMIT id=51 BUY STP_MKT FOK px=0 q=3 sp=98] bestBid:
+          shadow = 101
+          real   = 0
+    [BUG  ] step 60 [SUBMIT id=51 BUY STP_MKT FOK px=0 q=3 sp=98] bestAsk:
+          shadow = 0
+          real   = 101
+    [BUG  ] step 61 [AMEND id=50 px=0 qty=8] bestBid:
+          shadow = 101
+          real   = 0
+    [BUG  ] step 61 [AMEND id=50 px=0 qty=8] bestAsk:
+          shadow = 0
+          real   = 101
+    [BUG  ] step 62 [CANCEL id=50] cancelled:
+          shadow = [{50:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 62 [CANCEL id=50] bestAsk:
+          shadow = 0
+          real   = 101
+    [BUG  ] step 62 [CANCEL id=50] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 63 [SUBMIT id=52 BUY MTL GTC px=102 q=20] bestAsk:
+          shadow = 0
+          real   = 101
+    [BUG  ] step 63 [SUBMIT id=52 BUY MTL GTC px=102 q=20] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 64 [SUBMIT id=53 SELL STP_LIM GTC px=100 q=15 sp=98] bestAsk:
+          shadow = 0
+          real   = 101
+    [BUG  ] step 64 [SUBMIT id=53 SELL STP_LIM GTC px=100 q=15 sp=98] orderCount:
+          shadow = 0
+          real   = 1
+
+  Result: FAIL
+=========================================================

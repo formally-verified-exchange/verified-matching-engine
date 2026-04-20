@@ -1,0 +1,101 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  51
+
+  BUG   step 182 [SUBMIT id=151 BUY MARKET IOC px=0 q=1] field=trades shadow=[{agg=151 pas=141 @101 q=1}] real=[{agg=151 pas=142 @101 q=1}]
+  BUG   step 203 [SUBMIT id=168 BUY LIMIT FOK px=101 q=5 stg=2] field=trades shadow=[{agg=168 pas=141 @101 q=5}, {agg=166 pas=141 @101 q=9}, {agg=166 pas=162 @102 q=1}] real=[{agg=168 pas=141 @101 q=5}, {agg=166 pas=141 @101 q=10}]
+  BUG   step 203 [SUBMIT id=168 BUY LIMIT FOK px=101 q=5 stg=2] field=cancelled shadow=[{142:STP_CANCEL_OLDEST}] real=[]
+  BUG   step 203 [SUBMIT id=168 BUY LIMIT FOK px=101 q=5 stg=2] field=bestAsk shadow=102 real=101
+  BUG   step 203 [SUBMIT id=168 BUY LIMIT FOK px=101 q=5 stg=2] field=orderCount shadow=5 real=6
+  BUG   step 203 [SUBMIT id=168 BUY LIMIT FOK px=101 q=5 stg=2] field=lastTradePrice shadow=102 real=101
+  BUG   step 204 [SUBMIT id=169 SELL STP_LIM IOC px=102 q=2 sp=102] field=bestAsk shadow=102 real=101
+  BUG   step 204 [SUBMIT id=169 SELL STP_LIM IOC px=102 q=2 sp=102] field=orderCount shadow=5 real=6
+  BUG   step 204 [SUBMIT id=169 SELL STP_LIM IOC px=102 q=2 sp=102] field=lastTradePrice shadow=102 real=101
+  BUG   step 205 [SUBMIT id=170 SELL LIMIT FOK px=102 q=2] field=bestAsk shadow=102 real=101
+  BUG   step 205 [SUBMIT id=170 SELL LIMIT FOK px=102 q=2] field=orderCount shadow=5 real=6
+  BUG   step 205 [SUBMIT id=170 SELL LIMIT FOK px=102 q=2] field=lastTradePrice shadow=102 real=101
+  BUG   step 206 [SUBMIT id=171 SELL STP_MKT IOC px=0 q=8 sp=98] field=bestAsk shadow=102 real=101
+  BUG   step 206 [SUBMIT id=171 SELL STP_MKT IOC px=0 q=8 sp=98] field=orderCount shadow=5 real=6
+  BUG   step 206 [SUBMIT id=171 SELL STP_MKT IOC px=0 q=8 sp=98] field=lastTradePrice shadow=102 real=101
+  BUG   step 207 [SUBMIT id=172 SELL MARKET IOC px=0 q=10] field=bestAsk shadow=102 real=101
+  BUG   step 207 [SUBMIT id=172 SELL MARKET IOC px=0 q=10] field=orderCount shadow=5 real=6
+  BUG   step 207 [SUBMIT id=172 SELL MARKET IOC px=0 q=10] field=lastTradePrice shadow=102 real=101
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         208
+  Submits:           172
+  Cancels:           18
+  Amends:            18
+  Trades produced:   53
+  Divergences total: 21  (BUG=21  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 182 [SUBMIT id=151 BUY MARKET IOC px=0 q=1] trades:
+          shadow = [{agg=151 pas=141 @101 q=1}]
+          real   = [{agg=151 pas=142 @101 q=1}]
+    [BUG  ] step 203 [SUBMIT id=168 BUY LIMIT FOK px=101 q=5 stg=2] trades:
+          shadow = [{agg=168 pas=141 @101 q=5}, {agg=166 pas=141 @101 q=9}, {agg=166 pas=162 @102 q=1}]
+          real   = [{agg=168 pas=141 @101 q=5}, {agg=166 pas=141 @101 q=10}]
+    [BUG  ] step 203 [SUBMIT id=168 BUY LIMIT FOK px=101 q=5 stg=2] cancelled:
+          shadow = [{142:STP_CANCEL_OLDEST}]
+          real   = []
+    [BUG  ] step 203 [SUBMIT id=168 BUY LIMIT FOK px=101 q=5 stg=2] bestAsk:
+          shadow = 102
+          real   = 101
+    [BUG  ] step 203 [SUBMIT id=168 BUY LIMIT FOK px=101 q=5 stg=2] orderCount:
+          shadow = 5
+          real   = 6
+    [BUG  ] step 203 [SUBMIT id=168 BUY LIMIT FOK px=101 q=5 stg=2] lastTradePrice:
+          shadow = 102
+          real   = 101
+    [BUG  ] step 204 [SUBMIT id=169 SELL STP_LIM IOC px=102 q=2 sp=102] bestAsk:
+          shadow = 102
+          real   = 101
+    [BUG  ] step 204 [SUBMIT id=169 SELL STP_LIM IOC px=102 q=2 sp=102] orderCount:
+          shadow = 5
+          real   = 6
+    [BUG  ] step 204 [SUBMIT id=169 SELL STP_LIM IOC px=102 q=2 sp=102] lastTradePrice:
+          shadow = 102
+          real   = 101
+    [BUG  ] step 205 [SUBMIT id=170 SELL LIMIT FOK px=102 q=2] bestAsk:
+          shadow = 102
+          real   = 101
+    [BUG  ] step 205 [SUBMIT id=170 SELL LIMIT FOK px=102 q=2] orderCount:
+          shadow = 5
+          real   = 6
+    [BUG  ] step 205 [SUBMIT id=170 SELL LIMIT FOK px=102 q=2] lastTradePrice:
+          shadow = 102
+          real   = 101
+    [BUG  ] step 206 [SUBMIT id=171 SELL STP_MKT IOC px=0 q=8 sp=98] bestAsk:
+          shadow = 102
+          real   = 101
+    [BUG  ] step 206 [SUBMIT id=171 SELL STP_MKT IOC px=0 q=8 sp=98] orderCount:
+          shadow = 5
+          real   = 6
+    [BUG  ] step 206 [SUBMIT id=171 SELL STP_MKT IOC px=0 q=8 sp=98] lastTradePrice:
+          shadow = 102
+          real   = 101
+    [BUG  ] step 207 [SUBMIT id=172 SELL MARKET IOC px=0 q=10] bestAsk:
+          shadow = 102
+          real   = 101
+    [BUG  ] step 207 [SUBMIT id=172 SELL MARKET IOC px=0 q=10] orderCount:
+          shadow = 5
+          real   = 6
+    [BUG  ] step 207 [SUBMIT id=172 SELL MARKET IOC px=0 q=10] lastTradePrice:
+          shadow = 102
+          real   = 101
+    [BUG  ] step 208 [CANCEL id=109] bestAsk:
+          shadow = 102
+          real   = 101
+    [BUG  ] step 208 [CANCEL id=109] orderCount:
+          shadow = 4
+          real   = 5
+    [BUG  ] step 208 [CANCEL id=109] lastTradePrice:
+          shadow = 102
+          real   = 101
+
+  Result: FAIL
+=========================================================

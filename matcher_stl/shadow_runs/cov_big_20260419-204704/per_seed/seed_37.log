@@ -1,0 +1,31 @@
+Shadow Model Test
+  Steps: 250000
+  Seed:  37
+
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         250000
+  Submits:           205884
+  Cancels:           26750
+  Amends:            17366
+  Trades produced:   50958
+  Divergences total: 0  (BUG=0  KNOWN=0)
+
+  ── Stress statistics ────────────────────────────────────
+  Wall time:              2.336 s
+  Throughput:             107041 steps/sec
+  Cumulative trades:      50958
+  Peak book orders:       113
+  Peak stop orders:       832
+  Peak bid levels:        24
+  Peak ask levels:        21
+  Max fills in one step:  24
+  Sweep events (bid→0):   13080
+  Sweep events (ask→0):   13207
+  Book-cross violations:  0
+
+
+  Result: PASS
+=========================================================

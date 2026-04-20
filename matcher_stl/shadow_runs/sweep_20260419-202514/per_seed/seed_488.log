@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  488
+
+  BUG   step 483 [SUBMIT id=410 SELL LIMIT IOC px=106 q=20] field=trades shadow=[{agg=410 pas=402 @107 q=1}, {agg=410 pas=404 @107 q=17}] real=[{agg=410 pas=404 @107 q=17}, {agg=410 pas=402 @107 q=1}]
+  BUG   step 1284 [SUBMIT id=1068 BUY STP_LIM DAY px=99 q=15 sp=99] field=trades shadow=[{agg=1068 pas=1061 @99 q=5}, {agg=1068 pas=1062 @99 q=10}] real=[{agg=1068 pas=1062 @99 q=13}, {agg=1068 pas=1061 @99 q=2}]
+  BUG   step 1286 [CANCEL id=1062] field=cancelled shadow=[{1062:USER_REQUESTED}] real=[]
+  BUG   step 1286 [CANCEL id=1062] field=bestAsk shadow=100 real=99
+  BUG   step 1286 [CANCEL id=1062] field=orderCount shadow=2 real=3
+  BUG   step 1287 [SUBMIT id=1070 BUY STP_MKT IOC px=0 q=5 sp=102] field=bestAsk shadow=100 real=99
+  BUG   step 1287 [SUBMIT id=1070 BUY STP_MKT IOC px=0 q=5 sp=102] field=orderCount shadow=2 real=3
+  BUG   step 1288 [SUBMIT id=1071 BUY STP_LIM DAY px=100 q=8 sp=102] field=bestAsk shadow=100 real=99
+  BUG   step 1288 [SUBMIT id=1071 BUY STP_LIM DAY px=100 q=8 sp=102] field=orderCount shadow=2 real=3
+  BUG   step 1289 [SUBMIT id=1072 SELL LIMIT GTC px=101 q=20] field=bestAsk shadow=100 real=99
+  BUG   step 1289 [SUBMIT id=1072 SELL LIMIT GTC px=101 q=20] field=orderCount shadow=3 real=4
+  BUG   step 1290 [SUBMIT id=1073 SELL LIMIT IOC px=105 q=10] field=bestAsk shadow=100 real=99
+  BUG   step 1290 [SUBMIT id=1073 SELL LIMIT IOC px=105 q=10] field=orderCount shadow=3 real=4
+  BUG   step 1291 [SUBMIT id=1074 SELL LIMIT DAY px=100 q=1 PO] field=bestAsk shadow=100 real=99
+  BUG   step 1291 [SUBMIT id=1074 SELL LIMIT DAY px=100 q=1 PO] field=orderCount shadow=4 real=5
+  BUG   step 1292 [SUBMIT id=1075 BUY STP_LIM FOK px=101 q=2 sp=102] field=bestAsk shadow=100 real=99
+  BUG   step 1292 [SUBMIT id=1075 BUY STP_LIM FOK px=101 q=2 sp=102] field=orderCount shadow=4 real=5
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         1293
+  Submits:           1076
+  Cancels:           135
+  Amends:            82
+  Trades produced:   245
+  Divergences total: 21  (BUG=21  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 483 [SUBMIT id=410 SELL LIMIT IOC px=106 q=20] trades:
+          shadow = [{agg=410 pas=402 @107 q=1}, {agg=410 pas=404 @107 q=17}]
+          real   = [{agg=410 pas=404 @107 q=17}, {agg=410 pas=402 @107 q=1}]
+    [BUG  ] step 1284 [SUBMIT id=1068 BUY STP_LIM DAY px=99 q=15 sp=99] trades:
+          shadow = [{agg=1068 pas=1061 @99 q=5}, {agg=1068 pas=1062 @99 q=10}]
+          real   = [{agg=1068 pas=1062 @99 q=13}, {agg=1068 pas=1061 @99 q=2}]
+    [BUG  ] step 1286 [CANCEL id=1062] cancelled:
+          shadow = [{1062:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 1286 [CANCEL id=1062] bestAsk:
+          shadow = 100
+          real   = 99
+    [BUG  ] step 1286 [CANCEL id=1062] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 1287 [SUBMIT id=1070 BUY STP_MKT IOC px=0 q=5 sp=102] bestAsk:
+          shadow = 100
+          real   = 99
+    [BUG  ] step 1287 [SUBMIT id=1070 BUY STP_MKT IOC px=0 q=5 sp=102] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 1288 [SUBMIT id=1071 BUY STP_LIM DAY px=100 q=8 sp=102] bestAsk:
+          shadow = 100
+          real   = 99
+    [BUG  ] step 1288 [SUBMIT id=1071 BUY STP_LIM DAY px=100 q=8 sp=102] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 1289 [SUBMIT id=1072 SELL LIMIT GTC px=101 q=20] bestAsk:
+          shadow = 100
+          real   = 99
+    [BUG  ] step 1289 [SUBMIT id=1072 SELL LIMIT GTC px=101 q=20] orderCount:
+          shadow = 3
+          real   = 4
+    [BUG  ] step 1290 [SUBMIT id=1073 SELL LIMIT IOC px=105 q=10] bestAsk:
+          shadow = 100
+          real   = 99
+    [BUG  ] step 1290 [SUBMIT id=1073 SELL LIMIT IOC px=105 q=10] orderCount:
+          shadow = 3
+          real   = 4
+    [BUG  ] step 1291 [SUBMIT id=1074 SELL LIMIT DAY px=100 q=1 PO] bestAsk:
+          shadow = 100
+          real   = 99
+    [BUG  ] step 1291 [SUBMIT id=1074 SELL LIMIT DAY px=100 q=1 PO] orderCount:
+          shadow = 4
+          real   = 5
+    [BUG  ] step 1292 [SUBMIT id=1075 BUY STP_LIM FOK px=101 q=2 sp=102] bestAsk:
+          shadow = 100
+          real   = 99
+    [BUG  ] step 1292 [SUBMIT id=1075 BUY STP_LIM FOK px=101 q=2 sp=102] orderCount:
+          shadow = 4
+          real   = 5
+    [BUG  ] step 1293 [SUBMIT id=1076 BUY LIMIT FOK px=101 q=1] trades:
+          shadow = [{agg=1076 pas=1069 @100 q=1}]
+          real   = [{agg=1076 pas=1061 @99 q=1}]
+    [BUG  ] step 1293 [SUBMIT id=1076 BUY LIMIT FOK px=101 q=1] bestAsk:
+          shadow = 100
+          real   = 99
+    [BUG  ] step 1293 [SUBMIT id=1076 BUY LIMIT FOK px=101 q=1] orderCount:
+          shadow = 4
+          real   = 5
+    [BUG  ] step 1293 [SUBMIT id=1076 BUY LIMIT FOK px=101 q=1] lastTradePrice:
+          shadow = 100
+          real   = 99
+
+  Result: FAIL
+=========================================================

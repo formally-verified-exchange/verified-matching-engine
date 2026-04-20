@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  313
+
+  BUG   step 2278 [SUBMIT id=1881 SELL STP_MKT IOC px=0 q=1 sp=109 stg=1] field=trades shadow=[{agg=1881 pas=1845 @109 q=1}] real=[{agg=1881 pas=1873 @109 q=1}]
+  BUG   step 2279 [SUBMIT id=1882 SELL LIMIT IOC px=108 q=1] field=trades shadow=[{agg=1882 pas=1845 @109 q=1}] real=[{agg=1882 pas=1873 @109 q=1}]
+  BUG   step 2279 [SUBMIT id=1882 SELL LIMIT IOC px=108 q=1] field=orderCount shadow=3 real=4
+  BUG   step 2282 [CANCEL id=1873] field=cancelled shadow=[{1873:USER_REQUESTED}] real=[]
+  BUG   step 2282 [CANCEL id=1873] field=bestBid shadow=106 real=109
+  BUG   step 2282 [CANCEL id=1873] field=orderCount shadow=1 real=2
+  BUG   step 2283 [SUBMIT id=1885 BUY LIMIT IOC px=107 q=1] field=bestBid shadow=106 real=109
+  BUG   step 2283 [SUBMIT id=1885 BUY LIMIT IOC px=107 q=1] field=orderCount shadow=1 real=2
+  BUG   step 2284 [CANCEL id=1869] field=bestBid shadow=0 real=109
+  BUG   step 2284 [CANCEL id=1869] field=orderCount shadow=0 real=1
+  BUG   step 2285 [SUBMIT id=1886 BUY STP_LIM FOK px=103 q=8 sp=105] field=bestBid shadow=0 real=109
+  BUG   step 2285 [SUBMIT id=1886 BUY STP_LIM FOK px=103 q=8 sp=105] field=orderCount shadow=0 real=1
+  BUG   step 2286 [SUBMIT id=1887 SELL STP_MKT FOK px=0 q=5 sp=100] field=bestBid shadow=0 real=109
+  BUG   step 2286 [SUBMIT id=1887 SELL STP_MKT FOK px=0 q=5 sp=100] field=orderCount shadow=0 real=1
+  BUG   step 2287 [SUBMIT id=1888 BUY MTL GTC px=101 q=15] field=bestBid shadow=0 real=109
+  BUG   step 2287 [SUBMIT id=1888 BUY MTL GTC px=101 q=15] field=orderCount shadow=0 real=1
+  BUG   step 2288 [SUBMIT id=1889 SELL MTL GTC px=96 q=2 mq=2] field=bestBid shadow=0 real=109
+  BUG   step 2288 [SUBMIT id=1889 SELL MTL GTC px=96 q=2 mq=2] field=orderCount shadow=0 real=1
+  BUG   step 2289 [SUBMIT id=1890 SELL LIMIT FOK px=103 q=5] field=bestBid shadow=0 real=109
+  BUG   step 2289 [SUBMIT id=1890 SELL LIMIT FOK px=103 q=5] field=orderCount shadow=0 real=1
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         2289
+  Submits:           1890
+  Cancels:           232
+  Amends:            167
+  Trades produced:   506
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 2278 [SUBMIT id=1881 SELL STP_MKT IOC px=0 q=1 sp=109 stg=1] trades:
+          shadow = [{agg=1881 pas=1845 @109 q=1}]
+          real   = [{agg=1881 pas=1873 @109 q=1}]
+    [BUG  ] step 2279 [SUBMIT id=1882 SELL LIMIT IOC px=108 q=1] trades:
+          shadow = [{agg=1882 pas=1845 @109 q=1}]
+          real   = [{agg=1882 pas=1873 @109 q=1}]
+    [BUG  ] step 2279 [SUBMIT id=1882 SELL LIMIT IOC px=108 q=1] orderCount:
+          shadow = 3
+          real   = 4
+    [BUG  ] step 2282 [CANCEL id=1873] cancelled:
+          shadow = [{1873:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 2282 [CANCEL id=1873] bestBid:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 2282 [CANCEL id=1873] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2283 [SUBMIT id=1885 BUY LIMIT IOC px=107 q=1] bestBid:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 2283 [SUBMIT id=1885 BUY LIMIT IOC px=107 q=1] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2284 [CANCEL id=1869] bestBid:
+          shadow = 0
+          real   = 109
+    [BUG  ] step 2284 [CANCEL id=1869] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 2285 [SUBMIT id=1886 BUY STP_LIM FOK px=103 q=8 sp=105] bestBid:
+          shadow = 0
+          real   = 109
+    [BUG  ] step 2285 [SUBMIT id=1886 BUY STP_LIM FOK px=103 q=8 sp=105] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 2286 [SUBMIT id=1887 SELL STP_MKT FOK px=0 q=5 sp=100] bestBid:
+          shadow = 0
+          real   = 109
+    [BUG  ] step 2286 [SUBMIT id=1887 SELL STP_MKT FOK px=0 q=5 sp=100] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 2287 [SUBMIT id=1888 BUY MTL GTC px=101 q=15] bestBid:
+          shadow = 0
+          real   = 109
+    [BUG  ] step 2287 [SUBMIT id=1888 BUY MTL GTC px=101 q=15] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 2288 [SUBMIT id=1889 SELL MTL GTC px=96 q=2 mq=2] bestBid:
+          shadow = 0
+          real   = 109
+    [BUG  ] step 2288 [SUBMIT id=1889 SELL MTL GTC px=96 q=2 mq=2] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 2289 [SUBMIT id=1890 SELL LIMIT FOK px=103 q=5] bestBid:
+          shadow = 0
+          real   = 109
+    [BUG  ] step 2289 [SUBMIT id=1890 SELL LIMIT FOK px=103 q=5] orderCount:
+          shadow = 0
+          real   = 1
+
+  Result: FAIL
+=========================================================

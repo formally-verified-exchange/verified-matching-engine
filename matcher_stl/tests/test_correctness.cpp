@@ -777,6 +777,99 @@ void test_gtd_partial_fill_then_expire() {
     T_EQ(e.bestAsk(), 0);
 }
 
+// CPP-003: MatchingEngine.tla:757 — TimeAdvance expires DAY stops.
+void test_day_stop_expires_on_time_advance() {
+    Rec r; Engine<Rec> e(r);
+    OrderInput s{}; s.id=1; s.side=Side::BUY; s.orderType=OrderType::STOP_LIMIT;
+    s.timeInForce=TimeInForce::DAY; s.price=105; s.stopPrice=100; s.quantity=5;
+    e.submitOrder(s);
+    T_EQ(e.stopCount(), 1u);
+    e.expireOrders(e.time() + 1);
+    T_EQ(e.stopCount(), 0u);
+    T_TRUE(!e.hasOrder(1));
+}
+
+// CPP-003 companion: GTD stop past its expireTime also expires.
+void test_gtd_stop_expires_on_time_advance() {
+    Rec r; Engine<Rec> e(r);
+    OrderInput s{}; s.id=1; s.side=Side::BUY; s.orderType=OrderType::STOP_LIMIT;
+    s.timeInForce=TimeInForce::GTD; s.price=105; s.stopPrice=100; s.quantity=5;
+    s.expireTime=100;
+    e.submitOrder(s);
+    T_EQ(e.stopCount(), 1u);
+    e.expireOrders(100);
+    T_EQ(e.stopCount(), 0u);
+    T_TRUE(!e.hasOrder(1));
+}
+
+// CPP-003 negative: a GTC stop must survive TimeAdvance.
+void test_gtc_stop_survives_time_advance() {
+    Rec r; Engine<Rec> e(r);
+    OrderInput s{}; s.id=1; s.side=Side::BUY; s.orderType=OrderType::STOP_LIMIT;
+    s.timeInForce=TimeInForce::GTC; s.price=105; s.stopPrice=100; s.quantity=5;
+    e.submitOrder(s);
+    T_EQ(e.stopCount(), 1u);
+    e.expireOrders(e.time() + 1000);
+    T_EQ(e.stopCount(), 1u);
+}
+
+// CPP-002: FOK feasibility must use visibleQty, not remainingQty.
+// A resting iceberg with displayQty=2, qty=10 offers only 2 to an FOK
+// aggressor; the remaining 8 is hidden reserve and unavailable until
+// reload. An FOK BUY for 5 must therefore be cancelled, not filled.
+void test_fok_sees_only_visible_of_iceberg() {
+    Rec r; Engine<Rec> e(r);
+    OrderInput ice{}; ice.id=1; ice.side=Side::SELL;
+    ice.orderType=OrderType::LIMIT; ice.timeInForce=TimeInForce::GTC;
+    ice.price=100; ice.quantity=10; ice.displayQty=2;
+    e.submitOrder(ice);
+    T_EQ(e.hasOrder(1), true);
+
+    OrderInput fok{}; fok.id=2; fok.side=Side::BUY;
+    fok.orderType=OrderType::LIMIT; fok.timeInForce=TimeInForce::FOK;
+    fok.price=100; fok.quantity=5;
+    r.clear();
+    e.submitOrder(fok);
+    T_EQ(r.trades.size(), 0u);
+    T_EQ(e.hasOrder(2), false);
+    T_EQ(e.hasOrder(1), true);
+}
+
+// CPP-002 companion: FOK for exactly the visible slice must fill.
+void test_fok_matches_visible_slice() {
+    Rec r; Engine<Rec> e(r);
+    OrderInput ice{}; ice.id=1; ice.side=Side::SELL;
+    ice.orderType=OrderType::LIMIT; ice.timeInForce=TimeInForce::GTC;
+    ice.price=100; ice.quantity=10; ice.displayQty=2;
+    e.submitOrder(ice);
+
+    OrderInput fok{}; fok.id=2; fok.side=Side::BUY;
+    fok.orderType=OrderType::LIMIT; fok.timeInForce=TimeInForce::FOK;
+    fok.price=100; fok.quantity=2;
+    r.clear();
+    e.submitOrder(fok);
+    T_EQ(r.trades.size(), 1u);
+    T_EQ(r.trades[0].quantity, 2);
+}
+
+// CPP-002 minQty variant — same logic must apply to minQty pre-check.
+void test_minqty_sees_only_visible_of_iceberg() {
+    Rec r; Engine<Rec> e(r);
+    OrderInput ice{}; ice.id=1; ice.side=Side::SELL;
+    ice.orderType=OrderType::LIMIT; ice.timeInForce=TimeInForce::GTC;
+    ice.price=100; ice.quantity=10; ice.displayQty=2;
+    e.submitOrder(ice);
+
+    OrderInput ioc{}; ioc.id=2; ioc.side=Side::BUY;
+    ioc.orderType=OrderType::LIMIT; ioc.timeInForce=TimeInForce::IOC;
+    ioc.price=100; ioc.quantity=5; ioc.minQty=5;
+    r.clear();
+    e.submitOrder(ioc);
+    T_EQ(r.trades.size(), 0u);
+    T_EQ(e.hasOrder(2), false);
+    T_EQ(e.hasOrder(1), true);
+}
+
 void test_resource_lifecycle_1000_pairs() {
     Rec r; Engine<Rec> e(r);
     for (int i = 0; i < 1000; i++) {
@@ -957,6 +1050,12 @@ int main() {
     SECTION("Ported from ~/matcher: expiry");
     f0=gFail; RUN(test_partial_fill_then_expire);
     f0=gFail; RUN(test_gtd_partial_fill_then_expire);
+    f0=gFail; RUN(test_day_stop_expires_on_time_advance);
+    f0=gFail; RUN(test_gtd_stop_expires_on_time_advance);
+    f0=gFail; RUN(test_gtc_stop_survives_time_advance);
+    f0=gFail; RUN(test_fok_sees_only_visible_of_iceberg);
+    f0=gFail; RUN(test_fok_matches_visible_slice);
+    f0=gFail; RUN(test_minqty_sees_only_visible_of_iceberg);
 
     SECTION("Ported from ~/matcher: STP");
     f0=gFail; RUN(test_stp_decrement_then_match);

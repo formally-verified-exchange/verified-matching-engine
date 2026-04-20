@@ -1,0 +1,103 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  5
+
+  BUG   step 925 [SUBMIT id=766 SELL LIMIT GTC px=105 q=20] field=trades shadow=[{agg=766 pas=755 @108 q=8}, {agg=766 pas=757 @108 q=12}] real=[{agg=766 pas=757 @108 q=20}]
+  BUG   step 928 [SUBMIT id=769 SELL MARKET FOK px=0 q=1] field=trades shadow=[{agg=769 pas=757 @108 q=1}] real=[{agg=769 pas=755 @108 q=1}]
+  BUG   step 929 [SUBMIT id=770 SELL STP_MKT FOK px=0 q=2 sp=108] field=trades shadow=[{agg=770 pas=757 @108 q=2}] real=[{agg=770 pas=755 @108 q=2}]
+  BUG   step 933 [CANCEL id=757] field=cancelled shadow=[{757:USER_REQUESTED}] real=[]
+  BUG   step 933 [CANCEL id=757] field=bestBid shadow=104 real=108
+  BUG   step 933 [CANCEL id=757] field=orderCount shadow=4 real=5
+  BUG   step 934 [SUBMIT id=773 SELL STP_MKT FOK px=0 q=2 sp=107] field=bestBid shadow=104 real=108
+  BUG   step 934 [SUBMIT id=773 SELL STP_MKT FOK px=0 q=2 sp=107] field=orderCount shadow=4 real=5
+  BUG   step 935 [SUBMIT id=774 SELL MTL GTC px=103 q=3] field=bestBid shadow=104 real=108
+  BUG   step 935 [SUBMIT id=774 SELL MTL GTC px=103 q=3] field=orderCount shadow=4 real=5
+  BUG   step 936 [CANCEL id=764] field=bestBid shadow=104 real=108
+  BUG   step 936 [CANCEL id=764] field=orderCount shadow=3 real=4
+  BUG   step 937 [SUBMIT id=775 SELL LIMIT GTC px=99 q=5 dq=2] field=trades shadow=[{agg=775 pas=740 @104 q=5}, {agg=768 pas=740 @104 q=10}, {agg=768 pas=751 @103 q=5}, {agg=773 pas=763 @102 q=2}] real=[{agg=775 pas=755 @108 q=5}]
+  BUG   step 937 [SUBMIT id=775 SELL LIMIT GTC px=99 q=5 dq=2] field=bestBid shadow=102 real=104
+  BUG   step 937 [SUBMIT id=775 SELL LIMIT GTC px=99 q=5 dq=2] field=orderCount shadow=1 real=3
+  BUG   step 937 [SUBMIT id=775 SELL LIMIT GTC px=99 q=5 dq=2] field=lastTradePrice shadow=102 real=108
+  BUG   step 937 [SUBMIT id=775 SELL LIMIT GTC px=99 q=5 dq=2] field=stopCount shadow=22 real=24
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         938
+  Submits:           776
+  Cancels:           102
+  Amends:            60
+  Trades produced:   152
+  Divergences total: 22  (BUG=22  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 925 [SUBMIT id=766 SELL LIMIT GTC px=105 q=20] trades:
+          shadow = [{agg=766 pas=755 @108 q=8}, {agg=766 pas=757 @108 q=12}]
+          real   = [{agg=766 pas=757 @108 q=20}]
+    [BUG  ] step 928 [SUBMIT id=769 SELL MARKET FOK px=0 q=1] trades:
+          shadow = [{agg=769 pas=757 @108 q=1}]
+          real   = [{agg=769 pas=755 @108 q=1}]
+    [BUG  ] step 929 [SUBMIT id=770 SELL STP_MKT FOK px=0 q=2 sp=108] trades:
+          shadow = [{agg=770 pas=757 @108 q=2}]
+          real   = [{agg=770 pas=755 @108 q=2}]
+    [BUG  ] step 933 [CANCEL id=757] cancelled:
+          shadow = [{757:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 933 [CANCEL id=757] bestBid:
+          shadow = 104
+          real   = 108
+    [BUG  ] step 933 [CANCEL id=757] orderCount:
+          shadow = 4
+          real   = 5
+    [BUG  ] step 934 [SUBMIT id=773 SELL STP_MKT FOK px=0 q=2 sp=107] bestBid:
+          shadow = 104
+          real   = 108
+    [BUG  ] step 934 [SUBMIT id=773 SELL STP_MKT FOK px=0 q=2 sp=107] orderCount:
+          shadow = 4
+          real   = 5
+    [BUG  ] step 935 [SUBMIT id=774 SELL MTL GTC px=103 q=3] bestBid:
+          shadow = 104
+          real   = 108
+    [BUG  ] step 935 [SUBMIT id=774 SELL MTL GTC px=103 q=3] orderCount:
+          shadow = 4
+          real   = 5
+    [BUG  ] step 936 [CANCEL id=764] bestBid:
+          shadow = 104
+          real   = 108
+    [BUG  ] step 936 [CANCEL id=764] orderCount:
+          shadow = 3
+          real   = 4
+    [BUG  ] step 937 [SUBMIT id=775 SELL LIMIT GTC px=99 q=5 dq=2] trades:
+          shadow = [{agg=775 pas=740 @104 q=5}, {agg=768 pas=740 @104 q=10}, {agg=768 pas=751 @103 q=5}, {agg=773 pas=763 @102 q=2}]
+          real   = [{agg=775 pas=755 @108 q=5}]
+    [BUG  ] step 937 [SUBMIT id=775 SELL LIMIT GTC px=99 q=5 dq=2] bestBid:
+          shadow = 102
+          real   = 104
+    [BUG  ] step 937 [SUBMIT id=775 SELL LIMIT GTC px=99 q=5 dq=2] orderCount:
+          shadow = 1
+          real   = 3
+    [BUG  ] step 937 [SUBMIT id=775 SELL LIMIT GTC px=99 q=5 dq=2] lastTradePrice:
+          shadow = 102
+          real   = 108
+    [BUG  ] step 937 [SUBMIT id=775 SELL LIMIT GTC px=99 q=5 dq=2] stopCount:
+          shadow = 22
+          real   = 24
+    [BUG  ] step 938 [SUBMIT id=776 BUY STP_MKT IOC px=0 q=20 sp=105] cancelled:
+          shadow = []
+          real   = [{776:IOC_REMAINDER}]
+    [BUG  ] step 938 [SUBMIT id=776 BUY STP_MKT IOC px=0 q=20 sp=105] bestBid:
+          shadow = 102
+          real   = 104
+    [BUG  ] step 938 [SUBMIT id=776 BUY STP_MKT IOC px=0 q=20 sp=105] orderCount:
+          shadow = 1
+          real   = 3
+    [BUG  ] step 938 [SUBMIT id=776 BUY STP_MKT IOC px=0 q=20 sp=105] lastTradePrice:
+          shadow = 102
+          real   = 108
+    [BUG  ] step 938 [SUBMIT id=776 BUY STP_MKT IOC px=0 q=20 sp=105] stopCount:
+          shadow = 23
+          real   = 24
+
+  Result: FAIL
+=========================================================

@@ -1,0 +1,105 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  326
+
+  BUG   step 2110 [SUBMIT id=1741 SELL LIMIT DAY px=105 q=3 stg=2] field=trades shadow=[] real=[{agg=1741 pas=1727 @106 q=3}]
+  BUG   step 2110 [SUBMIT id=1741 SELL LIMIT DAY px=105 q=3 stg=2] field=orderCount shadow=8 real=7
+  BUG   step 2111 [AMEND id=1736 px=0 qty=17] field=orderCount shadow=8 real=7
+  BUG   step 2112 [AMEND id=1727 px=0 qty=3] field=orderCount shadow=8 real=7
+  BUG   step 2113 [SUBMIT id=1742 SELL STP_LIM DAY px=106 q=1 sp=106] field=orderCount shadow=8 real=7
+  BUG   step 2114 [SUBMIT id=1743 SELL MTL GTC px=97 q=10] field=orderCount shadow=8 real=7
+  BUG   step 2115 [CANCEL id=1724] field=orderCount shadow=7 real=6
+  BUG   step 2116 [SUBMIT id=1744 SELL LIMIT IOC px=112 q=10] field=orderCount shadow=7 real=6
+  BUG   step 2117 [SUBMIT id=1745 BUY LIMIT IOC px=107 q=5 mq=4] field=orderCount shadow=7 real=6
+  BUG   step 2118 [SUBMIT id=1746 SELL LIMIT GTC px=105 q=2 stg=2] field=trades shadow=[{agg=1746 pas=1727 @106 q=2}] real=[{agg=1746 pas=589 @105 q=2}]
+  BUG   step 2118 [SUBMIT id=1746 SELL LIMIT GTC px=105 q=2 stg=2] field=cancelled shadow=[{1460:STP_CANCEL_OLDEST}] real=[{1460:STP_CANCEL_OLDEST}, {1731:IOC_REMAINDER}]
+  BUG   step 2118 [SUBMIT id=1746 SELL LIMIT GTC px=105 q=2 stg=2] field=bestBid shadow=106 real=105
+  BUG   step 2118 [SUBMIT id=1746 SELL LIMIT GTC px=105 q=2 stg=2] field=orderCount shadow=6 real=4
+  BUG   step 2118 [SUBMIT id=1746 SELL LIMIT GTC px=105 q=2 stg=2] field=lastTradePrice shadow=106 real=105
+  BUG   step 2118 [SUBMIT id=1746 SELL LIMIT GTC px=105 q=2 stg=2] field=stopCount shadow=41 real=40
+  BUG   step 2119 [AMEND id=1727 px=109 qty=0] field=trades shadow=[{agg=1727 pas=1735 @107 q=1}] real=[]
+  BUG   step 2119 [AMEND id=1727 px=109 qty=0] field=orderCount shadow=5 real=4
+  BUG   step 2119 [AMEND id=1727 px=109 qty=0] field=lastTradePrice shadow=107 real=105
+  BUG   step 2119 [AMEND id=1727 px=109 qty=0] field=stopCount shadow=41 real=40
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         2120
+  Submits:           1747
+  Cancels:           240
+  Amends:            133
+  Trades produced:   397
+  Divergences total: 22  (BUG=22  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 2110 [SUBMIT id=1741 SELL LIMIT DAY px=105 q=3 stg=2] trades:
+          shadow = []
+          real   = [{agg=1741 pas=1727 @106 q=3}]
+    [BUG  ] step 2110 [SUBMIT id=1741 SELL LIMIT DAY px=105 q=3 stg=2] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 2111 [AMEND id=1736 px=0 qty=17] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 2112 [AMEND id=1727 px=0 qty=3] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 2113 [SUBMIT id=1742 SELL STP_LIM DAY px=106 q=1 sp=106] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 2114 [SUBMIT id=1743 SELL MTL GTC px=97 q=10] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 2115 [CANCEL id=1724] orderCount:
+          shadow = 7
+          real   = 6
+    [BUG  ] step 2116 [SUBMIT id=1744 SELL LIMIT IOC px=112 q=10] orderCount:
+          shadow = 7
+          real   = 6
+    [BUG  ] step 2117 [SUBMIT id=1745 BUY LIMIT IOC px=107 q=5 mq=4] orderCount:
+          shadow = 7
+          real   = 6
+    [BUG  ] step 2118 [SUBMIT id=1746 SELL LIMIT GTC px=105 q=2 stg=2] trades:
+          shadow = [{agg=1746 pas=1727 @106 q=2}]
+          real   = [{agg=1746 pas=589 @105 q=2}]
+    [BUG  ] step 2118 [SUBMIT id=1746 SELL LIMIT GTC px=105 q=2 stg=2] cancelled:
+          shadow = [{1460:STP_CANCEL_OLDEST}]
+          real   = [{1460:STP_CANCEL_OLDEST}, {1731:IOC_REMAINDER}]
+    [BUG  ] step 2118 [SUBMIT id=1746 SELL LIMIT GTC px=105 q=2 stg=2] bestBid:
+          shadow = 106
+          real   = 105
+    [BUG  ] step 2118 [SUBMIT id=1746 SELL LIMIT GTC px=105 q=2 stg=2] orderCount:
+          shadow = 6
+          real   = 4
+    [BUG  ] step 2118 [SUBMIT id=1746 SELL LIMIT GTC px=105 q=2 stg=2] lastTradePrice:
+          shadow = 106
+          real   = 105
+    [BUG  ] step 2118 [SUBMIT id=1746 SELL LIMIT GTC px=105 q=2 stg=2] stopCount:
+          shadow = 41
+          real   = 40
+    [BUG  ] step 2119 [AMEND id=1727 px=109 qty=0] trades:
+          shadow = [{agg=1727 pas=1735 @107 q=1}]
+          real   = []
+    [BUG  ] step 2119 [AMEND id=1727 px=109 qty=0] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 2119 [AMEND id=1727 px=109 qty=0] lastTradePrice:
+          shadow = 107
+          real   = 105
+    [BUG  ] step 2119 [AMEND id=1727 px=109 qty=0] stopCount:
+          shadow = 41
+          real   = 40
+    [BUG  ] step 2120 [SUBMIT id=1747 SELL LIMIT DAY px=109 q=10] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 2120 [SUBMIT id=1747 SELL LIMIT DAY px=109 q=10] lastTradePrice:
+          shadow = 107
+          real   = 105
+    [BUG  ] step 2120 [SUBMIT id=1747 SELL LIMIT DAY px=109 q=10] stopCount:
+          shadow = 41
+          real   = 40
+
+  Result: FAIL
+=========================================================

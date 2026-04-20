@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  30
+
+  BUG   step 3299 [AMEND id=2758 px=98 qty=16] field=trades shadow=[{agg=2758 pas=2750 @104 q=3}] real=[{agg=2758 pas=2750 @104 q=3}, {agg=2758 pas=2757 @98 q=13}]
+  BUG   step 3299 [AMEND id=2758 px=98 qty=16] field=cancelled shadow=[{2758:STP_CANCEL_BOTH}, {2746:STP_CANCEL_BOTH}] real=[]
+  BUG   step 3299 [AMEND id=2758 px=98 qty=16] field=orderCount shadow=2 real=3
+  BUG   step 3299 [AMEND id=2758 px=98 qty=16] field=lastTradePrice shadow=104 real=98
+  BUG   step 3300 [SUBMIT id=2760 SELL LIMIT FOK px=99 q=3] field=orderCount shadow=2 real=3
+  BUG   step 3300 [SUBMIT id=2760 SELL LIMIT FOK px=99 q=3] field=lastTradePrice shadow=104 real=98
+  BUG   step 3301 [SUBMIT id=2761 SELL STP_LIM IOC px=98 q=20 sp=98] field=trades shadow=[] real=[{agg=2761 pas=2757 @98 q=2}, {agg=2761 pas=2746 @98 q=8}]
+  BUG   step 3301 [SUBMIT id=2761 SELL STP_LIM IOC px=98 q=20 sp=98] field=cancelled shadow=[] real=[{2761:IOC_REMAINDER}]
+  BUG   step 3301 [SUBMIT id=2761 SELL STP_LIM IOC px=98 q=20 sp=98] field=bestBid shadow=98 real=0
+  BUG   step 3301 [SUBMIT id=2761 SELL STP_LIM IOC px=98 q=20 sp=98] field=orderCount shadow=2 real=1
+  BUG   step 3301 [SUBMIT id=2761 SELL STP_LIM IOC px=98 q=20 sp=98] field=lastTradePrice shadow=104 real=98
+  BUG   step 3301 [SUBMIT id=2761 SELL STP_LIM IOC px=98 q=20 sp=98] field=stopCount shadow=49 real=48
+  BUG   step 3302 [SUBMIT id=2762 SELL STP_LIM GTC px=98 q=3 sp=98] field=bestBid shadow=98 real=0
+  BUG   step 3302 [SUBMIT id=2762 SELL STP_LIM GTC px=98 q=3 sp=98] field=bestAsk shadow=110 real=98
+  BUG   step 3302 [SUBMIT id=2762 SELL STP_LIM GTC px=98 q=3 sp=98] field=lastTradePrice shadow=104 real=98
+  BUG   step 3302 [SUBMIT id=2762 SELL STP_LIM GTC px=98 q=3 sp=98] field=stopCount shadow=50 real=48
+  BUG   step 3303 [SUBMIT id=2763 SELL LIMIT GTC px=109 q=5] field=bestBid shadow=98 real=0
+  BUG   step 3303 [SUBMIT id=2763 SELL LIMIT GTC px=109 q=5] field=bestAsk shadow=109 real=98
+  BUG   step 3303 [SUBMIT id=2763 SELL LIMIT GTC px=109 q=5] field=lastTradePrice shadow=104 real=98
+  BUG   step 3303 [SUBMIT id=2763 SELL LIMIT GTC px=109 q=5] field=stopCount shadow=50 real=48
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         3303
+  Submits:           2763
+  Cancels:           315
+  Amends:            225
+  Trades produced:   718
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 3299 [AMEND id=2758 px=98 qty=16] trades:
+          shadow = [{agg=2758 pas=2750 @104 q=3}]
+          real   = [{agg=2758 pas=2750 @104 q=3}, {agg=2758 pas=2757 @98 q=13}]
+    [BUG  ] step 3299 [AMEND id=2758 px=98 qty=16] cancelled:
+          shadow = [{2758:STP_CANCEL_BOTH}, {2746:STP_CANCEL_BOTH}]
+          real   = []
+    [BUG  ] step 3299 [AMEND id=2758 px=98 qty=16] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 3299 [AMEND id=2758 px=98 qty=16] lastTradePrice:
+          shadow = 104
+          real   = 98
+    [BUG  ] step 3300 [SUBMIT id=2760 SELL LIMIT FOK px=99 q=3] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 3300 [SUBMIT id=2760 SELL LIMIT FOK px=99 q=3] lastTradePrice:
+          shadow = 104
+          real   = 98
+    [BUG  ] step 3301 [SUBMIT id=2761 SELL STP_LIM IOC px=98 q=20 sp=98] trades:
+          shadow = []
+          real   = [{agg=2761 pas=2757 @98 q=2}, {agg=2761 pas=2746 @98 q=8}]
+    [BUG  ] step 3301 [SUBMIT id=2761 SELL STP_LIM IOC px=98 q=20 sp=98] cancelled:
+          shadow = []
+          real   = [{2761:IOC_REMAINDER}]
+    [BUG  ] step 3301 [SUBMIT id=2761 SELL STP_LIM IOC px=98 q=20 sp=98] bestBid:
+          shadow = 98
+          real   = 0
+    [BUG  ] step 3301 [SUBMIT id=2761 SELL STP_LIM IOC px=98 q=20 sp=98] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 3301 [SUBMIT id=2761 SELL STP_LIM IOC px=98 q=20 sp=98] lastTradePrice:
+          shadow = 104
+          real   = 98
+    [BUG  ] step 3301 [SUBMIT id=2761 SELL STP_LIM IOC px=98 q=20 sp=98] stopCount:
+          shadow = 49
+          real   = 48
+    [BUG  ] step 3302 [SUBMIT id=2762 SELL STP_LIM GTC px=98 q=3 sp=98] bestBid:
+          shadow = 98
+          real   = 0
+    [BUG  ] step 3302 [SUBMIT id=2762 SELL STP_LIM GTC px=98 q=3 sp=98] bestAsk:
+          shadow = 110
+          real   = 98
+    [BUG  ] step 3302 [SUBMIT id=2762 SELL STP_LIM GTC px=98 q=3 sp=98] lastTradePrice:
+          shadow = 104
+          real   = 98
+    [BUG  ] step 3302 [SUBMIT id=2762 SELL STP_LIM GTC px=98 q=3 sp=98] stopCount:
+          shadow = 50
+          real   = 48
+    [BUG  ] step 3303 [SUBMIT id=2763 SELL LIMIT GTC px=109 q=5] bestBid:
+          shadow = 98
+          real   = 0
+    [BUG  ] step 3303 [SUBMIT id=2763 SELL LIMIT GTC px=109 q=5] bestAsk:
+          shadow = 109
+          real   = 98
+    [BUG  ] step 3303 [SUBMIT id=2763 SELL LIMIT GTC px=109 q=5] lastTradePrice:
+          shadow = 104
+          real   = 98
+    [BUG  ] step 3303 [SUBMIT id=2763 SELL LIMIT GTC px=109 q=5] stopCount:
+          shadow = 50
+          real   = 48
+
+  Result: FAIL
+=========================================================

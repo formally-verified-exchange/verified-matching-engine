@@ -30,7 +30,6 @@ matcher_lean/                    Self-contained Lean 4 project
     Tests.lean,
     Theorems.lean                Constructive proof (3,986 lines)
     TheoremsElegant.lean         Structural proof (312 lines)
-matcher_c/                       Reference C implementation
 matcher_stl/                     Reference C++ (STL) implementation
 paper.tex / paper.pdf            Paper manuscript
 ```

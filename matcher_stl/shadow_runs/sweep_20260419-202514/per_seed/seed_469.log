@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  469
+
+  BUG   step 2869 [SUBMIT id=2357 BUY LIMIT IOC px=102 q=1] field=trades shadow=[{agg=2357 pas=2347 @100 q=1}] real=[{agg=2357 pas=2354 @100 q=1}]
+  BUG   step 2870 [SUBMIT id=2358 BUY STP_MKT IOC px=0 q=2 sp=100] field=trades shadow=[{agg=2358 pas=2347 @100 q=2}] real=[{agg=2358 pas=2354 @100 q=2}]
+  BUG   step 2870 [SUBMIT id=2358 BUY STP_MKT IOC px=0 q=2 sp=100] field=orderCount shadow=2 real=3
+  BUG   step 2871 [SUBMIT id=2359 BUY MTL DAY px=101 q=3 stg=2] field=orderCount shadow=2 real=3
+  BUG   step 2872 [CANCEL id=2355] field=orderCount shadow=1 real=2
+  BUG   step 2873 [SUBMIT id=2360 SELL LIMIT GTC px=101 q=15 mq=6] field=orderCount shadow=1 real=2
+  BUG   step 2874 [CANCEL id=2354] field=bestAsk shadow=0 real=100
+  BUG   step 2874 [CANCEL id=2354] field=orderCount shadow=0 real=1
+  BUG   step 2875 [SUBMIT id=2361 SELL LIMIT FOK px=99 q=2] field=bestAsk shadow=0 real=100
+  BUG   step 2875 [SUBMIT id=2361 SELL LIMIT FOK px=99 q=2] field=orderCount shadow=0 real=1
+  BUG   step 2876 [SUBMIT id=2362 BUY LIMIT DAY px=95 q=2 PO] field=bestAsk shadow=0 real=100
+  BUG   step 2876 [SUBMIT id=2362 BUY LIMIT DAY px=95 q=2 PO] field=orderCount shadow=1 real=2
+  BUG   step 2877 [CANCEL id=2362] field=bestAsk shadow=0 real=100
+  BUG   step 2877 [CANCEL id=2362] field=orderCount shadow=0 real=1
+  BUG   step 2878 [SUBMIT id=2363 SELL STP_LIM IOC px=109 q=10 sp=101 stg=1] field=bestAsk shadow=0 real=100
+  BUG   step 2878 [SUBMIT id=2363 SELL STP_LIM IOC px=109 q=10 sp=101 stg=1] field=orderCount shadow=0 real=1
+  BUG   step 2879 [SUBMIT id=2364 SELL LIMIT GTC px=108 q=8] field=bestAsk shadow=108 real=100
+  BUG   step 2879 [SUBMIT id=2364 SELL LIMIT GTC px=108 q=8] field=orderCount shadow=1 real=2
+  BUG   step 2880 [CANCEL id=2364] field=bestAsk shadow=0 real=100
+  BUG   step 2880 [CANCEL id=2364] field=orderCount shadow=0 real=1
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         2880
+  Submits:           2364
+  Cancels:           312
+  Amends:            204
+  Trades produced:   585
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 2869 [SUBMIT id=2357 BUY LIMIT IOC px=102 q=1] trades:
+          shadow = [{agg=2357 pas=2347 @100 q=1}]
+          real   = [{agg=2357 pas=2354 @100 q=1}]
+    [BUG  ] step 2870 [SUBMIT id=2358 BUY STP_MKT IOC px=0 q=2 sp=100] trades:
+          shadow = [{agg=2358 pas=2347 @100 q=2}]
+          real   = [{agg=2358 pas=2354 @100 q=2}]
+    [BUG  ] step 2870 [SUBMIT id=2358 BUY STP_MKT IOC px=0 q=2 sp=100] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 2871 [SUBMIT id=2359 BUY MTL DAY px=101 q=3 stg=2] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 2872 [CANCEL id=2355] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2873 [SUBMIT id=2360 SELL LIMIT GTC px=101 q=15 mq=6] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2874 [CANCEL id=2354] bestAsk:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 2874 [CANCEL id=2354] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 2875 [SUBMIT id=2361 SELL LIMIT FOK px=99 q=2] bestAsk:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 2875 [SUBMIT id=2361 SELL LIMIT FOK px=99 q=2] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 2876 [SUBMIT id=2362 BUY LIMIT DAY px=95 q=2 PO] bestAsk:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 2876 [SUBMIT id=2362 BUY LIMIT DAY px=95 q=2 PO] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2877 [CANCEL id=2362] bestAsk:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 2877 [CANCEL id=2362] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 2878 [SUBMIT id=2363 SELL STP_LIM IOC px=109 q=10 sp=101 stg=1] bestAsk:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 2878 [SUBMIT id=2363 SELL STP_LIM IOC px=109 q=10 sp=101 stg=1] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 2879 [SUBMIT id=2364 SELL LIMIT GTC px=108 q=8] bestAsk:
+          shadow = 108
+          real   = 100
+    [BUG  ] step 2879 [SUBMIT id=2364 SELL LIMIT GTC px=108 q=8] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2880 [CANCEL id=2364] bestAsk:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 2880 [CANCEL id=2364] orderCount:
+          shadow = 0
+          real   = 1
+
+  Result: FAIL
+=========================================================

@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  246
+
+  BUG   step 2399 [SUBMIT id=1950 BUY STP_MKT FOK px=0 q=3 sp=93] field=trades shadow=[{agg=1950 pas=1920 @95 q=2}, {agg=1950 pas=1790 @96 q=1}, {agg=1929 pas=1790 @96 q=1}, {agg=1929 pas=1925 @96 q=1}, {agg=1948 pas=1925 @96 q=15}] real=[{agg=1950 pas=1920 @95 q=2}, {agg=1950 pas=1925 @96 q=1}, {agg=1929 pas=1925 @96 q=2}, {agg=1948 pas=1925 @96 q=15}]
+  BUG   step 2399 [SUBMIT id=1950 BUY STP_MKT FOK px=0 q=3 sp=93] field=orderCount shadow=9 real=10
+  BUG   step 2400 [SUBMIT id=1951 SELL STP_MKT FOK px=0 q=2 sp=96] field=orderCount shadow=9 real=10
+  BUG   step 2401 [SUBMIT id=1952 SELL LIMIT IOC px=93 q=3] field=orderCount shadow=9 real=10
+  BUG   step 2402 [SUBMIT id=1953 BUY STP_MKT IOC px=0 q=3 sp=93] field=trades shadow=[{agg=1953 pas=1925 @96 q=3}] real=[{agg=1953 pas=1925 @96 q=2}, {agg=1953 pas=1932 @96 q=1}]
+  BUG   step 2418 [SUBMIT id=1965 BUY LIMIT DAY px=96 q=1] field=trades shadow=[{agg=1965 pas=1925 @96 q=1}] real=[{agg=1965 pas=1790 @96 q=1}]
+  BUG   step 2418 [SUBMIT id=1965 BUY LIMIT DAY px=96 q=1] field=bestAsk shadow=97 real=96
+  BUG   step 2418 [SUBMIT id=1965 BUY LIMIT DAY px=96 q=1] field=orderCount shadow=8 real=9
+  BUG   step 2419 [AMEND id=1463 px=99 qty=20] field=bestAsk shadow=97 real=96
+  BUG   step 2419 [AMEND id=1463 px=99 qty=20] field=orderCount shadow=8 real=9
+  BUG   step 2420 [SUBMIT id=1966 BUY MARKET FOK px=0 q=2] field=trades shadow=[{agg=1966 pas=1963 @97 q=2}] real=[{agg=1966 pas=1790 @96 q=1}, {agg=1966 pas=1963 @97 q=1}]
+  BUG   step 2423 [SUBMIT id=1968 BUY LIMIT DAY px=98 q=8 stg=2] field=orderCount shadow=7 real=8
+  BUG   step 2424 [SUBMIT id=1969 SELL LIMIT DAY px=98 q=10 dq=8] field=orderCount shadow=8 real=9
+  BUG   step 2425 [SUBMIT id=1970 BUY MTL GTC px=96 q=5] field=orderCount shadow=8 real=9
+  BUG   step 2426 [SUBMIT id=1971 SELL LIMIT GTC px=102 q=5] field=orderCount shadow=9 real=10
+  BUG   step 2427 [SUBMIT id=1972 BUY LIMIT GTC px=98 q=1] field=trades shadow=[{agg=1972 pas=1932 @97 q=1}] real=[{agg=1972 pas=1963 @97 q=1}]
+  BUG   step 2444 [SUBMIT id=1987 BUY MARKET IOC px=0 q=15] field=trades shadow=[{agg=1987 pas=1932 @97 q=1}, {agg=1987 pas=1978 @97 q=3}, {agg=1987 pas=1969 @98 q=8}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1933 @100 q=8}, {agg=1915 pas=1971 @102 q=2}, {agg=1893 pas=1983 @102 q=2}, {agg=1909 pas=1983 @102 q=7}, {agg=1909 pas=1983 @102 q=1}, {agg=1986 pas=1983 @102 q=3}, {agg=1915 pas=1983 @102 q=3}, {agg=1985 pas=1983 @102 q=2}, {agg=1922 pas=140 @102 q=2}, {agg=1922 pas=1971 @102 q=3}, {agg=1923 pas=1983 @102 q=2}, {agg=1923 pas=640 @104 q=10}, {agg=1923 pas=1941 @107 q=3}, {agg=1894 pas=1941 @107 q=8}, {agg=1974 pas=1941 @107 q=4}, {agg=1987 pas=1977 @98 q=1}, {agg=1987 pas=1969 @98 q=2}] real=[{agg=1987 pas=1932 @97 q=2}, {agg=1987 pas=1978 @97 q=3}, {agg=1987 pas=1969 @98 q=8}, {agg=1922 pas=1969 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1933 @100 q=8}, {agg=1915 pas=1971 @102 q=3}, {agg=1893 pas=1983 @102 q=2}, {agg=1909 pas=1983 @102 q=8}, {agg=1986 pas=1983 @102 q=3}, {agg=1915 pas=1983 @102 q=2}, {agg=1985 pas=1983 @102 q=2}, {agg=1922 pas=140 @102 q=2}, {agg=1922 pas=1971 @102 q=2}, {agg=1923 pas=1983 @102 q=3}, {agg=1923 pas=640 @104 q=10}, {agg=1923 pas=1941 @107 q=2}, {agg=1894 pas=1941 @107 q=8}, {agg=1974 pas=1941 @107 q=5}, {agg=1987 pas=1977 @98 q=1}, {agg=1987 pas=1969 @98 q=1}]
+  BUG   step 2883 [SUBMIT id=2346 BUY LIMIT IOC px=94 q=2 stg=1] field=trades shadow=[{agg=2346 pas=2342 @93 q=2}] real=[{agg=2346 pas=2345 @93 q=2}]
+  BUG   step 2893 [SUBMIT id=2356 BUY STP_LIM IOC px=100 q=1 sp=92] field=trades shadow=[{agg=2356 pas=2342 @93 q=1}] real=[{agg=2356 pas=2345 @93 q=1}]
+  BUG   step 2993 [SUBMIT id=2433 SELL STP_MKT FOK px=0 q=15 sp=109] field=trades shadow=[{agg=2433 pas=2351 @107 q=15}] real=[{agg=2433 pas=2423 @107 q=11}, {agg=2433 pas=2351 @107 q=4}]
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         2993
+  Submits:           2433
+  Cancels:           335
+  Amends:            225
+  Trades produced:   615
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 2399 [SUBMIT id=1950 BUY STP_MKT FOK px=0 q=3 sp=93] trades:
+          shadow = [{agg=1950 pas=1920 @95 q=2}, {agg=1950 pas=1790 @96 q=1}, {agg=1929 pas=1790 @96 q=1}, {agg=1929 pas=1925 @96 q=1}, {agg=1948 pas=1925 @96 q=15}]
+          real   = [{agg=1950 pas=1920 @95 q=2}, {agg=1950 pas=1925 @96 q=1}, {agg=1929 pas=1925 @96 q=2}, {agg=1948 pas=1925 @96 q=15}]
+    [BUG  ] step 2399 [SUBMIT id=1950 BUY STP_MKT FOK px=0 q=3 sp=93] orderCount:
+          shadow = 9
+          real   = 10
+    [BUG  ] step 2400 [SUBMIT id=1951 SELL STP_MKT FOK px=0 q=2 sp=96] orderCount:
+          shadow = 9
+          real   = 10
+    [BUG  ] step 2401 [SUBMIT id=1952 SELL LIMIT IOC px=93 q=3] orderCount:
+          shadow = 9
+          real   = 10
+    [BUG  ] step 2402 [SUBMIT id=1953 BUY STP_MKT IOC px=0 q=3 sp=93] trades:
+          shadow = [{agg=1953 pas=1925 @96 q=3}]
+          real   = [{agg=1953 pas=1925 @96 q=2}, {agg=1953 pas=1932 @96 q=1}]
+    [BUG  ] step 2418 [SUBMIT id=1965 BUY LIMIT DAY px=96 q=1] trades:
+          shadow = [{agg=1965 pas=1925 @96 q=1}]
+          real   = [{agg=1965 pas=1790 @96 q=1}]
+    [BUG  ] step 2418 [SUBMIT id=1965 BUY LIMIT DAY px=96 q=1] bestAsk:
+          shadow = 97
+          real   = 96
+    [BUG  ] step 2418 [SUBMIT id=1965 BUY LIMIT DAY px=96 q=1] orderCount:
+          shadow = 8
+          real   = 9
+    [BUG  ] step 2419 [AMEND id=1463 px=99 qty=20] bestAsk:
+          shadow = 97
+          real   = 96
+    [BUG  ] step 2419 [AMEND id=1463 px=99 qty=20] orderCount:
+          shadow = 8
+          real   = 9
+    [BUG  ] step 2420 [SUBMIT id=1966 BUY MARKET FOK px=0 q=2] trades:
+          shadow = [{agg=1966 pas=1963 @97 q=2}]
+          real   = [{agg=1966 pas=1790 @96 q=1}, {agg=1966 pas=1963 @97 q=1}]
+    [BUG  ] step 2423 [SUBMIT id=1968 BUY LIMIT DAY px=98 q=8 stg=2] orderCount:
+          shadow = 7
+          real   = 8
+    [BUG  ] step 2424 [SUBMIT id=1969 SELL LIMIT DAY px=98 q=10 dq=8] orderCount:
+          shadow = 8
+          real   = 9
+    [BUG  ] step 2425 [SUBMIT id=1970 BUY MTL GTC px=96 q=5] orderCount:
+          shadow = 8
+          real   = 9
+    [BUG  ] step 2426 [SUBMIT id=1971 SELL LIMIT GTC px=102 q=5] orderCount:
+          shadow = 9
+          real   = 10
+    [BUG  ] step 2427 [SUBMIT id=1972 BUY LIMIT GTC px=98 q=1] trades:
+          shadow = [{agg=1972 pas=1932 @97 q=1}]
+          real   = [{agg=1972 pas=1963 @97 q=1}]
+    [BUG  ] step 2444 [SUBMIT id=1987 BUY MARKET IOC px=0 q=15] trades:
+          shadow = [{agg=1987 pas=1932 @97 q=1}, {agg=1987 pas=1978 @97 q=3}, {agg=1987 pas=1969 @98 q=8}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1933 @100 q=8}, {agg=1915 pas=1971 @102 q=2}, {agg=1893 pas=1983 @102 q=2}, {agg=1909 pas=1983 @102 q=7}, {agg=1909 pas=1983 @102 q=1}, {agg=1986 pas=1983 @102 q=3}, {agg=1915 pas=1983 @102 q=3}, {agg=1985 pas=1983 @102 q=2}, {agg=1922 pas=140 @102 q=2}, {agg=1922 pas=1971 @102 q=3}, {agg=1923 pas=1983 @102 q=2}, {agg=1923 pas=640 @104 q=10}, {agg=1923 pas=1941 @107 q=3}, {agg=1894 pas=1941 @107 q=8}, {agg=1974 pas=1941 @107 q=4}, {agg=1987 pas=1977 @98 q=1}, {agg=1987 pas=1969 @98 q=2}]
+          real   = [{agg=1987 pas=1932 @97 q=2}, {agg=1987 pas=1978 @97 q=3}, {agg=1987 pas=1969 @98 q=8}, {agg=1922 pas=1969 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1977 @98 q=1}, {agg=1922 pas=1933 @100 q=8}, {agg=1915 pas=1971 @102 q=3}, {agg=1893 pas=1983 @102 q=2}, {agg=1909 pas=1983 @102 q=8}, {agg=1986 pas=1983 @102 q=3}, {agg=1915 pas=1983 @102 q=2}, {agg=1985 pas=1983 @102 q=2}, {agg=1922 pas=140 @102 q=2}, {agg=1922 pas=1971 @102 q=2}, {agg=1923 pas=1983 @102 q=3}, {agg=1923 pas=640 @104 q=10}, {agg=1923 pas=1941 @107 q=2}, {agg=1894 pas=1941 @107 q=8}, {agg=1974 pas=1941 @107 q=5}, {agg=1987 pas=1977 @98 q=1}, {agg=1987 pas=1969 @98 q=1}]
+    [BUG  ] step 2883 [SUBMIT id=2346 BUY LIMIT IOC px=94 q=2 stg=1] trades:
+          shadow = [{agg=2346 pas=2342 @93 q=2}]
+          real   = [{agg=2346 pas=2345 @93 q=2}]
+    [BUG  ] step 2893 [SUBMIT id=2356 BUY STP_LIM IOC px=100 q=1 sp=92] trades:
+          shadow = [{agg=2356 pas=2342 @93 q=1}]
+          real   = [{agg=2356 pas=2345 @93 q=1}]
+    [BUG  ] step 2993 [SUBMIT id=2433 SELL STP_MKT FOK px=0 q=15 sp=109] trades:
+          shadow = [{agg=2433 pas=2351 @107 q=15}]
+          real   = [{agg=2433 pas=2423 @107 q=11}, {agg=2433 pas=2351 @107 q=4}]
+
+  Result: FAIL
+=========================================================

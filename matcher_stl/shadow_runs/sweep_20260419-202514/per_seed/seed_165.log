@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  165
+
+  BUG   step 601 [SUBMIT id=525 SELL LIMIT IOC px=108 q=15 mq=7] field=trades shadow=[{agg=525 pas=524 @109 q=5}, {agg=525 pas=521 @108 q=10}] real=[{agg=525 pas=524 @109 q=5}, {agg=525 pas=522 @108 q=5}, {agg=525 pas=521 @108 q=5}]
+  BUG   step 601 [SUBMIT id=525 SELL LIMIT IOC px=108 q=15 mq=7] field=orderCount shadow=2 real=1
+  BUG   step 602 [AMEND id=521 px=109 qty=16] field=orderCount shadow=2 real=1
+  BUG   step 603 [AMEND id=521 px=102 qty=0] field=bestBid shadow=108 real=102
+  BUG   step 603 [AMEND id=521 px=102 qty=0] field=orderCount shadow=2 real=1
+  BUG   step 604 [SUBMIT id=526 BUY STP_MKT IOC px=0 q=3 sp=118 stg=2] field=bestBid shadow=108 real=102
+  BUG   step 604 [SUBMIT id=526 BUY STP_MKT IOC px=0 q=3 sp=118 stg=2] field=orderCount shadow=2 real=1
+  BUG   step 605 [SUBMIT id=527 SELL STP_LIM IOC px=105 q=10 sp=102] field=bestBid shadow=108 real=102
+  BUG   step 605 [SUBMIT id=527 SELL STP_LIM IOC px=105 q=10 sp=102] field=orderCount shadow=2 real=1
+  BUG   step 606 [SUBMIT id=528 SELL STP_LIM DAY px=107 q=5 sp=109] field=trades shadow=[{agg=528 pas=522 @108 q=5}] real=[]
+  BUG   step 606 [SUBMIT id=528 SELL STP_LIM DAY px=107 q=5 sp=109] field=bestAsk shadow=0 real=107
+  BUG   step 606 [SUBMIT id=528 SELL STP_LIM DAY px=107 q=5 sp=109] field=orderCount shadow=1 real=2
+  BUG   step 607 [CANCEL id=521] field=bestAsk shadow=0 real=107
+  BUG   step 607 [CANCEL id=521] field=orderCount shadow=0 real=1
+  BUG   step 608 [SUBMIT id=529 SELL LIMIT IOC px=98 q=3] field=bestAsk shadow=0 real=107
+  BUG   step 608 [SUBMIT id=529 SELL LIMIT IOC px=98 q=3] field=orderCount shadow=0 real=1
+  BUG   step 609 [SUBMIT id=530 BUY STP_MKT FOK px=0 q=10 sp=111] field=bestAsk shadow=0 real=107
+  BUG   step 609 [SUBMIT id=530 BUY STP_MKT FOK px=0 q=10 sp=111] field=orderCount shadow=0 real=1
+  BUG   step 610 [SUBMIT id=531 BUY STP_LIM DAY px=95 q=5 sp=109 stg=2] field=bestAsk shadow=0 real=107
+  BUG   step 610 [SUBMIT id=531 BUY STP_LIM DAY px=95 q=5 sp=109 stg=2] field=orderCount shadow=0 real=1
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         610
+  Submits:           531
+  Cancels:           42
+  Amends:            37
+  Trades produced:   101
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 601 [SUBMIT id=525 SELL LIMIT IOC px=108 q=15 mq=7] trades:
+          shadow = [{agg=525 pas=524 @109 q=5}, {agg=525 pas=521 @108 q=10}]
+          real   = [{agg=525 pas=524 @109 q=5}, {agg=525 pas=522 @108 q=5}, {agg=525 pas=521 @108 q=5}]
+    [BUG  ] step 601 [SUBMIT id=525 SELL LIMIT IOC px=108 q=15 mq=7] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 602 [AMEND id=521 px=109 qty=16] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 603 [AMEND id=521 px=102 qty=0] bestBid:
+          shadow = 108
+          real   = 102
+    [BUG  ] step 603 [AMEND id=521 px=102 qty=0] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 604 [SUBMIT id=526 BUY STP_MKT IOC px=0 q=3 sp=118 stg=2] bestBid:
+          shadow = 108
+          real   = 102
+    [BUG  ] step 604 [SUBMIT id=526 BUY STP_MKT IOC px=0 q=3 sp=118 stg=2] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 605 [SUBMIT id=527 SELL STP_LIM IOC px=105 q=10 sp=102] bestBid:
+          shadow = 108
+          real   = 102
+    [BUG  ] step 605 [SUBMIT id=527 SELL STP_LIM IOC px=105 q=10 sp=102] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 606 [SUBMIT id=528 SELL STP_LIM DAY px=107 q=5 sp=109] trades:
+          shadow = [{agg=528 pas=522 @108 q=5}]
+          real   = []
+    [BUG  ] step 606 [SUBMIT id=528 SELL STP_LIM DAY px=107 q=5 sp=109] bestAsk:
+          shadow = 0
+          real   = 107
+    [BUG  ] step 606 [SUBMIT id=528 SELL STP_LIM DAY px=107 q=5 sp=109] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 607 [CANCEL id=521] bestAsk:
+          shadow = 0
+          real   = 107
+    [BUG  ] step 607 [CANCEL id=521] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 608 [SUBMIT id=529 SELL LIMIT IOC px=98 q=3] bestAsk:
+          shadow = 0
+          real   = 107
+    [BUG  ] step 608 [SUBMIT id=529 SELL LIMIT IOC px=98 q=3] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 609 [SUBMIT id=530 BUY STP_MKT FOK px=0 q=10 sp=111] bestAsk:
+          shadow = 0
+          real   = 107
+    [BUG  ] step 609 [SUBMIT id=530 BUY STP_MKT FOK px=0 q=10 sp=111] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 610 [SUBMIT id=531 BUY STP_LIM DAY px=95 q=5 sp=109 stg=2] bestAsk:
+          shadow = 0
+          real   = 107
+    [BUG  ] step 610 [SUBMIT id=531 BUY STP_LIM DAY px=95 q=5 sp=109 stg=2] orderCount:
+          shadow = 0
+          real   = 1
+
+  Result: FAIL
+=========================================================

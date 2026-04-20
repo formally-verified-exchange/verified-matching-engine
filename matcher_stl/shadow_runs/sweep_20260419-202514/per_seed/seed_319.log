@@ -1,0 +1,102 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  319
+
+  BUG   step 212 [SUBMIT id=184 BUY STP_MKT FOK px=0 q=20 sp=104] field=trades shadow=[{agg=184 pas=137 @104 q=2}, {agg=184 pas=175 @104 q=15}, {agg=184 pas=170 @105 q=1}, {agg=184 pas=172 @109 q=2}, {agg=173 pas=172 @109 q=1}] real=[{agg=184 pas=137 @104 q=2}, {agg=184 pas=175 @104 q=15}, {agg=184 pas=170 @105 q=1}, {agg=184 pas=181 @109 q=1}, {agg=173 pas=172 @109 q=1}, {agg=184 pas=172 @109 q=1}]
+  BUG   step 214 [AMEND id=181 px=106 qty=0] field=bestAsk shadow=106 real=109
+  BUG   step 215 [SUBMIT id=186 BUY STP_LIM DAY px=105 q=3 sp=119] field=bestAsk shadow=106 real=109
+  BUG   step 216 [SUBMIT id=187 SELL STP_LIM FOK px=107 q=2 sp=98] field=bestAsk shadow=106 real=109
+  BUG   step 217 [SUBMIT id=188 SELL MTL GTC px=109 q=3 mq=1] field=bestAsk shadow=106 real=109
+  BUG   step 218 [SUBMIT id=189 BUY STP_LIM FOK px=106 q=3 sp=112] field=bestAsk shadow=106 real=109
+  BUG   step 219 [SUBMIT id=190 BUY LIMIT GTC px=111 q=1] field=trades shadow=[{agg=190 pas=181 @106 q=1}] real=[{agg=190 pas=172 @109 q=1}]
+  BUG   step 219 [SUBMIT id=190 BUY LIMIT GTC px=111 q=1] field=lastTradePrice shadow=106 real=109
+  BUG   step 220 [SUBMIT id=191 BUY LIMIT IOC px=110 q=5 mq=3] field=lastTradePrice shadow=106 real=109
+  BUG   step 221 [SUBMIT id=192 BUY MTL GTC px=102 q=5] field=lastTradePrice shadow=106 real=109
+  BUG   step 222 [SUBMIT id=193 BUY LIMIT DAY px=105 q=15 dq=4] field=lastTradePrice shadow=106 real=109
+  BUG   step 223 [SUBMIT id=194 BUY LIMIT FOK px=106 q=8] field=lastTradePrice shadow=106 real=109
+  BUG   step 224 [SUBMIT id=195 BUY LIMIT FOK px=100 q=2] field=lastTradePrice shadow=106 real=109
+  BUG   step 225 [CANCEL id=193] field=lastTradePrice shadow=106 real=109
+  BUG   step 226 [SUBMIT id=196 BUY STP_MKT IOC px=0 q=1 sp=109] field=cancelled shadow=[] real=[{196:IOC_REMAINDER}]
+  BUG   step 226 [SUBMIT id=196 BUY STP_MKT IOC px=0 q=1 sp=109] field=lastTradePrice shadow=106 real=109
+  BUG   step 226 [SUBMIT id=196 BUY STP_MKT IOC px=0 q=1 sp=109] field=stopCount shadow=13 real=12
+  BUG   step 227 [SUBMIT id=197 SELL MTL GTC px=109 q=15 stg=1] field=lastTradePrice shadow=106 real=109
+  BUG   step 227 [SUBMIT id=197 SELL MTL GTC px=109 q=15 stg=1] field=stopCount shadow=13 real=12
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         228
+  Submits:           198
+  Cancels:           18
+  Amends:            12
+  Trades produced:   53
+  Divergences total: 21  (BUG=21  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 212 [SUBMIT id=184 BUY STP_MKT FOK px=0 q=20 sp=104] trades:
+          shadow = [{agg=184 pas=137 @104 q=2}, {agg=184 pas=175 @104 q=15}, {agg=184 pas=170 @105 q=1}, {agg=184 pas=172 @109 q=2}, {agg=173 pas=172 @109 q=1}]
+          real   = [{agg=184 pas=137 @104 q=2}, {agg=184 pas=175 @104 q=15}, {agg=184 pas=170 @105 q=1}, {agg=184 pas=181 @109 q=1}, {agg=173 pas=172 @109 q=1}, {agg=184 pas=172 @109 q=1}]
+    [BUG  ] step 214 [AMEND id=181 px=106 qty=0] bestAsk:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 215 [SUBMIT id=186 BUY STP_LIM DAY px=105 q=3 sp=119] bestAsk:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 216 [SUBMIT id=187 SELL STP_LIM FOK px=107 q=2 sp=98] bestAsk:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 217 [SUBMIT id=188 SELL MTL GTC px=109 q=3 mq=1] bestAsk:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 218 [SUBMIT id=189 BUY STP_LIM FOK px=106 q=3 sp=112] bestAsk:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 219 [SUBMIT id=190 BUY LIMIT GTC px=111 q=1] trades:
+          shadow = [{agg=190 pas=181 @106 q=1}]
+          real   = [{agg=190 pas=172 @109 q=1}]
+    [BUG  ] step 219 [SUBMIT id=190 BUY LIMIT GTC px=111 q=1] lastTradePrice:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 220 [SUBMIT id=191 BUY LIMIT IOC px=110 q=5 mq=3] lastTradePrice:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 221 [SUBMIT id=192 BUY MTL GTC px=102 q=5] lastTradePrice:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 222 [SUBMIT id=193 BUY LIMIT DAY px=105 q=15 dq=4] lastTradePrice:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 223 [SUBMIT id=194 BUY LIMIT FOK px=106 q=8] lastTradePrice:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 224 [SUBMIT id=195 BUY LIMIT FOK px=100 q=2] lastTradePrice:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 225 [CANCEL id=193] lastTradePrice:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 226 [SUBMIT id=196 BUY STP_MKT IOC px=0 q=1 sp=109] cancelled:
+          shadow = []
+          real   = [{196:IOC_REMAINDER}]
+    [BUG  ] step 226 [SUBMIT id=196 BUY STP_MKT IOC px=0 q=1 sp=109] lastTradePrice:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 226 [SUBMIT id=196 BUY STP_MKT IOC px=0 q=1 sp=109] stopCount:
+          shadow = 13
+          real   = 12
+    [BUG  ] step 227 [SUBMIT id=197 SELL MTL GTC px=109 q=15 stg=1] lastTradePrice:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 227 [SUBMIT id=197 SELL MTL GTC px=109 q=15 stg=1] stopCount:
+          shadow = 13
+          real   = 12
+    [BUG  ] step 228 [SUBMIT id=198 SELL LIMIT GTC px=104 q=2 mq=1 stg=2] lastTradePrice:
+          shadow = 106
+          real   = 109
+    [BUG  ] step 228 [SUBMIT id=198 SELL LIMIT GTC px=104 q=2 mq=1 stg=2] stopCount:
+          shadow = 13
+          real   = 12
+
+  Result: FAIL
+=========================================================

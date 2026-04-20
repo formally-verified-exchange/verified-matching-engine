@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  428
+
+  BUG   step 1543 [SUBMIT id=1281 BUY MARKET IOC px=0 q=3] field=trades shadow=[{agg=1281 pas=1246 @109 q=3}, {agg=1279 pas=1264 @109 q=2}, {agg=1279 pas=1270 @109 q=3}, {agg=1279 pas=1274 @109 q=2}, {agg=1279 pas=1274 @109 q=2}, {agg=1279 pas=1274 @109 q=1}] real=[{agg=1281 pas=1264 @109 q=2}, {agg=1279 pas=1270 @109 q=2}, {agg=1279 pas=1274 @109 q=2}, {agg=1279 pas=1246 @109 q=3}, {agg=1279 pas=1274 @109 q=2}, {agg=1279 pas=1274 @109 q=1}, {agg=1281 pas=1270 @109 q=1}]
+  BUG   step 1823 [SUBMIT id=1511 BUY STP_LIM IOC px=103 q=15 sp=98] field=trades shadow=[{agg=1511 pas=1501 @98 q=4}, {agg=1511 pas=1492 @103 q=8}, {agg=1511 pas=1504 @103 q=3}] real=[{agg=1511 pas=1501 @98 q=4}, {agg=1511 pas=1504 @103 q=3}, {agg=1511 pas=1492 @103 q=8}]
+  BUG   step 2047 [SUBMIT id=1706 SELL LIMIT DAY px=101 q=5] field=trades shadow=[{agg=1706 pas=1696 @106 q=5}] real=[{agg=1706 pas=1705 @106 q=1}, {agg=1706 pas=1696 @106 q=4}]
+  BUG   step 2048 [SUBMIT id=1707 SELL LIMIT GTC px=106 q=8] field=trades shadow=[{agg=1707 pas=1696 @106 q=5}, {agg=1707 pas=1705 @106 q=1}, {agg=1707 pas=1705 @106 q=1}, {agg=1707 pas=1705 @106 q=1}] real=[{agg=1707 pas=1696 @106 q=6}, {agg=1707 pas=1705 @106 q=1}, {agg=1707 pas=1705 @106 q=1}]
+  BUG   step 3460 [SUBMIT id=2872 BUY STP_MKT FOK px=0 q=20 sp=94] field=trades shadow=[{agg=2872 pas=2870 @94 q=12}, {agg=2872 pas=2841 @95 q=8}] real=[{agg=2872 pas=2870 @94 q=12}, {agg=2872 pas=2867 @95 q=8}]
+  BUG   step 3461 [AMEND id=2867 px=100 qty=0] field=bestAsk shadow=100 real=95
+  BUG   step 3462 [AMEND id=2867 px=0 qty=18] field=bestAsk shadow=100 real=95
+  BUG   step 3463 [SUBMIT id=2873 BUY MARKET FOK px=0 q=2] field=trades shadow=[{agg=2873 pas=2867 @100 q=2}] real=[{agg=2873 pas=2841 @95 q=2}]
+  BUG   step 3463 [SUBMIT id=2873 BUY MARKET FOK px=0 q=2] field=bestAsk shadow=100 real=95
+  BUG   step 3463 [SUBMIT id=2873 BUY MARKET FOK px=0 q=2] field=lastTradePrice shadow=100 real=95
+  BUG   step 3464 [SUBMIT id=2874 BUY LIMIT DAY px=105 q=20 stg=2] field=trades shadow=[{agg=2874 pas=2867 @100 q=16}] real=[{agg=2874 pas=2841 @95 q=6}]
+  BUG   step 3464 [SUBMIT id=2874 BUY LIMIT DAY px=105 q=20 stg=2] field=lastTradePrice shadow=100 real=95
+  BUG   step 3465 [SUBMIT id=2875 BUY STP_MKT FOK px=0 q=10 sp=102] field=lastTradePrice shadow=100 real=95
+  BUG   step 3466 [SUBMIT id=2876 SELL LIMIT FOK px=108 q=1] field=lastTradePrice shadow=100 real=95
+  BUG   step 3467 [SUBMIT id=2877 SELL STP_MKT IOC px=0 q=15 sp=99 stg=1] field=trades shadow=[] real=[{agg=2877 pas=2874 @105 q=14}]
+  BUG   step 3467 [SUBMIT id=2877 SELL STP_MKT IOC px=0 q=15 sp=99 stg=1] field=cancelled shadow=[] real=[{2877:IOC_REMAINDER}, {2875:FOK_NOT_SATISFIABLE}]
+  BUG   step 3467 [SUBMIT id=2877 SELL STP_MKT IOC px=0 q=15 sp=99 stg=1] field=bestBid shadow=105 real=95
+  BUG   step 3467 [SUBMIT id=2877 SELL STP_MKT IOC px=0 q=15 sp=99 stg=1] field=orderCount shadow=2 real=3
+  BUG   step 3467 [SUBMIT id=2877 SELL STP_MKT IOC px=0 q=15 sp=99 stg=1] field=lastTradePrice shadow=100 real=105
+  BUG   step 3467 [SUBMIT id=2877 SELL STP_MKT IOC px=0 q=15 sp=99 stg=1] field=stopCount shadow=38 real=34
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         3467
+  Submits:           2877
+  Cancels:           345
+  Amends:            245
+  Trades produced:   713
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 1543 [SUBMIT id=1281 BUY MARKET IOC px=0 q=3] trades:
+          shadow = [{agg=1281 pas=1246 @109 q=3}, {agg=1279 pas=1264 @109 q=2}, {agg=1279 pas=1270 @109 q=3}, {agg=1279 pas=1274 @109 q=2}, {agg=1279 pas=1274 @109 q=2}, {agg=1279 pas=1274 @109 q=1}]
+          real   = [{agg=1281 pas=1264 @109 q=2}, {agg=1279 pas=1270 @109 q=2}, {agg=1279 pas=1274 @109 q=2}, {agg=1279 pas=1246 @109 q=3}, {agg=1279 pas=1274 @109 q=2}, {agg=1279 pas=1274 @109 q=1}, {agg=1281 pas=1270 @109 q=1}]
+    [BUG  ] step 1823 [SUBMIT id=1511 BUY STP_LIM IOC px=103 q=15 sp=98] trades:
+          shadow = [{agg=1511 pas=1501 @98 q=4}, {agg=1511 pas=1492 @103 q=8}, {agg=1511 pas=1504 @103 q=3}]
+          real   = [{agg=1511 pas=1501 @98 q=4}, {agg=1511 pas=1504 @103 q=3}, {agg=1511 pas=1492 @103 q=8}]
+    [BUG  ] step 2047 [SUBMIT id=1706 SELL LIMIT DAY px=101 q=5] trades:
+          shadow = [{agg=1706 pas=1696 @106 q=5}]
+          real   = [{agg=1706 pas=1705 @106 q=1}, {agg=1706 pas=1696 @106 q=4}]
+    [BUG  ] step 2048 [SUBMIT id=1707 SELL LIMIT GTC px=106 q=8] trades:
+          shadow = [{agg=1707 pas=1696 @106 q=5}, {agg=1707 pas=1705 @106 q=1}, {agg=1707 pas=1705 @106 q=1}, {agg=1707 pas=1705 @106 q=1}]
+          real   = [{agg=1707 pas=1696 @106 q=6}, {agg=1707 pas=1705 @106 q=1}, {agg=1707 pas=1705 @106 q=1}]
+    [BUG  ] step 3460 [SUBMIT id=2872 BUY STP_MKT FOK px=0 q=20 sp=94] trades:
+          shadow = [{agg=2872 pas=2870 @94 q=12}, {agg=2872 pas=2841 @95 q=8}]
+          real   = [{agg=2872 pas=2870 @94 q=12}, {agg=2872 pas=2867 @95 q=8}]
+    [BUG  ] step 3461 [AMEND id=2867 px=100 qty=0] bestAsk:
+          shadow = 100
+          real   = 95
+    [BUG  ] step 3462 [AMEND id=2867 px=0 qty=18] bestAsk:
+          shadow = 100
+          real   = 95
+    [BUG  ] step 3463 [SUBMIT id=2873 BUY MARKET FOK px=0 q=2] trades:
+          shadow = [{agg=2873 pas=2867 @100 q=2}]
+          real   = [{agg=2873 pas=2841 @95 q=2}]
+    [BUG  ] step 3463 [SUBMIT id=2873 BUY MARKET FOK px=0 q=2] bestAsk:
+          shadow = 100
+          real   = 95
+    [BUG  ] step 3463 [SUBMIT id=2873 BUY MARKET FOK px=0 q=2] lastTradePrice:
+          shadow = 100
+          real   = 95
+    [BUG  ] step 3464 [SUBMIT id=2874 BUY LIMIT DAY px=105 q=20 stg=2] trades:
+          shadow = [{agg=2874 pas=2867 @100 q=16}]
+          real   = [{agg=2874 pas=2841 @95 q=6}]
+    [BUG  ] step 3464 [SUBMIT id=2874 BUY LIMIT DAY px=105 q=20 stg=2] lastTradePrice:
+          shadow = 100
+          real   = 95
+    [BUG  ] step 3465 [SUBMIT id=2875 BUY STP_MKT FOK px=0 q=10 sp=102] lastTradePrice:
+          shadow = 100
+          real   = 95
+    [BUG  ] step 3466 [SUBMIT id=2876 SELL LIMIT FOK px=108 q=1] lastTradePrice:
+          shadow = 100
+          real   = 95
+    [BUG  ] step 3467 [SUBMIT id=2877 SELL STP_MKT IOC px=0 q=15 sp=99 stg=1] trades:
+          shadow = []
+          real   = [{agg=2877 pas=2874 @105 q=14}]
+    [BUG  ] step 3467 [SUBMIT id=2877 SELL STP_MKT IOC px=0 q=15 sp=99 stg=1] cancelled:
+          shadow = []
+          real   = [{2877:IOC_REMAINDER}, {2875:FOK_NOT_SATISFIABLE}]
+    [BUG  ] step 3467 [SUBMIT id=2877 SELL STP_MKT IOC px=0 q=15 sp=99 stg=1] bestBid:
+          shadow = 105
+          real   = 95
+    [BUG  ] step 3467 [SUBMIT id=2877 SELL STP_MKT IOC px=0 q=15 sp=99 stg=1] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 3467 [SUBMIT id=2877 SELL STP_MKT IOC px=0 q=15 sp=99 stg=1] lastTradePrice:
+          shadow = 100
+          real   = 105
+    [BUG  ] step 3467 [SUBMIT id=2877 SELL STP_MKT IOC px=0 q=15 sp=99 stg=1] stopCount:
+          shadow = 38
+          real   = 34
+
+  Result: FAIL
+=========================================================

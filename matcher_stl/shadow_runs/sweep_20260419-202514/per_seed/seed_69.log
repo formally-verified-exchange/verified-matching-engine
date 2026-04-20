@@ -1,0 +1,108 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  69
+
+  BUG   step 2617 [SUBMIT id=2116 SELL MARKET IOC px=0 q=1] field=trades shadow=[{agg=2116 pas=1935 @107 q=1}] real=[{agg=2116 pas=2099 @107 q=1}]
+  BUG   step 2620 [SUBMIT id=2118 SELL STP_MKT FOK px=0 q=20 sp=107 stg=1] field=trades shadow=[{agg=2118 pas=1935 @107 q=19}, {agg=2118 pas=2099 @100 q=1}, {agg=2096 pas=2099 @100 q=1}, {agg=2117 pas=2099 @100 q=1}] real=[{agg=2118 pas=1935 @107 q=20}]
+  BUG   step 2620 [SUBMIT id=2118 SELL STP_MKT FOK px=0 q=20 sp=107 stg=1] field=cancelled shadow=[{2057:FOK_NOT_SATISFIABLE}, {2065:FOK_NOT_SATISFIABLE}, {2103:FOK_NOT_SATISFIABLE}, {2117:IOC_REMAINDER}] real=[]
+  BUG   step 2620 [SUBMIT id=2118 SELL STP_MKT FOK px=0 q=20 sp=107 stg=1] field=bestBid shadow=0 real=100
+  BUG   step 2620 [SUBMIT id=2118 SELL STP_MKT FOK px=0 q=20 sp=107 stg=1] field=orderCount shadow=2 real=3
+  BUG   step 2620 [SUBMIT id=2118 SELL STP_MKT FOK px=0 q=20 sp=107 stg=1] field=lastTradePrice shadow=100 real=107
+  BUG   step 2620 [SUBMIT id=2118 SELL STP_MKT FOK px=0 q=20 sp=107 stg=1] field=stopCount shadow=71 real=76
+  BUG   step 2621 [CANCEL id=2113] field=bestBid shadow=0 real=100
+  BUG   step 2621 [CANCEL id=2113] field=orderCount shadow=1 real=2
+  BUG   step 2621 [CANCEL id=2113] field=lastTradePrice shadow=100 real=107
+  BUG   step 2621 [CANCEL id=2113] field=stopCount shadow=71 real=76
+  BUG   step 2622 [SUBMIT id=2119 SELL MTL DAY px=107 q=5] field=bestBid shadow=0 real=100
+  BUG   step 2622 [SUBMIT id=2119 SELL MTL DAY px=107 q=5] field=orderCount shadow=1 real=2
+  BUG   step 2622 [SUBMIT id=2119 SELL MTL DAY px=107 q=5] field=lastTradePrice shadow=100 real=107
+  BUG   step 2622 [SUBMIT id=2119 SELL MTL DAY px=107 q=5] field=stopCount shadow=71 real=76
+  BUG   step 2623 [AMEND id=2115 px=106 qty=12] field=bestBid shadow=0 real=100
+  BUG   step 2623 [AMEND id=2115 px=106 qty=12] field=orderCount shadow=1 real=2
+  BUG   step 2623 [AMEND id=2115 px=106 qty=12] field=lastTradePrice shadow=100 real=107
+  BUG   step 2623 [AMEND id=2115 px=106 qty=12] field=stopCount shadow=71 real=76
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         2624
+  Submits:           2119
+  Cancels:           298
+  Amends:            207
+  Trades produced:   540
+  Divergences total: 23  (BUG=23  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 2617 [SUBMIT id=2116 SELL MARKET IOC px=0 q=1] trades:
+          shadow = [{agg=2116 pas=1935 @107 q=1}]
+          real   = [{agg=2116 pas=2099 @107 q=1}]
+    [BUG  ] step 2620 [SUBMIT id=2118 SELL STP_MKT FOK px=0 q=20 sp=107 stg=1] trades:
+          shadow = [{agg=2118 pas=1935 @107 q=19}, {agg=2118 pas=2099 @100 q=1}, {agg=2096 pas=2099 @100 q=1}, {agg=2117 pas=2099 @100 q=1}]
+          real   = [{agg=2118 pas=1935 @107 q=20}]
+    [BUG  ] step 2620 [SUBMIT id=2118 SELL STP_MKT FOK px=0 q=20 sp=107 stg=1] cancelled:
+          shadow = [{2057:FOK_NOT_SATISFIABLE}, {2065:FOK_NOT_SATISFIABLE}, {2103:FOK_NOT_SATISFIABLE}, {2117:IOC_REMAINDER}]
+          real   = []
+    [BUG  ] step 2620 [SUBMIT id=2118 SELL STP_MKT FOK px=0 q=20 sp=107 stg=1] bestBid:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 2620 [SUBMIT id=2118 SELL STP_MKT FOK px=0 q=20 sp=107 stg=1] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 2620 [SUBMIT id=2118 SELL STP_MKT FOK px=0 q=20 sp=107 stg=1] lastTradePrice:
+          shadow = 100
+          real   = 107
+    [BUG  ] step 2620 [SUBMIT id=2118 SELL STP_MKT FOK px=0 q=20 sp=107 stg=1] stopCount:
+          shadow = 71
+          real   = 76
+    [BUG  ] step 2621 [CANCEL id=2113] bestBid:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 2621 [CANCEL id=2113] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2621 [CANCEL id=2113] lastTradePrice:
+          shadow = 100
+          real   = 107
+    [BUG  ] step 2621 [CANCEL id=2113] stopCount:
+          shadow = 71
+          real   = 76
+    [BUG  ] step 2622 [SUBMIT id=2119 SELL MTL DAY px=107 q=5] bestBid:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 2622 [SUBMIT id=2119 SELL MTL DAY px=107 q=5] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2622 [SUBMIT id=2119 SELL MTL DAY px=107 q=5] lastTradePrice:
+          shadow = 100
+          real   = 107
+    [BUG  ] step 2622 [SUBMIT id=2119 SELL MTL DAY px=107 q=5] stopCount:
+          shadow = 71
+          real   = 76
+    [BUG  ] step 2623 [AMEND id=2115 px=106 qty=12] bestBid:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 2623 [AMEND id=2115 px=106 qty=12] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 2623 [AMEND id=2115 px=106 qty=12] lastTradePrice:
+          shadow = 100
+          real   = 107
+    [BUG  ] step 2623 [AMEND id=2115 px=106 qty=12] stopCount:
+          shadow = 71
+          real   = 76
+    [BUG  ] step 2624 [CANCEL id=2115] bestBid:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 2624 [CANCEL id=2115] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 2624 [CANCEL id=2115] lastTradePrice:
+          shadow = 100
+          real   = 107
+    [BUG  ] step 2624 [CANCEL id=2115] stopCount:
+          shadow = 71
+          real   = 76
+
+  Result: FAIL
+=========================================================

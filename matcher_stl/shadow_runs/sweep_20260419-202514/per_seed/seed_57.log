@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  57
+
+  BUG   step 2240 [SUBMIT id=1831 SELL STP_MKT IOC px=0 q=1 sp=100] field=trades shadow=[{agg=1831 pas=1825 @98 q=1}, {agg=1822 pas=1825 @98 q=2}, {agg=1822 pas=1783 @94 q=8}] real=[{agg=1831 pas=1825 @98 q=1}, {agg=1822 pas=1825 @98 q=2}, {agg=1822 pas=1812 @94 q=1}, {agg=1822 pas=1783 @94 q=7}]
+  BUG   step 2240 [SUBMIT id=1831 SELL STP_MKT IOC px=0 q=1 sp=100] field=orderCount shadow=3 real=2
+  BUG   step 2241 [CANCEL id=1829] field=orderCount shadow=2 real=1
+  BUG   step 2242 [CANCEL id=1783] field=bestBid shadow=94 real=0
+  BUG   step 2242 [CANCEL id=1783] field=orderCount shadow=1 real=0
+  BUG   step 2243 [SUBMIT id=1832 SELL LIMIT GTC px=89 q=2] field=trades shadow=[{agg=1832 pas=1812 @94 q=1}] real=[]
+  BUG   step 2246 [SUBMIT id=1835 BUY MARKET IOC px=0 q=2] field=trades shadow=[{agg=1835 pas=1832 @89 q=1}] real=[{agg=1835 pas=1832 @89 q=2}]
+  BUG   step 2246 [SUBMIT id=1835 BUY MARKET IOC px=0 q=2] field=cancelled shadow=[{1835:IOC_REMAINDER}, {126:IOC_REMAINDER}, {361:IOC_REMAINDER}, {440:FOK_NOT_SATISFIABLE}, {551:IOC_REMAINDER}, {609:FOK_NOT_SATISFIABLE}, {700:IOC_REMAINDER}, {729:IOC_REMAINDER}, {740:FOK_NOT_SATISFIABLE}, {805:FOK_NOT_SATISFIABLE}, {832:IOC_REMAINDER}, {863:IOC_REMAINDER}, {980:IOC_REMAINDER}, {1002:IOC_REMAINDER}, {1294:FOK_NOT_SATISFIABLE}, {1459:IOC_REMAINDER}, {1755:IOC_REMAINDER}] real=[{126:IOC_REMAINDER}, {361:IOC_REMAINDER}, {440:FOK_NOT_SATISFIABLE}, {551:IOC_REMAINDER}, {609:FOK_NOT_SATISFIABLE}, {700:IOC_REMAINDER}, {729:IOC_REMAINDER}, {740:FOK_NOT_SATISFIABLE}, {805:FOK_NOT_SATISFIABLE}, {832:IOC_REMAINDER}, {863:IOC_REMAINDER}, {980:IOC_REMAINDER}, {1002:IOC_REMAINDER}, {1294:FOK_NOT_SATISFIABLE}, {1459:IOC_REMAINDER}, {1755:IOC_REMAINDER}]
+  BUG   step 2772 [SUBMIT id=2271 SELL LIMIT FOK px=109 q=8] field=trades shadow=[{agg=2271 pas=2255 @109 q=5}, {agg=2271 pas=2258 @109 q=3}] real=[{agg=2271 pas=2258 @109 q=8}]
+  BUG   step 2772 [SUBMIT id=2271 SELL LIMIT FOK px=109 q=8] field=orderCount shadow=4 real=5
+  BUG   step 2773 [AMEND id=2258 px=107 qty=0] field=bestBid shadow=108 real=109
+  BUG   step 2773 [AMEND id=2258 px=107 qty=0] field=orderCount shadow=4 real=5
+  BUG   step 2774 [CANCEL id=2264] field=bestBid shadow=108 real=109
+  BUG   step 2774 [CANCEL id=2264] field=orderCount shadow=3 real=4
+  BUG   step 2775 [CANCEL id=2245] field=bestBid shadow=108 real=109
+  BUG   step 2775 [CANCEL id=2245] field=orderCount shadow=2 real=3
+  BUG   step 2776 [SUBMIT id=2272 SELL LIMIT GTC px=107 q=3] field=trades shadow=[{agg=2272 pas=2253 @108 q=1}, {agg=2272 pas=2258 @107 q=2}] real=[{agg=2272 pas=2255 @109 q=3}]
+  BUG   step 2776 [SUBMIT id=2272 SELL LIMIT GTC px=107 q=3] field=bestBid shadow=107 real=109
+  BUG   step 2776 [SUBMIT id=2272 SELL LIMIT GTC px=107 q=3] field=orderCount shadow=1 real=3
+  BUG   step 2776 [SUBMIT id=2272 SELL LIMIT GTC px=107 q=3] field=lastTradePrice shadow=107 real=109
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         2776
+  Submits:           2272
+  Cancels:           304
+  Amends:            200
+  Trades produced:   506
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 2240 [SUBMIT id=1831 SELL STP_MKT IOC px=0 q=1 sp=100] trades:
+          shadow = [{agg=1831 pas=1825 @98 q=1}, {agg=1822 pas=1825 @98 q=2}, {agg=1822 pas=1783 @94 q=8}]
+          real   = [{agg=1831 pas=1825 @98 q=1}, {agg=1822 pas=1825 @98 q=2}, {agg=1822 pas=1812 @94 q=1}, {agg=1822 pas=1783 @94 q=7}]
+    [BUG  ] step 2240 [SUBMIT id=1831 SELL STP_MKT IOC px=0 q=1 sp=100] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 2241 [CANCEL id=1829] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 2242 [CANCEL id=1783] bestBid:
+          shadow = 94
+          real   = 0
+    [BUG  ] step 2242 [CANCEL id=1783] orderCount:
+          shadow = 1
+          real   = 0
+    [BUG  ] step 2243 [SUBMIT id=1832 SELL LIMIT GTC px=89 q=2] trades:
+          shadow = [{agg=1832 pas=1812 @94 q=1}]
+          real   = []
+    [BUG  ] step 2246 [SUBMIT id=1835 BUY MARKET IOC px=0 q=2] trades:
+          shadow = [{agg=1835 pas=1832 @89 q=1}]
+          real   = [{agg=1835 pas=1832 @89 q=2}]
+    [BUG  ] step 2246 [SUBMIT id=1835 BUY MARKET IOC px=0 q=2] cancelled:
+          shadow = [{1835:IOC_REMAINDER}, {126:IOC_REMAINDER}, {361:IOC_REMAINDER}, {440:FOK_NOT_SATISFIABLE}, {551:IOC_REMAINDER}, {609:FOK_NOT_SATISFIABLE}, {700:IOC_REMAINDER}, {729:IOC_REMAINDER}, {740:FOK_NOT_SATISFIABLE}, {805:FOK_NOT_SATISFIABLE}, {832:IOC_REMAINDER}, {863:IOC_REMAINDER}, {980:IOC_REMAINDER}, {1002:IOC_REMAINDER}, {1294:FOK_NOT_SATISFIABLE}, {1459:IOC_REMAINDER}, {1755:IOC_REMAINDER}]
+          real   = [{126:IOC_REMAINDER}, {361:IOC_REMAINDER}, {440:FOK_NOT_SATISFIABLE}, {551:IOC_REMAINDER}, {609:FOK_NOT_SATISFIABLE}, {700:IOC_REMAINDER}, {729:IOC_REMAINDER}, {740:FOK_NOT_SATISFIABLE}, {805:FOK_NOT_SATISFIABLE}, {832:IOC_REMAINDER}, {863:IOC_REMAINDER}, {980:IOC_REMAINDER}, {1002:IOC_REMAINDER}, {1294:FOK_NOT_SATISFIABLE}, {1459:IOC_REMAINDER}, {1755:IOC_REMAINDER}]
+    [BUG  ] step 2772 [SUBMIT id=2271 SELL LIMIT FOK px=109 q=8] trades:
+          shadow = [{agg=2271 pas=2255 @109 q=5}, {agg=2271 pas=2258 @109 q=3}]
+          real   = [{agg=2271 pas=2258 @109 q=8}]
+    [BUG  ] step 2772 [SUBMIT id=2271 SELL LIMIT FOK px=109 q=8] orderCount:
+          shadow = 4
+          real   = 5
+    [BUG  ] step 2773 [AMEND id=2258 px=107 qty=0] bestBid:
+          shadow = 108
+          real   = 109
+    [BUG  ] step 2773 [AMEND id=2258 px=107 qty=0] orderCount:
+          shadow = 4
+          real   = 5
+    [BUG  ] step 2774 [CANCEL id=2264] bestBid:
+          shadow = 108
+          real   = 109
+    [BUG  ] step 2774 [CANCEL id=2264] orderCount:
+          shadow = 3
+          real   = 4
+    [BUG  ] step 2775 [CANCEL id=2245] bestBid:
+          shadow = 108
+          real   = 109
+    [BUG  ] step 2775 [CANCEL id=2245] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 2776 [SUBMIT id=2272 SELL LIMIT GTC px=107 q=3] trades:
+          shadow = [{agg=2272 pas=2253 @108 q=1}, {agg=2272 pas=2258 @107 q=2}]
+          real   = [{agg=2272 pas=2255 @109 q=3}]
+    [BUG  ] step 2776 [SUBMIT id=2272 SELL LIMIT GTC px=107 q=3] bestBid:
+          shadow = 107
+          real   = 109
+    [BUG  ] step 2776 [SUBMIT id=2272 SELL LIMIT GTC px=107 q=3] orderCount:
+          shadow = 1
+          real   = 3
+    [BUG  ] step 2776 [SUBMIT id=2272 SELL LIMIT GTC px=107 q=3] lastTradePrice:
+          shadow = 107
+          real   = 109
+
+  Result: FAIL
+=========================================================

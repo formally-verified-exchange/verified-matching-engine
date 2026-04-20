@@ -1,0 +1,101 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  398
+
+  BUG   step 875 [SUBMIT id=734 BUY LIMIT FOK px=101 q=1] field=trades shadow=[{agg=734 pas=724 @99 q=1}] real=[{agg=734 pas=731 @99 q=1}]
+  BUG   step 1350 [SUBMIT id=1126 BUY LIMIT FOK px=104 q=8] field=trades shadow=[{agg=1126 pas=1123 @104 q=8}] real=[{agg=1126 pas=1124 @104 q=7}, {agg=1126 pas=1123 @104 q=1}]
+  BUG   step 1350 [SUBMIT id=1126 BUY LIMIT FOK px=104 q=8] field=orderCount shadow=3 real=2
+  BUG   step 1351 [AMEND id=1124 px=99 qty=0] field=trades shadow=[{agg=1124 pas=1097 @99 q=7}, {agg=1125 pas=1097 @99 q=3}] real=[]
+  BUG   step 1351 [AMEND id=1124 px=99 qty=0] field=cancelled shadow=[{1125:IOC_REMAINDER}] real=[]
+  BUG   step 1351 [AMEND id=1124 px=99 qty=0] field=bestBid shadow=0 real=99
+  BUG   step 1351 [AMEND id=1124 px=99 qty=0] field=orderCount shadow=1 real=2
+  BUG   step 1351 [AMEND id=1124 px=99 qty=0] field=lastTradePrice shadow=99 real=104
+  BUG   step 1351 [AMEND id=1124 px=99 qty=0] field=stopCount shadow=27 real=28
+  BUG   step 1352 [SUBMIT id=1127 BUY LIMIT FOK px=103 q=10] field=bestBid shadow=0 real=99
+  BUG   step 1352 [SUBMIT id=1127 BUY LIMIT FOK px=103 q=10] field=orderCount shadow=1 real=2
+  BUG   step 1352 [SUBMIT id=1127 BUY LIMIT FOK px=103 q=10] field=lastTradePrice shadow=99 real=104
+  BUG   step 1352 [SUBMIT id=1127 BUY LIMIT FOK px=103 q=10] field=stopCount shadow=27 real=28
+  BUG   step 1353 [SUBMIT id=1128 SELL STP_LIM GTC px=104 q=5 sp=100] field=bestBid shadow=0 real=99
+  BUG   step 1353 [SUBMIT id=1128 SELL STP_LIM GTC px=104 q=5 sp=100] field=lastTradePrice shadow=99 real=104
+  BUG   step 1353 [SUBMIT id=1128 SELL STP_LIM GTC px=104 q=5 sp=100] field=stopCount shadow=27 real=29
+  BUG   step 1354 [SUBMIT id=1129 BUY MARKET FOK px=0 q=1] field=bestBid shadow=0 real=99
+  BUG   step 1354 [SUBMIT id=1129 BUY MARKET FOK px=0 q=1] field=stopCount shadow=27 real=29
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         1355
+  Submits:           1130
+  Cancels:           124
+  Amends:            101
+  Trades produced:   323
+  Divergences total: 21  (BUG=21  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 875 [SUBMIT id=734 BUY LIMIT FOK px=101 q=1] trades:
+          shadow = [{agg=734 pas=724 @99 q=1}]
+          real   = [{agg=734 pas=731 @99 q=1}]
+    [BUG  ] step 1350 [SUBMIT id=1126 BUY LIMIT FOK px=104 q=8] trades:
+          shadow = [{agg=1126 pas=1123 @104 q=8}]
+          real   = [{agg=1126 pas=1124 @104 q=7}, {agg=1126 pas=1123 @104 q=1}]
+    [BUG  ] step 1350 [SUBMIT id=1126 BUY LIMIT FOK px=104 q=8] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 1351 [AMEND id=1124 px=99 qty=0] trades:
+          shadow = [{agg=1124 pas=1097 @99 q=7}, {agg=1125 pas=1097 @99 q=3}]
+          real   = []
+    [BUG  ] step 1351 [AMEND id=1124 px=99 qty=0] cancelled:
+          shadow = [{1125:IOC_REMAINDER}]
+          real   = []
+    [BUG  ] step 1351 [AMEND id=1124 px=99 qty=0] bestBid:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 1351 [AMEND id=1124 px=99 qty=0] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 1351 [AMEND id=1124 px=99 qty=0] lastTradePrice:
+          shadow = 99
+          real   = 104
+    [BUG  ] step 1351 [AMEND id=1124 px=99 qty=0] stopCount:
+          shadow = 27
+          real   = 28
+    [BUG  ] step 1352 [SUBMIT id=1127 BUY LIMIT FOK px=103 q=10] bestBid:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 1352 [SUBMIT id=1127 BUY LIMIT FOK px=103 q=10] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 1352 [SUBMIT id=1127 BUY LIMIT FOK px=103 q=10] lastTradePrice:
+          shadow = 99
+          real   = 104
+    [BUG  ] step 1352 [SUBMIT id=1127 BUY LIMIT FOK px=103 q=10] stopCount:
+          shadow = 27
+          real   = 28
+    [BUG  ] step 1353 [SUBMIT id=1128 SELL STP_LIM GTC px=104 q=5 sp=100] bestBid:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 1353 [SUBMIT id=1128 SELL STP_LIM GTC px=104 q=5 sp=100] lastTradePrice:
+          shadow = 99
+          real   = 104
+    [BUG  ] step 1353 [SUBMIT id=1128 SELL STP_LIM GTC px=104 q=5 sp=100] stopCount:
+          shadow = 27
+          real   = 29
+    [BUG  ] step 1354 [SUBMIT id=1129 BUY MARKET FOK px=0 q=1] bestBid:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 1354 [SUBMIT id=1129 BUY MARKET FOK px=0 q=1] stopCount:
+          shadow = 27
+          real   = 29
+    [BUG  ] step 1355 [SUBMIT id=1130 SELL MARKET IOC px=0 q=3] trades:
+          shadow = []
+          real   = [{agg=1130 pas=1097 @99 q=3}, {agg=1125 pas=1097 @99 q=7}]
+    [BUG  ] step 1355 [SUBMIT id=1130 SELL MARKET IOC px=0 q=3] cancelled:
+          shadow = [{1130:IOC_REMAINDER}]
+          real   = [{1125:IOC_REMAINDER}]
+    [BUG  ] step 1355 [SUBMIT id=1130 SELL MARKET IOC px=0 q=3] lastTradePrice:
+          shadow = 104
+          real   = 99
+
+  Result: FAIL
+=========================================================

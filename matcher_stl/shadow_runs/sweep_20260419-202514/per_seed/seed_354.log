@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  354
+
+  BUG   step 8116 [SUBMIT id=6731 BUY LIMIT GTC px=100 q=5] field=trades shadow=[{agg=6731 pas=6660 @99 q=2}, {agg=6731 pas=6727 @99 q=3}] real=[{agg=6731 pas=6727 @99 q=5}]
+  BUG   step 8116 [SUBMIT id=6731 BUY LIMIT GTC px=100 q=5] field=orderCount shadow=1 real=2
+  BUG   step 8117 [CANCEL id=6727] field=bestAsk shadow=0 real=99
+  BUG   step 8117 [CANCEL id=6727] field=orderCount shadow=0 real=1
+  BUG   step 8118 [SUBMIT id=6732 BUY STP_LIM FOK px=100 q=3 sp=102] field=bestAsk shadow=0 real=99
+  BUG   step 8118 [SUBMIT id=6732 BUY STP_LIM FOK px=100 q=3 sp=102] field=orderCount shadow=0 real=1
+  BUG   step 8119 [SUBMIT id=6733 BUY LIMIT FOK px=100 q=8] field=bestAsk shadow=0 real=99
+  BUG   step 8119 [SUBMIT id=6733 BUY LIMIT FOK px=100 q=8] field=orderCount shadow=0 real=1
+  BUG   step 8120 [SUBMIT id=6734 SELL LIMIT IOC px=97 q=1] field=bestAsk shadow=0 real=99
+  BUG   step 8120 [SUBMIT id=6734 SELL LIMIT IOC px=97 q=1] field=orderCount shadow=0 real=1
+  BUG   step 8121 [SUBMIT id=6735 BUY LIMIT FOK px=102 q=10] field=bestAsk shadow=0 real=99
+  BUG   step 8121 [SUBMIT id=6735 BUY LIMIT FOK px=102 q=10] field=orderCount shadow=0 real=1
+  BUG   step 8122 [SUBMIT id=6736 BUY LIMIT DAY px=98 q=5 PO] field=bestAsk shadow=0 real=99
+  BUG   step 8122 [SUBMIT id=6736 BUY LIMIT DAY px=98 q=5 PO] field=orderCount shadow=1 real=2
+  BUG   step 8123 [AMEND id=6736 px=101 qty=0] field=cancelled shadow=[] real=[{6736:POST_ONLY_WOULD_CROSS}]
+  BUG   step 8123 [AMEND id=6736 px=101 qty=0] field=bestBid shadow=101 real=0
+  BUG   step 8123 [AMEND id=6736 px=101 qty=0] field=bestAsk shadow=0 real=99
+  BUG   step 8124 [CANCEL id=6736] field=cancelled shadow=[{6736:USER_REQUESTED}] real=[]
+  BUG   step 8124 [CANCEL id=6736] field=bestAsk shadow=0 real=99
+  BUG   step 8124 [CANCEL id=6736] field=orderCount shadow=0 real=1
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         8124
+  Submits:           6736
+  Cancels:           818
+  Amends:            570
+  Trades produced:   1567
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 8116 [SUBMIT id=6731 BUY LIMIT GTC px=100 q=5] trades:
+          shadow = [{agg=6731 pas=6660 @99 q=2}, {agg=6731 pas=6727 @99 q=3}]
+          real   = [{agg=6731 pas=6727 @99 q=5}]
+    [BUG  ] step 8116 [SUBMIT id=6731 BUY LIMIT GTC px=100 q=5] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 8117 [CANCEL id=6727] bestAsk:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 8117 [CANCEL id=6727] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 8118 [SUBMIT id=6732 BUY STP_LIM FOK px=100 q=3 sp=102] bestAsk:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 8118 [SUBMIT id=6732 BUY STP_LIM FOK px=100 q=3 sp=102] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 8119 [SUBMIT id=6733 BUY LIMIT FOK px=100 q=8] bestAsk:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 8119 [SUBMIT id=6733 BUY LIMIT FOK px=100 q=8] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 8120 [SUBMIT id=6734 SELL LIMIT IOC px=97 q=1] bestAsk:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 8120 [SUBMIT id=6734 SELL LIMIT IOC px=97 q=1] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 8121 [SUBMIT id=6735 BUY LIMIT FOK px=102 q=10] bestAsk:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 8121 [SUBMIT id=6735 BUY LIMIT FOK px=102 q=10] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 8122 [SUBMIT id=6736 BUY LIMIT DAY px=98 q=5 PO] bestAsk:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 8122 [SUBMIT id=6736 BUY LIMIT DAY px=98 q=5 PO] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 8123 [AMEND id=6736 px=101 qty=0] cancelled:
+          shadow = []
+          real   = [{6736:POST_ONLY_WOULD_CROSS}]
+    [BUG  ] step 8123 [AMEND id=6736 px=101 qty=0] bestBid:
+          shadow = 101
+          real   = 0
+    [BUG  ] step 8123 [AMEND id=6736 px=101 qty=0] bestAsk:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 8124 [CANCEL id=6736] cancelled:
+          shadow = [{6736:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 8124 [CANCEL id=6736] bestAsk:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 8124 [CANCEL id=6736] orderCount:
+          shadow = 0
+          real   = 1
+
+  Result: FAIL
+=========================================================

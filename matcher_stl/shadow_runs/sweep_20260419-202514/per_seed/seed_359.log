@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  359
+
+  BUG   step 990 [SUBMIT id=816 SELL LIMIT IOC px=103 q=3 stg=1] field=trades shadow=[{agg=816 pas=802 @108 q=3}] real=[{agg=816 pas=810 @108 q=3}]
+  BUG   step 991 [SUBMIT id=817 SELL STP_MKT IOC px=0 q=1 sp=108] field=trades shadow=[{agg=817 pas=802 @108 q=1}] real=[{agg=817 pas=810 @108 q=1}]
+  BUG   step 994 [SUBMIT id=820 SELL MARKET IOC px=0 q=1] field=orderCount shadow=1 real=2
+  BUG   step 995 [CANCEL id=810] field=bestBid shadow=0 real=108
+  BUG   step 995 [CANCEL id=810] field=orderCount shadow=0 real=1
+  BUG   step 996 [SUBMIT id=821 SELL LIMIT GTC px=107 q=3] field=trades shadow=[] real=[{agg=821 pas=802 @108 q=3}]
+  BUG   step 996 [SUBMIT id=821 SELL LIMIT GTC px=107 q=3] field=bestBid shadow=0 real=108
+  BUG   step 996 [SUBMIT id=821 SELL LIMIT GTC px=107 q=3] field=bestAsk shadow=107 real=0
+  BUG   step 997 [SUBMIT id=822 BUY LIMIT FOK px=106 q=2 stg=2] field=bestBid shadow=0 real=108
+  BUG   step 997 [SUBMIT id=822 BUY LIMIT FOK px=106 q=2 stg=2] field=bestAsk shadow=107 real=0
+  BUG   step 998 [SUBMIT id=823 SELL LIMIT IOC px=107 q=2 stg=1] field=trades shadow=[] real=[{agg=823 pas=802 @108 q=1}]
+  BUG   step 998 [SUBMIT id=823 SELL LIMIT IOC px=107 q=2 stg=1] field=bestAsk shadow=107 real=0
+  BUG   step 998 [SUBMIT id=823 SELL LIMIT IOC px=107 q=2 stg=1] field=orderCount shadow=1 real=0
+  BUG   step 999 [CANCEL id=821] field=cancelled shadow=[{821:USER_REQUESTED}] real=[]
+  BUG   step 2478 [SUBMIT id=2037 BUY LIMIT IOC px=105 q=5] field=trades shadow=[{agg=2037 pas=2018 @102 q=5}] real=[{agg=2037 pas=2029 @102 q=5}]
+  BUG   step 2479 [SUBMIT id=2038 BUY LIMIT IOC px=105 q=1] field=trades shadow=[{agg=2038 pas=2018 @102 q=1}] real=[{agg=2038 pas=2029 @102 q=1}]
+  BUG   step 2481 [SUBMIT id=2040 BUY LIMIT FOK px=104 q=3 stg=2] field=trades shadow=[{agg=2040 pas=2039 @101 q=1}, {agg=2040 pas=2018 @102 q=2}] real=[{agg=2040 pas=2039 @101 q=1}, {agg=2040 pas=2029 @102 q=2}]
+  BUG   step 2481 [SUBMIT id=2040 BUY LIMIT FOK px=104 q=3 stg=2] field=orderCount shadow=2 real=3
+  BUG   step 2482 [SUBMIT id=2041 BUY STP_MKT IOC px=0 q=5 sp=103 stg=1] field=orderCount shadow=2 real=3
+  BUG   step 2483 [CANCEL id=2028] field=orderCount shadow=1 real=2
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         2483
+  Submits:           2041
+  Cancels:           267
+  Amends:            175
+  Trades produced:   527
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 990 [SUBMIT id=816 SELL LIMIT IOC px=103 q=3 stg=1] trades:
+          shadow = [{agg=816 pas=802 @108 q=3}]
+          real   = [{agg=816 pas=810 @108 q=3}]
+    [BUG  ] step 991 [SUBMIT id=817 SELL STP_MKT IOC px=0 q=1 sp=108] trades:
+          shadow = [{agg=817 pas=802 @108 q=1}]
+          real   = [{agg=817 pas=810 @108 q=1}]
+    [BUG  ] step 994 [SUBMIT id=820 SELL MARKET IOC px=0 q=1] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 995 [CANCEL id=810] bestBid:
+          shadow = 0
+          real   = 108
+    [BUG  ] step 995 [CANCEL id=810] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 996 [SUBMIT id=821 SELL LIMIT GTC px=107 q=3] trades:
+          shadow = []
+          real   = [{agg=821 pas=802 @108 q=3}]
+    [BUG  ] step 996 [SUBMIT id=821 SELL LIMIT GTC px=107 q=3] bestBid:
+          shadow = 0
+          real   = 108
+    [BUG  ] step 996 [SUBMIT id=821 SELL LIMIT GTC px=107 q=3] bestAsk:
+          shadow = 107
+          real   = 0
+    [BUG  ] step 997 [SUBMIT id=822 BUY LIMIT FOK px=106 q=2 stg=2] bestBid:
+          shadow = 0
+          real   = 108
+    [BUG  ] step 997 [SUBMIT id=822 BUY LIMIT FOK px=106 q=2 stg=2] bestAsk:
+          shadow = 107
+          real   = 0
+    [BUG  ] step 998 [SUBMIT id=823 SELL LIMIT IOC px=107 q=2 stg=1] trades:
+          shadow = []
+          real   = [{agg=823 pas=802 @108 q=1}]
+    [BUG  ] step 998 [SUBMIT id=823 SELL LIMIT IOC px=107 q=2 stg=1] bestAsk:
+          shadow = 107
+          real   = 0
+    [BUG  ] step 998 [SUBMIT id=823 SELL LIMIT IOC px=107 q=2 stg=1] orderCount:
+          shadow = 1
+          real   = 0
+    [BUG  ] step 999 [CANCEL id=821] cancelled:
+          shadow = [{821:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 2478 [SUBMIT id=2037 BUY LIMIT IOC px=105 q=5] trades:
+          shadow = [{agg=2037 pas=2018 @102 q=5}]
+          real   = [{agg=2037 pas=2029 @102 q=5}]
+    [BUG  ] step 2479 [SUBMIT id=2038 BUY LIMIT IOC px=105 q=1] trades:
+          shadow = [{agg=2038 pas=2018 @102 q=1}]
+          real   = [{agg=2038 pas=2029 @102 q=1}]
+    [BUG  ] step 2481 [SUBMIT id=2040 BUY LIMIT FOK px=104 q=3 stg=2] trades:
+          shadow = [{agg=2040 pas=2039 @101 q=1}, {agg=2040 pas=2018 @102 q=2}]
+          real   = [{agg=2040 pas=2039 @101 q=1}, {agg=2040 pas=2029 @102 q=2}]
+    [BUG  ] step 2481 [SUBMIT id=2040 BUY LIMIT FOK px=104 q=3 stg=2] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 2482 [SUBMIT id=2041 BUY STP_MKT IOC px=0 q=5 sp=103 stg=1] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 2483 [CANCEL id=2028] orderCount:
+          shadow = 1
+          real   = 2
+
+  Result: FAIL
+=========================================================

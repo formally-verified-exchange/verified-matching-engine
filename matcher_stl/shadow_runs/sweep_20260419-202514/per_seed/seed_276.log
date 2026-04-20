@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  276
+
+  BUG   step 914 [SUBMIT id=762 BUY LIMIT DAY px=108 q=8 stg=2] field=trades shadow=[{agg=762 pas=724 @103 q=8}] real=[{agg=762 pas=760 @103 q=6}, {agg=762 pas=724 @103 q=2}]
+  BUG   step 915 [AMEND id=760 px=97 qty=16] field=bestAsk shadow=97 real=103
+  BUG   step 916 [SUBMIT id=763 SELL STP_LIM DAY px=98 q=2 sp=103] field=bestAsk shadow=97 real=98
+  BUG   step 917 [SUBMIT id=764 SELL STP_MKT IOC px=0 q=15 sp=97 stg=2] field=bestAsk shadow=97 real=98
+  BUG   step 918 [SUBMIT id=765 BUY STP_LIM FOK px=96 q=8 sp=97] field=bestAsk shadow=97 real=98
+  BUG   step 919 [SUBMIT id=766 SELL LIMIT GTC px=98 q=10 dq=3] field=bestAsk shadow=97 real=98
+  BUG   step 920 [SUBMIT id=767 BUY STP_LIM IOC px=102 q=15 sp=105] field=bestAsk shadow=97 real=98
+  BUG   step 921 [CANCEL id=763] field=bestAsk shadow=97 real=98
+  BUG   step 922 [AMEND id=760 px=0 qty=14] field=bestAsk shadow=97 real=98
+  BUG   step 923 [SUBMIT id=768 SELL MARKET IOC px=0 q=10] field=bestAsk shadow=97 real=98
+  BUG   step 924 [SUBMIT id=769 BUY STP_LIM FOK px=96 q=8 sp=104] field=bestAsk shadow=97 real=98
+  BUG   step 925 [CANCEL id=766] field=bestAsk shadow=97 real=103
+  BUG   step 926 [SUBMIT id=770 BUY STP_LIM GTC px=98 q=10 sp=106] field=bestAsk shadow=97 real=103
+  BUG   step 927 [CANCEL id=760] field=cancelled shadow=[{760:USER_REQUESTED}] real=[]
+  BUG   step 927 [CANCEL id=760] field=bestAsk shadow=0 real=103
+  BUG   step 927 [CANCEL id=760] field=orderCount shadow=0 real=1
+  BUG   step 928 [SUBMIT id=771 SELL MARKET FOK px=0 q=10] field=bestAsk shadow=0 real=103
+  BUG   step 928 [SUBMIT id=771 SELL MARKET FOK px=0 q=10] field=orderCount shadow=0 real=1
+  BUG   step 929 [SUBMIT id=772 BUY STP_MKT FOK px=0 q=10 sp=102 stg=2] field=bestAsk shadow=0 real=103
+  BUG   step 929 [SUBMIT id=772 BUY STP_MKT FOK px=0 q=10 sp=102 stg=2] field=orderCount shadow=0 real=1
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         929
+  Submits:           772
+  Cancels:           103
+  Amends:            54
+  Trades produced:   177
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 914 [SUBMIT id=762 BUY LIMIT DAY px=108 q=8 stg=2] trades:
+          shadow = [{agg=762 pas=724 @103 q=8}]
+          real   = [{agg=762 pas=760 @103 q=6}, {agg=762 pas=724 @103 q=2}]
+    [BUG  ] step 915 [AMEND id=760 px=97 qty=16] bestAsk:
+          shadow = 97
+          real   = 103
+    [BUG  ] step 916 [SUBMIT id=763 SELL STP_LIM DAY px=98 q=2 sp=103] bestAsk:
+          shadow = 97
+          real   = 98
+    [BUG  ] step 917 [SUBMIT id=764 SELL STP_MKT IOC px=0 q=15 sp=97 stg=2] bestAsk:
+          shadow = 97
+          real   = 98
+    [BUG  ] step 918 [SUBMIT id=765 BUY STP_LIM FOK px=96 q=8 sp=97] bestAsk:
+          shadow = 97
+          real   = 98
+    [BUG  ] step 919 [SUBMIT id=766 SELL LIMIT GTC px=98 q=10 dq=3] bestAsk:
+          shadow = 97
+          real   = 98
+    [BUG  ] step 920 [SUBMIT id=767 BUY STP_LIM IOC px=102 q=15 sp=105] bestAsk:
+          shadow = 97
+          real   = 98
+    [BUG  ] step 921 [CANCEL id=763] bestAsk:
+          shadow = 97
+          real   = 98
+    [BUG  ] step 922 [AMEND id=760 px=0 qty=14] bestAsk:
+          shadow = 97
+          real   = 98
+    [BUG  ] step 923 [SUBMIT id=768 SELL MARKET IOC px=0 q=10] bestAsk:
+          shadow = 97
+          real   = 98
+    [BUG  ] step 924 [SUBMIT id=769 BUY STP_LIM FOK px=96 q=8 sp=104] bestAsk:
+          shadow = 97
+          real   = 98
+    [BUG  ] step 925 [CANCEL id=766] bestAsk:
+          shadow = 97
+          real   = 103
+    [BUG  ] step 926 [SUBMIT id=770 BUY STP_LIM GTC px=98 q=10 sp=106] bestAsk:
+          shadow = 97
+          real   = 103
+    [BUG  ] step 927 [CANCEL id=760] cancelled:
+          shadow = [{760:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 927 [CANCEL id=760] bestAsk:
+          shadow = 0
+          real   = 103
+    [BUG  ] step 927 [CANCEL id=760] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 928 [SUBMIT id=771 SELL MARKET FOK px=0 q=10] bestAsk:
+          shadow = 0
+          real   = 103
+    [BUG  ] step 928 [SUBMIT id=771 SELL MARKET FOK px=0 q=10] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 929 [SUBMIT id=772 BUY STP_MKT FOK px=0 q=10 sp=102 stg=2] bestAsk:
+          shadow = 0
+          real   = 103
+    [BUG  ] step 929 [SUBMIT id=772 BUY STP_MKT FOK px=0 q=10 sp=102 stg=2] orderCount:
+          shadow = 0
+          real   = 1
+
+  Result: FAIL
+=========================================================

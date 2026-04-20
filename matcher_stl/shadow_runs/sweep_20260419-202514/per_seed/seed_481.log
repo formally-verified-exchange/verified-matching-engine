@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  481
+
+  BUG   step 3422 [SUBMIT id=2784 BUY STP_MKT FOK px=0 q=3 sp=96] field=trades shadow=[{agg=2784 pas=2760 @101 q=2}, {agg=2784 pas=2772 @106 q=1}] real=[{agg=2784 pas=2760 @101 q=2}, {agg=2784 pas=2778 @106 q=1}]
+  BUG   step 3425 [SUBMIT id=2787 BUY MARKET IOC px=0 q=5] field=trades shadow=[{agg=2787 pas=2772 @106 q=5}] real=[{agg=2787 pas=2778 @106 q=5}]
+  BUG   step 3426 [SUBMIT id=2788 BUY STP_MKT IOC px=0 q=10 sp=105] field=trades shadow=[{agg=2788 pas=2772 @106 q=9}, {agg=2788 pas=2778 @106 q=1}] real=[{agg=2788 pas=2778 @106 q=2}, {agg=2788 pas=2780 @106 q=2}, {agg=2788 pas=2772 @106 q=6}]
+  BUG   step 3426 [SUBMIT id=2788 BUY STP_MKT IOC px=0 q=10 sp=105] field=orderCount shadow=8 real=7
+  BUG   step 3427 [AMEND id=2780 px=105 qty=0] field=bestAsk shadow=105 real=106
+  BUG   step 3427 [AMEND id=2780 px=105 qty=0] field=orderCount shadow=8 real=7
+  BUG   step 3428 [SUBMIT id=2789 SELL STP_MKT IOC px=0 q=3 sp=103] field=bestAsk shadow=105 real=106
+  BUG   step 3428 [SUBMIT id=2789 SELL STP_MKT IOC px=0 q=3 sp=103] field=orderCount shadow=8 real=7
+  BUG   step 3429 [AMEND id=2754 px=97 qty=0] field=bestAsk shadow=105 real=106
+  BUG   step 3429 [AMEND id=2754 px=97 qty=0] field=orderCount shadow=8 real=7
+  BUG   step 3430 [SUBMIT id=2790 SELL LIMIT IOC px=97 q=5] field=orderCount shadow=8 real=7
+  BUG   step 3431 [SUBMIT id=2791 BUY STP_MKT IOC px=0 q=2 sp=97 stg=1] field=orderCount shadow=8 real=7
+  BUG   step 3432 [AMEND id=2769 px=100 qty=15] field=orderCount shadow=8 real=7
+  BUG   step 3433 [SUBMIT id=2792 SELL STP_LIM DAY px=91 q=10 sp=106] field=orderCount shadow=6 real=5
+  BUG   step 3434 [SUBMIT id=2793 BUY STP_MKT IOC px=0 q=3 sp=96 stg=1] field=orderCount shadow=6 real=5
+  BUG   step 3435 [SUBMIT id=2794 SELL STP_MKT FOK px=0 q=10 sp=91] field=orderCount shadow=6 real=5
+  BUG   step 3436 [SUBMIT id=2795 SELL STP_MKT IOC px=0 q=8 sp=94 stg=2] field=orderCount shadow=6 real=5
+  BUG   step 3437 [SUBMIT id=2796 SELL STP_MKT IOC px=0 q=20 sp=105 stg=2] field=orderCount shadow=6 real=5
+  BUG   step 3438 [SUBMIT id=2797 SELL MARKET FOK px=0 q=5] field=orderCount shadow=6 real=5
+  BUG   step 3439 [SUBMIT id=2798 BUY MARKET FOK px=0 q=10] field=orderCount shadow=5 real=4
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         3439
+  Submits:           2798
+  Cancels:           403
+  Amends:            238
+  Trades produced:   730
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 3422 [SUBMIT id=2784 BUY STP_MKT FOK px=0 q=3 sp=96] trades:
+          shadow = [{agg=2784 pas=2760 @101 q=2}, {agg=2784 pas=2772 @106 q=1}]
+          real   = [{agg=2784 pas=2760 @101 q=2}, {agg=2784 pas=2778 @106 q=1}]
+    [BUG  ] step 3425 [SUBMIT id=2787 BUY MARKET IOC px=0 q=5] trades:
+          shadow = [{agg=2787 pas=2772 @106 q=5}]
+          real   = [{agg=2787 pas=2778 @106 q=5}]
+    [BUG  ] step 3426 [SUBMIT id=2788 BUY STP_MKT IOC px=0 q=10 sp=105] trades:
+          shadow = [{agg=2788 pas=2772 @106 q=9}, {agg=2788 pas=2778 @106 q=1}]
+          real   = [{agg=2788 pas=2778 @106 q=2}, {agg=2788 pas=2780 @106 q=2}, {agg=2788 pas=2772 @106 q=6}]
+    [BUG  ] step 3426 [SUBMIT id=2788 BUY STP_MKT IOC px=0 q=10 sp=105] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 3427 [AMEND id=2780 px=105 qty=0] bestAsk:
+          shadow = 105
+          real   = 106
+    [BUG  ] step 3427 [AMEND id=2780 px=105 qty=0] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 3428 [SUBMIT id=2789 SELL STP_MKT IOC px=0 q=3 sp=103] bestAsk:
+          shadow = 105
+          real   = 106
+    [BUG  ] step 3428 [SUBMIT id=2789 SELL STP_MKT IOC px=0 q=3 sp=103] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 3429 [AMEND id=2754 px=97 qty=0] bestAsk:
+          shadow = 105
+          real   = 106
+    [BUG  ] step 3429 [AMEND id=2754 px=97 qty=0] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 3430 [SUBMIT id=2790 SELL LIMIT IOC px=97 q=5] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 3431 [SUBMIT id=2791 BUY STP_MKT IOC px=0 q=2 sp=97 stg=1] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 3432 [AMEND id=2769 px=100 qty=15] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 3433 [SUBMIT id=2792 SELL STP_LIM DAY px=91 q=10 sp=106] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 3434 [SUBMIT id=2793 BUY STP_MKT IOC px=0 q=3 sp=96 stg=1] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 3435 [SUBMIT id=2794 SELL STP_MKT FOK px=0 q=10 sp=91] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 3436 [SUBMIT id=2795 SELL STP_MKT IOC px=0 q=8 sp=94 stg=2] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 3437 [SUBMIT id=2796 SELL STP_MKT IOC px=0 q=20 sp=105 stg=2] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 3438 [SUBMIT id=2797 SELL MARKET FOK px=0 q=5] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 3439 [SUBMIT id=2798 BUY MARKET FOK px=0 q=10] orderCount:
+          shadow = 5
+          real   = 4
+
+  Result: FAIL
+=========================================================

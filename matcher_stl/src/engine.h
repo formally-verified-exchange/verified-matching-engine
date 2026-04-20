@@ -1,40 +1,11 @@
 #pragma once
 #include "types.h"
-#include <tlsf/pool.hpp>
 #include <map>
 #include <vector>
 #include <algorithm>
 #include <cassert>
 #include <new>
 #include <cstring>
-
-// STL-compatible pool allocator that falls back to ::operator new for n>1
-template <typename T, size_t BlockSize = 4096>
-class NodePoolAllocator {
-public:
-    using value_type = T;
-    using propagate_on_container_copy_assignment = std::true_type;
-    using propagate_on_container_move_assignment = std::true_type;
-    using propagate_on_container_swap = std::true_type;
-
-    template <typename U> struct rebind { using other = NodePoolAllocator<U, BlockSize>; };
-
-    NodePoolAllocator() = default;
-    template <typename U> NodePoolAllocator(const NodePoolAllocator<U, BlockSize>&) noexcept {}
-
-    T* allocate(size_t n) {
-        if (n == 1) return pool_.allocate();
-        return static_cast<T*>(::operator new(n * sizeof(T)));
-    }
-    void deallocate(T* p, size_t n) noexcept {
-        if (n == 1) pool_.deallocate(p);
-        else ::operator delete(p);
-    }
-    bool operator==(const NodePoolAllocator&) const noexcept { return true; }
-    bool operator!=(const NodePoolAllocator&) const noexcept { return false; }
-private:
-    tlsf::Pool<T, BlockSize> pool_;
-};
 
 // ─────────────────────────────────────────────────────────────
 //  Flat order index with ID recycling
@@ -112,20 +83,15 @@ public:
 template <typename Listener = NullListener>
 class Engine {
     static constexpr int MAX_CASCADE = 10;
-    static constexpr size_t PB = 4096;
 
-    using BidMap   = std::map<Price, PriceLevel*, std::greater<Price>,
-                              NodePoolAllocator<std::pair<const Price, PriceLevel*>, PB>>;
-    using AskMap   = std::map<Price, PriceLevel*, std::less<Price>,
-                              NodePoolAllocator<std::pair<const Price, PriceLevel*>, PB>>;
+    using BidMap   = std::map<Price, PriceLevel*, std::greater<Price>>;
+    using AskMap   = std::map<Price, PriceLevel*, std::less<Price>>;
 
     Listener& L;
     BidMap bids_;
     AskMap asks_;
     OrderIndex idx_;
     std::vector<Order*> stops_;
-    tlsf::Pool<Order, PB>      opool_;
-    tlsf::Pool<PriceLevel, PB> lpool_;
     std::vector<Trade> trades_;
     Timestamp now_ = 0;
     TradeId   tid_ = 1;
@@ -260,16 +226,16 @@ public:
 
     // ── Expire ──
     void expireOrders(Timestamp t) {
+        auto shouldExpire = [&](Order* o) {
+            if (o->timeInForce == TimeInForce::DAY) return true;
+            if (o->timeInForce == TimeInForce::GTD && o->expireTime > 0 && t >= o->expireTime) return true;
+            return false;
+        };
         std::vector<Order*> exp;
         auto scan = [&](auto& m) {
-            for (auto& [px, lv] : m) {
-                for (Order* o = lv->head; o; o = o->next) {
-                    bool e = false;
-                    if (o->timeInForce == TimeInForce::GTD && o->expireTime > 0 && t >= o->expireTime) e = true;
-                    if (o->timeInForce == TimeInForce::DAY) e = true;
-                    if (e) exp.push_back(o);
-                }
-            }
+            for (auto& [px, lv] : m)
+                for (Order* o = lv->head; o; o = o->next)
+                    if (shouldExpire(o)) exp.push_back(o);
         };
         scan(bids_); scan(asks_);
         for (Order* o : exp) {
@@ -280,26 +246,38 @@ public:
             idx_.erase(o->id);
             freeOrd(o);
         }
+        // Stops: MatchingEngine.tla:757 — TimeAdvance drops DAY stops and
+        // likewise expired GTD stops. Scan stops_ with the same predicate.
+        for (size_t i = 0; i < stops_.size();) {
+            Order* s = stops_[i];
+            if (shouldExpire(s)) {
+                stops_[i] = stops_.back();
+                stops_.pop_back();
+                s->status = OrderStatus::EXPIRED;
+                L.onOrderExpired(*s);
+                idx_.erase(s->id);
+                freeOrd(s);
+            } else {
+                ++i;
+            }
+        }
     }
 
 private:
-    // ── Pool helpers ──
+    // ── Alloc helpers ──
     Order* allocOrd() {
-        Order* o = opool_.allocate();
-        o->prev = o->next = nullptr;
-        o->level = nullptr;
+        Order* o = new Order();
         ++oA_; size_t a = oA_-oF_; if (a>oP_) oP_=a;
         return o;
     }
-    void freeOrd(Order* o)      { opool_.deallocate(o); ++oF_; }
+    void freeOrd(Order* o)      { delete o; ++oF_; }
     PriceLevel* allocLvl(Price p) {
-        PriceLevel* l = lpool_.allocate();
-        new (l) PriceLevel{};
+        PriceLevel* l = new PriceLevel();
         l->price = p;
         ++lA_; size_t a = lA_-lF_; if (a>lP_) lP_=a;
         return l;
     }
-    void freeLvl(PriceLevel* l) { lpool_.deallocate(l); ++lF_; }
+    void freeLvl(PriceLevel* l) { delete l; ++lF_; }
     Timestamp tick()            { return ++now_; }
 
     // ── Level management ──
@@ -373,6 +351,10 @@ private:
     }
 
     // ── Quantity checks ──
+    // MatchingEngine.tla:159 — FOK / MinQty pre-checks must sum
+    // visibleQty, not remainingQty: the hidden iceberg reserve is not
+    // available to an aggressor until a reload, so counting it would
+    // falsely admit FOK orders that cannot actually fill.
     template<typename M>
     Quantity availQty(const Order* inc, const M& contra, Quantity thresh) const {
         Quantity avail = 0;
@@ -380,7 +362,7 @@ private:
             if (!canMatch(inc, it->first)) break;
             for (Order* r = it->second->head; r; r = r->next) {
                 if (!stpConflict(inc, r)) {
-                    avail += r->remainingQty;
+                    avail += r->visibleQty;
                     if (avail >= thresh) return avail;
                 }
             }
@@ -465,8 +447,10 @@ private:
 
                 if (stpConflict(inc, rest)) {
                     handleStp(inc, rest);
-                    if (inc->status == OrderStatus::CANCELLED || inc->remainingQty == 0)
+                    if (inc->status == OrderStatus::CANCELLED || inc->remainingQty == 0) {
+                        if (lv->empty()) { contra.erase(li); freeLvl(lv); }
                         return;
+                    }
                     continue;
                 }
 
@@ -518,16 +502,19 @@ private:
             assert(false && "FOK remainder after check");
             return;
         case TimeInForce::GTC:
+        case TimeInForce::GTD:
+        case TimeInForce::DAY:
+            // MatchingEngine.tla:354 Dispose drops MARKET remainders for
+            // every non-IOC TIF; INV-8 NoRestingMarkets (tla:833) makes a
+            // resting MARKET a safety violation. A triggered STOP_MARKET
+            // with TIF=DAY/GTD preserves its TIF (tla:199) and reaches
+            // here after partial fill, so the guard must apply to all
+            // three persistent TIFs, not GTC alone.
             if (o->orderType == OrderType::MARKET) {
                 o->status = OrderStatus::CANCELLED;
                 L.onOrderCancelled(*o, "MARKET_NO_FULL_FILL");
                 return;
             }
-            insertOrder(o);
-            o->status = hasTr ? OrderStatus::PARTIALLY_FILLED : OrderStatus::NEW;
-            return;
-        case TimeInForce::GTD:
-        case TimeInForce::DAY:
             insertOrder(o);
             o->status = hasTr ? OrderStatus::PARTIALLY_FILLED : OrderStatus::NEW;
             return;

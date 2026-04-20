@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  8
+
+  BUG   step 2027 [SUBMIT id=1671 BUY STP_MKT IOC px=0 q=3 sp=94] field=trades shadow=[{agg=1671 pas=1647 @95 q=3}] real=[{agg=1671 pas=1666 @95 q=3}]
+  BUG   step 2031 [SUBMIT id=1675 BUY LIMIT FOK px=95 q=15] field=trades shadow=[{agg=1675 pas=1647 @95 q=2}, {agg=1675 pas=1666 @95 q=7}, {agg=1675 pas=1669 @95 q=6}] real=[{agg=1675 pas=1666 @95 q=4}, {agg=1675 pas=1647 @95 q=5}, {agg=1675 pas=1669 @95 q=6}]
+  BUG   step 4508 [SUBMIT id=3720 SELL STP_MKT FOK px=0 q=3 sp=105 stg=1] field=trades shadow=[{agg=3720 pas=3650 @99 q=2}, {agg=3715 pas=3702 @99 q=4}, {agg=3715 pas=3717 @99 q=1}, {agg=3715 pas=3718 @94 q=3}, {agg=3720 pas=3702 @99 q=1}] real=[{agg=3720 pas=3702 @99 q=3}, {agg=3715 pas=3702 @99 q=2}, {agg=3715 pas=3650 @99 q=2}, {agg=3715 pas=3717 @99 q=1}, {agg=3715 pas=3718 @94 q=3}]
+  BUG   step 4508 [SUBMIT id=3720 SELL STP_MKT FOK px=0 q=3 sp=105 stg=1] field=lastTradePrice shadow=99 real=94
+  BUG   step 4509 [SUBMIT id=3721 BUY STP_MKT IOC px=0 q=8 sp=100] field=lastTradePrice shadow=99 real=94
+  BUG   step 4510 [CANCEL id=3718] field=lastTradePrice shadow=99 real=94
+  BUG   step 4511 [SUBMIT id=3722 BUY MTL GTC px=104 q=10] field=lastTradePrice shadow=99 real=94
+  BUG   step 4512 [SUBMIT id=3723 BUY LIMIT FOK px=97 q=2] field=lastTradePrice shadow=99 real=94
+  BUG   step 4513 [SUBMIT id=3724 SELL MARKET FOK px=0 q=10] field=lastTradePrice shadow=99 real=94
+  BUG   step 4514 [SUBMIT id=3725 BUY LIMIT DAY px=102 q=8] field=lastTradePrice shadow=99 real=94
+  BUG   step 4515 [SUBMIT id=3726 SELL STP_MKT FOK px=0 q=3 sp=98] field=trades shadow=[] real=[{agg=3726 pas=3725 @102 q=3}]
+  BUG   step 4515 [SUBMIT id=3726 SELL STP_MKT FOK px=0 q=3 sp=98] field=cancelled shadow=[] real=[{3721:IOC_REMAINDER}]
+  BUG   step 4515 [SUBMIT id=3726 SELL STP_MKT FOK px=0 q=3 sp=98] field=lastTradePrice shadow=99 real=102
+  BUG   step 4515 [SUBMIT id=3726 SELL STP_MKT FOK px=0 q=3 sp=98] field=stopCount shadow=75 real=73
+  BUG   step 4516 [CANCEL id=3725] field=lastTradePrice shadow=99 real=102
+  BUG   step 4516 [CANCEL id=3725] field=stopCount shadow=75 real=73
+  BUG   step 4517 [SUBMIT id=3727 BUY LIMIT DAY px=103 q=20] field=lastTradePrice shadow=99 real=102
+  BUG   step 4517 [SUBMIT id=3727 BUY LIMIT DAY px=103 q=20] field=stopCount shadow=75 real=73
+  BUG   step 4518 [SUBMIT id=3728 SELL STP_MKT FOK px=0 q=1 sp=98] field=lastTradePrice shadow=99 real=102
+  BUG   step 4518 [SUBMIT id=3728 SELL STP_MKT FOK px=0 q=1 sp=98] field=stopCount shadow=76 real=74
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         4518
+  Submits:           3728
+  Cancels:           473
+  Amends:            317
+  Trades produced:   943
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 2027 [SUBMIT id=1671 BUY STP_MKT IOC px=0 q=3 sp=94] trades:
+          shadow = [{agg=1671 pas=1647 @95 q=3}]
+          real   = [{agg=1671 pas=1666 @95 q=3}]
+    [BUG  ] step 2031 [SUBMIT id=1675 BUY LIMIT FOK px=95 q=15] trades:
+          shadow = [{agg=1675 pas=1647 @95 q=2}, {agg=1675 pas=1666 @95 q=7}, {agg=1675 pas=1669 @95 q=6}]
+          real   = [{agg=1675 pas=1666 @95 q=4}, {agg=1675 pas=1647 @95 q=5}, {agg=1675 pas=1669 @95 q=6}]
+    [BUG  ] step 4508 [SUBMIT id=3720 SELL STP_MKT FOK px=0 q=3 sp=105 stg=1] trades:
+          shadow = [{agg=3720 pas=3650 @99 q=2}, {agg=3715 pas=3702 @99 q=4}, {agg=3715 pas=3717 @99 q=1}, {agg=3715 pas=3718 @94 q=3}, {agg=3720 pas=3702 @99 q=1}]
+          real   = [{agg=3720 pas=3702 @99 q=3}, {agg=3715 pas=3702 @99 q=2}, {agg=3715 pas=3650 @99 q=2}, {agg=3715 pas=3717 @99 q=1}, {agg=3715 pas=3718 @94 q=3}]
+    [BUG  ] step 4508 [SUBMIT id=3720 SELL STP_MKT FOK px=0 q=3 sp=105 stg=1] lastTradePrice:
+          shadow = 99
+          real   = 94
+    [BUG  ] step 4509 [SUBMIT id=3721 BUY STP_MKT IOC px=0 q=8 sp=100] lastTradePrice:
+          shadow = 99
+          real   = 94
+    [BUG  ] step 4510 [CANCEL id=3718] lastTradePrice:
+          shadow = 99
+          real   = 94
+    [BUG  ] step 4511 [SUBMIT id=3722 BUY MTL GTC px=104 q=10] lastTradePrice:
+          shadow = 99
+          real   = 94
+    [BUG  ] step 4512 [SUBMIT id=3723 BUY LIMIT FOK px=97 q=2] lastTradePrice:
+          shadow = 99
+          real   = 94
+    [BUG  ] step 4513 [SUBMIT id=3724 SELL MARKET FOK px=0 q=10] lastTradePrice:
+          shadow = 99
+          real   = 94
+    [BUG  ] step 4514 [SUBMIT id=3725 BUY LIMIT DAY px=102 q=8] lastTradePrice:
+          shadow = 99
+          real   = 94
+    [BUG  ] step 4515 [SUBMIT id=3726 SELL STP_MKT FOK px=0 q=3 sp=98] trades:
+          shadow = []
+          real   = [{agg=3726 pas=3725 @102 q=3}]
+    [BUG  ] step 4515 [SUBMIT id=3726 SELL STP_MKT FOK px=0 q=3 sp=98] cancelled:
+          shadow = []
+          real   = [{3721:IOC_REMAINDER}]
+    [BUG  ] step 4515 [SUBMIT id=3726 SELL STP_MKT FOK px=0 q=3 sp=98] lastTradePrice:
+          shadow = 99
+          real   = 102
+    [BUG  ] step 4515 [SUBMIT id=3726 SELL STP_MKT FOK px=0 q=3 sp=98] stopCount:
+          shadow = 75
+          real   = 73
+    [BUG  ] step 4516 [CANCEL id=3725] lastTradePrice:
+          shadow = 99
+          real   = 102
+    [BUG  ] step 4516 [CANCEL id=3725] stopCount:
+          shadow = 75
+          real   = 73
+    [BUG  ] step 4517 [SUBMIT id=3727 BUY LIMIT DAY px=103 q=20] lastTradePrice:
+          shadow = 99
+          real   = 102
+    [BUG  ] step 4517 [SUBMIT id=3727 BUY LIMIT DAY px=103 q=20] stopCount:
+          shadow = 75
+          real   = 73
+    [BUG  ] step 4518 [SUBMIT id=3728 SELL STP_MKT FOK px=0 q=1 sp=98] lastTradePrice:
+          shadow = 99
+          real   = 102
+    [BUG  ] step 4518 [SUBMIT id=3728 SELL STP_MKT FOK px=0 q=1 sp=98] stopCount:
+          shadow = 76
+          real   = 74
+
+  Result: FAIL
+=========================================================

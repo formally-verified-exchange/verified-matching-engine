@@ -1,0 +1,101 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  81
+
+  BUG   step 3306 [SUBMIT id=2749 BUY LIMIT FOK px=97 q=2 stg=1] field=trades shadow=[{agg=2749 pas=2711 @96 q=1}, {agg=2749 pas=2654 @97 q=1}] real=[{agg=2749 pas=2711 @96 q=1}, {agg=2749 pas=2747 @97 q=1}]
+  BUG   step 3309 [SUBMIT id=2752 BUY LIMIT FOK px=97 q=3] field=trades shadow=[{agg=2752 pas=2654 @97 q=3}] real=[{agg=2752 pas=2747 @97 q=3}]
+  BUG   step 8005 [SUBMIT id=6643 BUY LIMIT DAY px=98 q=20] field=trades shadow=[{agg=6643 pas=6637 @97 q=2}, {agg=6643 pas=6642 @97 q=18}] real=[{agg=6643 pas=6642 @97 q=19}, {agg=6643 pas=6637 @97 q=1}]
+  BUG   step 8010 [CANCEL id=6642] field=cancelled shadow=[{6642:USER_REQUESTED}] real=[]
+  BUG   step 8010 [CANCEL id=6642] field=bestAsk shadow=0 real=97
+  BUG   step 8010 [CANCEL id=6642] field=orderCount shadow=0 real=1
+  BUG   step 8011 [SUBMIT id=6647 BUY LIMIT IOC px=103 q=15 stg=2] field=trades shadow=[] real=[{agg=6647 pas=6637 @97 q=1}]
+  BUG   step 8226 [SUBMIT id=6826 SELL STP_LIM DAY px=108 q=8 sp=108] field=trades shadow=[{agg=6826 pas=6821 @108 q=3}, {agg=6826 pas=6822 @108 q=5}] real=[{agg=6826 pas=6821 @108 q=3}, {agg=6826 pas=6823 @108 q=3}, {agg=6826 pas=6822 @108 q=2}]
+  BUG   step 8235 [SUBMIT id=6833 SELL STP_MKT IOC px=0 q=5 sp=108] field=trades shadow=[{agg=6833 pas=6823 @108 q=2}, {agg=6833 pas=6823 @108 q=3}] real=[{agg=6833 pas=6823 @108 q=2}, {agg=6833 pas=6807 @104 q=3}]
+  BUG   step 8235 [SUBMIT id=6833 SELL STP_MKT IOC px=0 q=5 sp=108] field=lastTradePrice shadow=108 real=104
+  BUG   step 8236 [SUBMIT id=6834 BUY LIMIT FOK px=104 q=5] field=lastTradePrice shadow=108 real=104
+  BUG   step 8237 [SUBMIT id=6835 SELL LIMIT FOK px=103 q=20] field=lastTradePrice shadow=108 real=104
+  BUG   step 8238 [SUBMIT id=6836 SELL MTL GTC px=104 q=1] field=lastTradePrice shadow=108 real=104
+  BUG   step 8239 [SUBMIT id=6837 SELL MARKET FOK px=0 q=20] field=trades shadow=[{agg=6837 pas=6807 @104 q=5}, {agg=6837 pas=6790 @99 q=15}] real=[]
+  BUG   step 8239 [SUBMIT id=6837 SELL MARKET FOK px=0 q=20] field=cancelled shadow=[] real=[{6837:FOK_NOT_SATISFIABLE}]
+  BUG   step 8239 [SUBMIT id=6837 SELL MARKET FOK px=0 q=20] field=bestBid shadow=0 real=104
+  BUG   step 8239 [SUBMIT id=6837 SELL MARKET FOK px=0 q=20] field=orderCount shadow=0 real=2
+  BUG   step 8239 [SUBMIT id=6837 SELL MARKET FOK px=0 q=20] field=lastTradePrice shadow=99 real=104
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         8240
+  Submits:           6838
+  Cancels:           826
+  Amends:            576
+  Trades produced:   1689
+  Divergences total: 21  (BUG=21  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 3306 [SUBMIT id=2749 BUY LIMIT FOK px=97 q=2 stg=1] trades:
+          shadow = [{agg=2749 pas=2711 @96 q=1}, {agg=2749 pas=2654 @97 q=1}]
+          real   = [{agg=2749 pas=2711 @96 q=1}, {agg=2749 pas=2747 @97 q=1}]
+    [BUG  ] step 3309 [SUBMIT id=2752 BUY LIMIT FOK px=97 q=3] trades:
+          shadow = [{agg=2752 pas=2654 @97 q=3}]
+          real   = [{agg=2752 pas=2747 @97 q=3}]
+    [BUG  ] step 8005 [SUBMIT id=6643 BUY LIMIT DAY px=98 q=20] trades:
+          shadow = [{agg=6643 pas=6637 @97 q=2}, {agg=6643 pas=6642 @97 q=18}]
+          real   = [{agg=6643 pas=6642 @97 q=19}, {agg=6643 pas=6637 @97 q=1}]
+    [BUG  ] step 8010 [CANCEL id=6642] cancelled:
+          shadow = [{6642:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 8010 [CANCEL id=6642] bestAsk:
+          shadow = 0
+          real   = 97
+    [BUG  ] step 8010 [CANCEL id=6642] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 8011 [SUBMIT id=6647 BUY LIMIT IOC px=103 q=15 stg=2] trades:
+          shadow = []
+          real   = [{agg=6647 pas=6637 @97 q=1}]
+    [BUG  ] step 8226 [SUBMIT id=6826 SELL STP_LIM DAY px=108 q=8 sp=108] trades:
+          shadow = [{agg=6826 pas=6821 @108 q=3}, {agg=6826 pas=6822 @108 q=5}]
+          real   = [{agg=6826 pas=6821 @108 q=3}, {agg=6826 pas=6823 @108 q=3}, {agg=6826 pas=6822 @108 q=2}]
+    [BUG  ] step 8235 [SUBMIT id=6833 SELL STP_MKT IOC px=0 q=5 sp=108] trades:
+          shadow = [{agg=6833 pas=6823 @108 q=2}, {agg=6833 pas=6823 @108 q=3}]
+          real   = [{agg=6833 pas=6823 @108 q=2}, {agg=6833 pas=6807 @104 q=3}]
+    [BUG  ] step 8235 [SUBMIT id=6833 SELL STP_MKT IOC px=0 q=5 sp=108] lastTradePrice:
+          shadow = 108
+          real   = 104
+    [BUG  ] step 8236 [SUBMIT id=6834 BUY LIMIT FOK px=104 q=5] lastTradePrice:
+          shadow = 108
+          real   = 104
+    [BUG  ] step 8237 [SUBMIT id=6835 SELL LIMIT FOK px=103 q=20] lastTradePrice:
+          shadow = 108
+          real   = 104
+    [BUG  ] step 8238 [SUBMIT id=6836 SELL MTL GTC px=104 q=1] lastTradePrice:
+          shadow = 108
+          real   = 104
+    [BUG  ] step 8239 [SUBMIT id=6837 SELL MARKET FOK px=0 q=20] trades:
+          shadow = [{agg=6837 pas=6807 @104 q=5}, {agg=6837 pas=6790 @99 q=15}]
+          real   = []
+    [BUG  ] step 8239 [SUBMIT id=6837 SELL MARKET FOK px=0 q=20] cancelled:
+          shadow = []
+          real   = [{6837:FOK_NOT_SATISFIABLE}]
+    [BUG  ] step 8239 [SUBMIT id=6837 SELL MARKET FOK px=0 q=20] bestBid:
+          shadow = 0
+          real   = 104
+    [BUG  ] step 8239 [SUBMIT id=6837 SELL MARKET FOK px=0 q=20] orderCount:
+          shadow = 0
+          real   = 2
+    [BUG  ] step 8239 [SUBMIT id=6837 SELL MARKET FOK px=0 q=20] lastTradePrice:
+          shadow = 99
+          real   = 104
+    [BUG  ] step 8240 [SUBMIT id=6838 SELL LIMIT GTC px=97 q=8] trades:
+          shadow = []
+          real   = [{agg=6838 pas=6807 @104 q=2}, {agg=6838 pas=6790 @99 q=6}]
+    [BUG  ] step 8240 [SUBMIT id=6838 SELL LIMIT GTC px=97 q=8] bestBid:
+          shadow = 0
+          real   = 99
+    [BUG  ] step 8240 [SUBMIT id=6838 SELL LIMIT GTC px=97 q=8] bestAsk:
+          shadow = 97
+          real   = 0
+
+  Result: FAIL
+=========================================================

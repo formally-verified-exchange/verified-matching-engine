@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  337
+
+  BUG   step 3871 [SUBMIT id=3168 BUY MARKET IOC px=0 q=1] field=trades shadow=[{agg=3168 pas=3053 @95 q=1}] real=[{agg=3168 pas=3160 @95 q=1}]
+  BUG   step 4249 [SUBMIT id=3461 SELL LIMIT IOC px=95 q=1] field=trades shadow=[{agg=3461 pas=3448 @100 q=1}] real=[{agg=3461 pas=3455 @100 q=1}]
+  BUG   step 4250 [SUBMIT id=3462 SELL LIMIT IOC px=95 q=3] field=trades shadow=[{agg=3462 pas=3448 @100 q=3}] real=[{agg=3462 pas=3455 @100 q=3}]
+  BUG   step 4250 [SUBMIT id=3462 SELL LIMIT IOC px=95 q=3] field=orderCount shadow=4 real=3
+  BUG   step 4251 [SUBMIT id=3463 SELL LIMIT FOK px=99 q=15] field=trades shadow=[{agg=3463 pas=3448 @100 q=6}, {agg=3463 pas=3455 @100 q=4}, {agg=3463 pas=3452 @99 q=5}] real=[{agg=3463 pas=3448 @100 q=10}, {agg=3463 pas=3452 @99 q=5}]
+  BUG   step 4283 [SUBMIT id=3491 BUY STP_LIM GTC px=106 q=20 sp=89] field=trades shadow=[{agg=3491 pas=3486 @90 q=7}, {agg=3491 pas=2801 @94 q=9}, {agg=3491 pas=2355 @96 q=4}] real=[{agg=3491 pas=3486 @90 q=7}, {agg=3491 pas=2801 @94 q=9}, {agg=3491 pas=3472 @96 q=1}, {agg=3491 pas=3473 @96 q=3}]
+  BUG   step 4283 [SUBMIT id=3491 BUY STP_LIM GTC px=106 q=20 sp=89] field=orderCount shadow=10 real=9
+  BUG   step 4284 [CANCEL id=2540] field=orderCount shadow=9 real=8
+  BUG   step 4285 [SUBMIT id=3492 SELL LIMIT GTC px=95 q=5] field=orderCount shadow=10 real=9
+  BUG   step 4286 [SUBMIT id=3493 BUY MTL GTC px=94 q=20] field=orderCount shadow=10 real=9
+  BUG   step 4287 [SUBMIT id=3494 BUY LIMIT FOK px=94 q=10] field=orderCount shadow=10 real=9
+  BUG   step 4288 [AMEND id=686 px=96 qty=11] field=orderCount shadow=10 real=9
+  BUG   step 4289 [CANCEL id=3438] field=orderCount shadow=9 real=8
+  BUG   step 4290 [SUBMIT id=3495 BUY LIMIT IOC px=100 q=10] field=trades shadow=[{agg=3495 pas=3492 @95 q=5}, {agg=3495 pas=2355 @96 q=5}] real=[{agg=3495 pas=3492 @95 q=5}, {agg=3495 pas=3473 @96 q=5}]
+  BUG   step 4290 [SUBMIT id=3495 BUY LIMIT IOC px=100 q=10] field=orderCount shadow=8 real=7
+  BUG   step 4291 [SUBMIT id=3496 BUY LIMIT IOC px=95 q=8] field=orderCount shadow=8 real=7
+  BUG   step 4292 [AMEND id=43 px=0 qty=17] field=orderCount shadow=8 real=7
+  BUG   step 4293 [CANCEL id=1598] field=orderCount shadow=7 real=6
+  BUG   step 4294 [CANCEL id=207] field=orderCount shadow=6 real=5
+  BUG   step 4295 [SUBMIT id=3497 SELL STP_LIM FOK px=96 q=1 sp=98] field=orderCount shadow=6 real=5
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         4295
+  Submits:           3497
+  Cancels:           476
+  Amends:            322
+  Trades produced:   897
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 3871 [SUBMIT id=3168 BUY MARKET IOC px=0 q=1] trades:
+          shadow = [{agg=3168 pas=3053 @95 q=1}]
+          real   = [{agg=3168 pas=3160 @95 q=1}]
+    [BUG  ] step 4249 [SUBMIT id=3461 SELL LIMIT IOC px=95 q=1] trades:
+          shadow = [{agg=3461 pas=3448 @100 q=1}]
+          real   = [{agg=3461 pas=3455 @100 q=1}]
+    [BUG  ] step 4250 [SUBMIT id=3462 SELL LIMIT IOC px=95 q=3] trades:
+          shadow = [{agg=3462 pas=3448 @100 q=3}]
+          real   = [{agg=3462 pas=3455 @100 q=3}]
+    [BUG  ] step 4250 [SUBMIT id=3462 SELL LIMIT IOC px=95 q=3] orderCount:
+          shadow = 4
+          real   = 3
+    [BUG  ] step 4251 [SUBMIT id=3463 SELL LIMIT FOK px=99 q=15] trades:
+          shadow = [{agg=3463 pas=3448 @100 q=6}, {agg=3463 pas=3455 @100 q=4}, {agg=3463 pas=3452 @99 q=5}]
+          real   = [{agg=3463 pas=3448 @100 q=10}, {agg=3463 pas=3452 @99 q=5}]
+    [BUG  ] step 4283 [SUBMIT id=3491 BUY STP_LIM GTC px=106 q=20 sp=89] trades:
+          shadow = [{agg=3491 pas=3486 @90 q=7}, {agg=3491 pas=2801 @94 q=9}, {agg=3491 pas=2355 @96 q=4}]
+          real   = [{agg=3491 pas=3486 @90 q=7}, {agg=3491 pas=2801 @94 q=9}, {agg=3491 pas=3472 @96 q=1}, {agg=3491 pas=3473 @96 q=3}]
+    [BUG  ] step 4283 [SUBMIT id=3491 BUY STP_LIM GTC px=106 q=20 sp=89] orderCount:
+          shadow = 10
+          real   = 9
+    [BUG  ] step 4284 [CANCEL id=2540] orderCount:
+          shadow = 9
+          real   = 8
+    [BUG  ] step 4285 [SUBMIT id=3492 SELL LIMIT GTC px=95 q=5] orderCount:
+          shadow = 10
+          real   = 9
+    [BUG  ] step 4286 [SUBMIT id=3493 BUY MTL GTC px=94 q=20] orderCount:
+          shadow = 10
+          real   = 9
+    [BUG  ] step 4287 [SUBMIT id=3494 BUY LIMIT FOK px=94 q=10] orderCount:
+          shadow = 10
+          real   = 9
+    [BUG  ] step 4288 [AMEND id=686 px=96 qty=11] orderCount:
+          shadow = 10
+          real   = 9
+    [BUG  ] step 4289 [CANCEL id=3438] orderCount:
+          shadow = 9
+          real   = 8
+    [BUG  ] step 4290 [SUBMIT id=3495 BUY LIMIT IOC px=100 q=10] trades:
+          shadow = [{agg=3495 pas=3492 @95 q=5}, {agg=3495 pas=2355 @96 q=5}]
+          real   = [{agg=3495 pas=3492 @95 q=5}, {agg=3495 pas=3473 @96 q=5}]
+    [BUG  ] step 4290 [SUBMIT id=3495 BUY LIMIT IOC px=100 q=10] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 4291 [SUBMIT id=3496 BUY LIMIT IOC px=95 q=8] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 4292 [AMEND id=43 px=0 qty=17] orderCount:
+          shadow = 8
+          real   = 7
+    [BUG  ] step 4293 [CANCEL id=1598] orderCount:
+          shadow = 7
+          real   = 6
+    [BUG  ] step 4294 [CANCEL id=207] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 4295 [SUBMIT id=3497 SELL STP_LIM FOK px=96 q=1 sp=98] orderCount:
+          shadow = 6
+          real   = 5
+
+  Result: FAIL
+=========================================================

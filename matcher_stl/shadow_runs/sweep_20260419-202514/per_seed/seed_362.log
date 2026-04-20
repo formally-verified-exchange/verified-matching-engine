@@ -1,0 +1,102 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  362
+
+  BUG   step 2485 [SUBMIT id=2045 SELL LIMIT FOK px=109 q=3] field=trades shadow=[{agg=2045 pas=2042 @110 q=3}] real=[{agg=2045 pas=2043 @110 q=3}]
+  BUG   step 2488 [SUBMIT id=2047 SELL LIMIT GTC px=105 q=20] field=trades shadow=[{agg=2047 pas=2042 @110 q=9}, {agg=2047 pas=2043 @110 q=5}] real=[{agg=2047 pas=2043 @110 q=2}, {agg=2047 pas=2042 @110 q=9}]
+  BUG   step 2491 [SUBMIT id=2050 BUY MARKET FOK px=0 q=8] field=trades shadow=[] real=[{agg=2050 pas=2047 @105 q=8}]
+  BUG   step 2491 [SUBMIT id=2050 BUY MARKET FOK px=0 q=8] field=cancelled shadow=[{2050:FOK_NOT_SATISFIABLE}] real=[]
+  BUG   step 2491 [SUBMIT id=2050 BUY MARKET FOK px=0 q=8] field=lastTradePrice shadow=110 real=105
+  BUG   step 2492 [SUBMIT id=2051 SELL MARKET FOK px=0 q=5] field=lastTradePrice shadow=110 real=105
+  BUG   step 2493 [CANCEL id=2047] field=lastTradePrice shadow=110 real=105
+  BUG   step 2494 [SUBMIT id=2052 BUY STP_LIM DAY px=96 q=3 sp=105] field=lastTradePrice shadow=110 real=105
+  BUG   step 2495 [CANCEL id=2052] field=lastTradePrice shadow=110 real=105
+  BUG   step 2496 [SUBMIT id=2053 BUY LIMIT FOK px=104 q=5 stg=1] field=lastTradePrice shadow=110 real=105
+  BUG   step 2497 [SUBMIT id=2054 BUY STP_LIM FOK px=98 q=1 sp=109] field=cancelled shadow=[{2054:FOK_NOT_SATISFIABLE}] real=[]
+  BUG   step 2497 [SUBMIT id=2054 BUY STP_LIM FOK px=98 q=1 sp=109] field=lastTradePrice shadow=110 real=105
+  BUG   step 2497 [SUBMIT id=2054 BUY STP_LIM FOK px=98 q=1 sp=109] field=stopCount shadow=39 real=40
+  BUG   step 2498 [SUBMIT id=2055 BUY LIMIT IOC px=100 q=20] field=lastTradePrice shadow=110 real=105
+  BUG   step 2498 [SUBMIT id=2055 BUY LIMIT IOC px=100 q=20] field=stopCount shadow=39 real=40
+  BUG   step 2499 [SUBMIT id=2056 BUY LIMIT IOC px=98 q=10] field=lastTradePrice shadow=110 real=105
+  BUG   step 2499 [SUBMIT id=2056 BUY LIMIT IOC px=98 q=10] field=stopCount shadow=39 real=40
+  BUG   step 2500 [SUBMIT id=2057 SELL LIMIT DAY px=99 q=20 mq=11 stg=2] field=lastTradePrice shadow=110 real=105
+  BUG   step 2500 [SUBMIT id=2057 SELL LIMIT DAY px=99 q=20 mq=11 stg=2] field=stopCount shadow=39 real=40
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         2501
+  Submits:           2058
+  Cancels:           277
+  Amends:            166
+  Trades produced:   544
+  Divergences total: 21  (BUG=21  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 2485 [SUBMIT id=2045 SELL LIMIT FOK px=109 q=3] trades:
+          shadow = [{agg=2045 pas=2042 @110 q=3}]
+          real   = [{agg=2045 pas=2043 @110 q=3}]
+    [BUG  ] step 2488 [SUBMIT id=2047 SELL LIMIT GTC px=105 q=20] trades:
+          shadow = [{agg=2047 pas=2042 @110 q=9}, {agg=2047 pas=2043 @110 q=5}]
+          real   = [{agg=2047 pas=2043 @110 q=2}, {agg=2047 pas=2042 @110 q=9}]
+    [BUG  ] step 2491 [SUBMIT id=2050 BUY MARKET FOK px=0 q=8] trades:
+          shadow = []
+          real   = [{agg=2050 pas=2047 @105 q=8}]
+    [BUG  ] step 2491 [SUBMIT id=2050 BUY MARKET FOK px=0 q=8] cancelled:
+          shadow = [{2050:FOK_NOT_SATISFIABLE}]
+          real   = []
+    [BUG  ] step 2491 [SUBMIT id=2050 BUY MARKET FOK px=0 q=8] lastTradePrice:
+          shadow = 110
+          real   = 105
+    [BUG  ] step 2492 [SUBMIT id=2051 SELL MARKET FOK px=0 q=5] lastTradePrice:
+          shadow = 110
+          real   = 105
+    [BUG  ] step 2493 [CANCEL id=2047] lastTradePrice:
+          shadow = 110
+          real   = 105
+    [BUG  ] step 2494 [SUBMIT id=2052 BUY STP_LIM DAY px=96 q=3 sp=105] lastTradePrice:
+          shadow = 110
+          real   = 105
+    [BUG  ] step 2495 [CANCEL id=2052] lastTradePrice:
+          shadow = 110
+          real   = 105
+    [BUG  ] step 2496 [SUBMIT id=2053 BUY LIMIT FOK px=104 q=5 stg=1] lastTradePrice:
+          shadow = 110
+          real   = 105
+    [BUG  ] step 2497 [SUBMIT id=2054 BUY STP_LIM FOK px=98 q=1 sp=109] cancelled:
+          shadow = [{2054:FOK_NOT_SATISFIABLE}]
+          real   = []
+    [BUG  ] step 2497 [SUBMIT id=2054 BUY STP_LIM FOK px=98 q=1 sp=109] lastTradePrice:
+          shadow = 110
+          real   = 105
+    [BUG  ] step 2497 [SUBMIT id=2054 BUY STP_LIM FOK px=98 q=1 sp=109] stopCount:
+          shadow = 39
+          real   = 40
+    [BUG  ] step 2498 [SUBMIT id=2055 BUY LIMIT IOC px=100 q=20] lastTradePrice:
+          shadow = 110
+          real   = 105
+    [BUG  ] step 2498 [SUBMIT id=2055 BUY LIMIT IOC px=100 q=20] stopCount:
+          shadow = 39
+          real   = 40
+    [BUG  ] step 2499 [SUBMIT id=2056 BUY LIMIT IOC px=98 q=10] lastTradePrice:
+          shadow = 110
+          real   = 105
+    [BUG  ] step 2499 [SUBMIT id=2056 BUY LIMIT IOC px=98 q=10] stopCount:
+          shadow = 39
+          real   = 40
+    [BUG  ] step 2500 [SUBMIT id=2057 SELL LIMIT DAY px=99 q=20 mq=11 stg=2] lastTradePrice:
+          shadow = 110
+          real   = 105
+    [BUG  ] step 2500 [SUBMIT id=2057 SELL LIMIT DAY px=99 q=20 mq=11 stg=2] stopCount:
+          shadow = 39
+          real   = 40
+    [BUG  ] step 2501 [SUBMIT id=2058 SELL LIMIT GTC px=97 q=2] lastTradePrice:
+          shadow = 110
+          real   = 105
+    [BUG  ] step 2501 [SUBMIT id=2058 SELL LIMIT GTC px=97 q=2] stopCount:
+          shadow = 39
+          real   = 40
+
+  Result: FAIL
+=========================================================

@@ -1,0 +1,110 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  443
+
+  BUG   step 9 [SUBMIT id=8 BUY LIMIT DAY px=103 q=8] field=trades shadow=[{agg=8 pas=5 @98 q=8}] real=[{agg=8 pas=4 @98 q=4}, {agg=8 pas=5 @98 q=4}]
+  BUG   step 18 [SUBMIT id=16 BUY STP_LIM GTC px=99 q=5 sp=98 stg=2] field=trades shadow=[{agg=16 pas=5 @98 q=1}, {agg=16 pas=4 @98 q=4}] real=[{agg=16 pas=5 @98 q=5}]
+  BUG   step 2432 [SUBMIT id=1971 BUY LIMIT DAY px=95 q=10] field=trades shadow=[{agg=1971 pas=1940 @95 q=10}] real=[{agg=1971 pas=1968 @95 q=10}]
+  BUG   step 2434 [SUBMIT id=1973 BUY LIMIT DAY px=95 q=5] field=trades shadow=[{agg=1973 pas=1940 @95 q=5}] real=[{agg=1973 pas=1968 @95 q=5}]
+  BUG   step 2449 [SUBMIT id=1985 BUY LIMIT FOK px=96 q=5] field=trades shadow=[] real=[{agg=1985 pas=1940 @95 q=5}]
+  BUG   step 2449 [SUBMIT id=1985 BUY LIMIT FOK px=96 q=5] field=cancelled shadow=[{1985:FOK_NOT_SATISFIABLE}] real=[]
+  BUG   step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] field=trades shadow=[] real=[{agg=1986 pas=1940 @95 q=12}, {agg=1986 pas=1951 @99 q=2}, {agg=1986 pas=1974 @102 q=1}]
+  BUG   step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] field=cancelled shadow=[{1986:FOK_NOT_SATISFIABLE}] real=[{1984:IOC_REMAINDER}]
+  BUG   step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] field=bestBid shadow=0 real=96
+  BUG   step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] field=bestAsk shadow=95 real=102
+  BUG   step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] field=orderCount shadow=3 real=2
+  BUG   step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] field=lastTradePrice shadow=95 real=102
+  BUG   step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] field=stopCount shadow=32 real=30
+  BUG   step 2451 [SUBMIT id=1987 SELL STP_MKT IOC px=0 q=20 sp=105] field=trades shadow=[] real=[{agg=1987 pas=1972 @96 q=1}]
+  BUG   step 2451 [SUBMIT id=1987 SELL STP_MKT IOC px=0 q=20 sp=105] field=bestAsk shadow=95 real=102
+  BUG   step 2451 [SUBMIT id=1987 SELL STP_MKT IOC px=0 q=20 sp=105] field=orderCount shadow=3 real=1
+  BUG   step 2451 [SUBMIT id=1987 SELL STP_MKT IOC px=0 q=20 sp=105] field=lastTradePrice shadow=95 real=96
+  BUG   step 2451 [SUBMIT id=1987 SELL STP_MKT IOC px=0 q=20 sp=105] field=stopCount shadow=32 real=30
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         2452
+  Submits:           1988
+  Cancels:           266
+  Amends:            198
+  Trades produced:   517
+  Divergences total: 24  (BUG=24  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 9 [SUBMIT id=8 BUY LIMIT DAY px=103 q=8] trades:
+          shadow = [{agg=8 pas=5 @98 q=8}]
+          real   = [{agg=8 pas=4 @98 q=4}, {agg=8 pas=5 @98 q=4}]
+    [BUG  ] step 18 [SUBMIT id=16 BUY STP_LIM GTC px=99 q=5 sp=98 stg=2] trades:
+          shadow = [{agg=16 pas=5 @98 q=1}, {agg=16 pas=4 @98 q=4}]
+          real   = [{agg=16 pas=5 @98 q=5}]
+    [BUG  ] step 2432 [SUBMIT id=1971 BUY LIMIT DAY px=95 q=10] trades:
+          shadow = [{agg=1971 pas=1940 @95 q=10}]
+          real   = [{agg=1971 pas=1968 @95 q=10}]
+    [BUG  ] step 2434 [SUBMIT id=1973 BUY LIMIT DAY px=95 q=5] trades:
+          shadow = [{agg=1973 pas=1940 @95 q=5}]
+          real   = [{agg=1973 pas=1968 @95 q=5}]
+    [BUG  ] step 2449 [SUBMIT id=1985 BUY LIMIT FOK px=96 q=5] trades:
+          shadow = []
+          real   = [{agg=1985 pas=1940 @95 q=5}]
+    [BUG  ] step 2449 [SUBMIT id=1985 BUY LIMIT FOK px=96 q=5] cancelled:
+          shadow = [{1985:FOK_NOT_SATISFIABLE}]
+          real   = []
+    [BUG  ] step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] trades:
+          shadow = []
+          real   = [{agg=1986 pas=1940 @95 q=12}, {agg=1986 pas=1951 @99 q=2}, {agg=1986 pas=1974 @102 q=1}]
+    [BUG  ] step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] cancelled:
+          shadow = [{1986:FOK_NOT_SATISFIABLE}]
+          real   = [{1984:IOC_REMAINDER}]
+    [BUG  ] step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] bestBid:
+          shadow = 0
+          real   = 96
+    [BUG  ] step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] bestAsk:
+          shadow = 95
+          real   = 102
+    [BUG  ] step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] lastTradePrice:
+          shadow = 95
+          real   = 102
+    [BUG  ] step 2450 [SUBMIT id=1986 BUY MARKET FOK px=0 q=15] stopCount:
+          shadow = 32
+          real   = 30
+    [BUG  ] step 2451 [SUBMIT id=1987 SELL STP_MKT IOC px=0 q=20 sp=105] trades:
+          shadow = []
+          real   = [{agg=1987 pas=1972 @96 q=1}]
+    [BUG  ] step 2451 [SUBMIT id=1987 SELL STP_MKT IOC px=0 q=20 sp=105] bestAsk:
+          shadow = 95
+          real   = 102
+    [BUG  ] step 2451 [SUBMIT id=1987 SELL STP_MKT IOC px=0 q=20 sp=105] orderCount:
+          shadow = 3
+          real   = 1
+    [BUG  ] step 2451 [SUBMIT id=1987 SELL STP_MKT IOC px=0 q=20 sp=105] lastTradePrice:
+          shadow = 95
+          real   = 96
+    [BUG  ] step 2451 [SUBMIT id=1987 SELL STP_MKT IOC px=0 q=20 sp=105] stopCount:
+          shadow = 32
+          real   = 30
+    [BUG  ] step 2452 [SUBMIT id=1988 BUY MARKET FOK px=0 q=3] trades:
+          shadow = [{agg=1988 pas=1940 @95 q=2}, {agg=1988 pas=1951 @99 q=1}]
+          real   = [{agg=1988 pas=1974 @102 q=3}]
+    [BUG  ] step 2452 [SUBMIT id=1988 BUY MARKET FOK px=0 q=3] cancelled:
+          shadow = [{1984:IOC_REMAINDER}]
+          real   = []
+    [BUG  ] step 2452 [SUBMIT id=1988 BUY MARKET FOK px=0 q=3] bestAsk:
+          shadow = 99
+          real   = 102
+    [BUG  ] step 2452 [SUBMIT id=1988 BUY MARKET FOK px=0 q=3] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 2452 [SUBMIT id=1988 BUY MARKET FOK px=0 q=3] lastTradePrice:
+          shadow = 99
+          real   = 102
+    [BUG  ] step 2452 [SUBMIT id=1988 BUY MARKET FOK px=0 q=3] stopCount:
+          shadow = 31
+          real   = 30
+
+  Result: FAIL
+=========================================================

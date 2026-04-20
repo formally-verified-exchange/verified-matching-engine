@@ -1,0 +1,102 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  412
+
+  BUG   step 4956 [SUBMIT id=4131 BUY LIMIT IOC px=95 q=15] field=trades shadow=[{agg=4131 pas=4076 @95 q=15}] real=[{agg=4131 pas=4129 @95 q=6}, {agg=4131 pas=4076 @95 q=9}]
+  BUG   step 4956 [SUBMIT id=4131 BUY LIMIT IOC px=95 q=15] field=orderCount shadow=5 real=4
+  BUG   step 4957 [AMEND id=4051 px=98 qty=18] field=orderCount shadow=5 real=4
+  BUG   step 4958 [AMEND id=4072 px=0 qty=3] field=orderCount shadow=5 real=4
+  BUG   step 4959 [SUBMIT id=4132 SELL STP_MKT IOC px=0 q=20 sp=102] field=orderCount shadow=5 real=4
+  BUG   step 4960 [SUBMIT id=4133 BUY STP_LIM FOK px=96 q=5 sp=96] field=orderCount shadow=5 real=4
+  BUG   step 4961 [SUBMIT id=4134 SELL LIMIT IOC px=95 q=10] field=orderCount shadow=5 real=4
+  BUG   step 4962 [SUBMIT id=4135 SELL STP_LIM IOC px=94 q=1 sp=94] field=orderCount shadow=5 real=4
+  BUG   step 4963 [CANCEL id=4072] field=orderCount shadow=4 real=3
+  BUG   step 4964 [SUBMIT id=4136 SELL STP_MKT IOC px=0 q=20 sp=92 stg=2] field=orderCount shadow=4 real=3
+  BUG   step 4965 [AMEND id=4076 px=99 qty=10] field=bestAsk shadow=95 real=98
+  BUG   step 4965 [AMEND id=4076 px=99 qty=10] field=orderCount shadow=4 real=3
+  BUG   step 4966 [SUBMIT id=4137 BUY STP_MKT IOC px=0 q=15 sp=105] field=bestAsk shadow=95 real=98
+  BUG   step 4966 [SUBMIT id=4137 BUY STP_MKT IOC px=0 q=15 sp=105] field=orderCount shadow=4 real=3
+  BUG   step 4967 [SUBMIT id=4138 SELL LIMIT IOC px=94 q=15] field=bestAsk shadow=95 real=98
+  BUG   step 4967 [SUBMIT id=4138 SELL LIMIT IOC px=94 q=15] field=orderCount shadow=4 real=3
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         4968
+  Submits:           4139
+  Cancels:           493
+  Amends:            336
+  Trades produced:   1034
+  Divergences total: 22  (BUG=22  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 4956 [SUBMIT id=4131 BUY LIMIT IOC px=95 q=15] trades:
+          shadow = [{agg=4131 pas=4076 @95 q=15}]
+          real   = [{agg=4131 pas=4129 @95 q=6}, {agg=4131 pas=4076 @95 q=9}]
+    [BUG  ] step 4956 [SUBMIT id=4131 BUY LIMIT IOC px=95 q=15] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 4957 [AMEND id=4051 px=98 qty=18] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 4958 [AMEND id=4072 px=0 qty=3] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 4959 [SUBMIT id=4132 SELL STP_MKT IOC px=0 q=20 sp=102] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 4960 [SUBMIT id=4133 BUY STP_LIM FOK px=96 q=5 sp=96] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 4961 [SUBMIT id=4134 SELL LIMIT IOC px=95 q=10] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 4962 [SUBMIT id=4135 SELL STP_LIM IOC px=94 q=1 sp=94] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 4963 [CANCEL id=4072] orderCount:
+          shadow = 4
+          real   = 3
+    [BUG  ] step 4964 [SUBMIT id=4136 SELL STP_MKT IOC px=0 q=20 sp=92 stg=2] orderCount:
+          shadow = 4
+          real   = 3
+    [BUG  ] step 4965 [AMEND id=4076 px=99 qty=10] bestAsk:
+          shadow = 95
+          real   = 98
+    [BUG  ] step 4965 [AMEND id=4076 px=99 qty=10] orderCount:
+          shadow = 4
+          real   = 3
+    [BUG  ] step 4966 [SUBMIT id=4137 BUY STP_MKT IOC px=0 q=15 sp=105] bestAsk:
+          shadow = 95
+          real   = 98
+    [BUG  ] step 4966 [SUBMIT id=4137 BUY STP_MKT IOC px=0 q=15 sp=105] orderCount:
+          shadow = 4
+          real   = 3
+    [BUG  ] step 4967 [SUBMIT id=4138 SELL LIMIT IOC px=94 q=15] bestAsk:
+          shadow = 95
+          real   = 98
+    [BUG  ] step 4967 [SUBMIT id=4138 SELL LIMIT IOC px=94 q=15] orderCount:
+          shadow = 4
+          real   = 3
+    [BUG  ] step 4968 [SUBMIT id=4139 BUY LIMIT FOK px=100 q=1] trades:
+          shadow = [{agg=4139 pas=4129 @95 q=1}]
+          real   = [{agg=4139 pas=4051 @98 q=1}]
+    [BUG  ] step 4968 [SUBMIT id=4139 BUY LIMIT FOK px=100 q=1] cancelled:
+          shadow = []
+          real   = [{4133:FOK_NOT_SATISFIABLE}]
+    [BUG  ] step 4968 [SUBMIT id=4139 BUY LIMIT FOK px=100 q=1] bestAsk:
+          shadow = 95
+          real   = 98
+    [BUG  ] step 4968 [SUBMIT id=4139 BUY LIMIT FOK px=100 q=1] orderCount:
+          shadow = 4
+          real   = 3
+    [BUG  ] step 4968 [SUBMIT id=4139 BUY LIMIT FOK px=100 q=1] lastTradePrice:
+          shadow = 95
+          real   = 98
+    [BUG  ] step 4968 [SUBMIT id=4139 BUY LIMIT FOK px=100 q=1] stopCount:
+          shadow = 54
+          real   = 53
+
+  Result: FAIL
+=========================================================

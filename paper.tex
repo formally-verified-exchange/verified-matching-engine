@@ -825,8 +825,92 @@ these traces against the implementation, comparing its output
 state-for-state against the model. This pipeline does not constitute a
 refinement proof, but it provides a level of assurance substantially
 above conventional unit testing by covering the same combinatorial
-feature interactions that TLC explores. A conformance-tested C++
-implementation is planned as a follow-up to this work.
+feature interactions that TLC explores.
+
+\subsection{The Conformance Pipeline}
+\label{sec:conformance-pipeline}
+
+We implemented this approach for a header-only C++ matching engine
+(\texttt{matcher\_stl/src/engine.h}, ${\sim}645$ source lines). The
+pipeline has three stages. First, TLC is invoked in simulation mode
+against seeded configurations of each of thirteen scenarios---empty,
+shallow and deep book, iceberg-dominant, mixed time-in-force,
+stops-pending, self-trade-prevention, and so on---with a depth bound
+that keeps each random walk short enough to terminate. Second, a
+converter parses each trace and records, for every action, the
+spec's projected observables: top-of-book on each side, total
+book-order count, pending-stop count, last trade price, and the
+list of trades produced by that transition. Third, the C++
+conformance harness replays each action against the engine and
+compares the engine's observables field-by-field to the projection
+after every step.
+
+A sweep of approximately 232{,}000 traces across the thirteen
+scenarios yielded roughly $1.5\times 10^{6}$ per-step comparisons.
+Divergences point directly at the offending transition with a
+minimal repro that is typically fewer than ten actions long.
+
+\subsection{A Bug Conformance Testing Found}
+\label{sec:cpp005}
+
+\paragraph{The scenario.} A stop-market order is submitted with
+time-in-force \textsc{day}; its stop price is not yet met, so it
+is placed dormant in the stop set. Later, an amend re-prices a
+resting limit order across the spread; the amend executes a trade
+whose price satisfies the dormant stop's trigger condition.
+
+The stop fires. Its type is rewritten from \textsc{stop\_market}
+to \textsc{market}; its time-in-force is unchanged, as specified.
+It enters the matching pipeline as a market order, fills partially
+against the remaining liquidity, and reaches the post-match
+\emph{dispose} step with a non-zero remainder.
+
+\paragraph{What the specification requires.} The specification is
+unambiguous at this point: $\textsc{Dispose}$ drops any market
+remainder regardless of time-in-force, and safety invariant INV-8
+\textsc{NoRestingMarkets} forbids a market order from appearing
+in either book queue. No market order may survive past the
+dispose step.
+
+\paragraph{The defect.} The C++ \texttt{Dispose} function gated
+the market-drop clause on the \textsc{gtc} branch only; the
+\textsc{day} and \textsc{gtd} branches fell through to the
+book-insertion path, pushing the leftover market quantity onto
+the book at price zero. From that point every subsequent action
+carried an extra phantom order visible through the book's
+aggregate count, and later aggressors could trade against the
+zero-priced order, spuriously producing additional fills.
+
+The correction lifts the market-drop guard to apply to all three
+persistent time-in-force branches. The fix preserves the existing
+behaviour for user-submitted market orders---which well-formedness
+constrains to \textsc{ioc}/\textsc{fok}---and adds the
+spec-required coverage for triggered stops, whose converted form
+retains the original time-in-force.
+
+\paragraph{Why conventional testing missed it.} The engine had
+passed sixty-two directed unit tests covering limit matching,
+iceberg reload, FOK feasibility, stop triggering, and partial
+fills in isolation, but none exercised a stop-triggers-on-amend
+path whose triggered market had leftover quantity. A second
+oracle, a sibling C++ reference implementation shadowing the
+engine through random differential testing at the scale of tens
+of millions of operations per seed, also did not surface the
+defect: its own \texttt{dispose} function contained the identical
+missing market guard on the \textsc{day}/\textsc{gtd} branches,
+and a differential test cannot see a bug both implementations
+share. The formal specification, by contrast, treated
+\textsc{day}/\textsc{gtd} uniformly with \textsc{gtc} in the
+dispose clause and made a resting market a safety violation.
+Comparing the engine's behaviour against the spec's projected
+state was the first oracle positioned to distinguish the two.
+
+This is the structural argument for spec-based conformance
+testing over inter-implementation differential testing. An
+independent C++ reference catches all data-structure bugs that
+do not appear in both codebases, but it cannot catch a semantic
+error that both codebases inherited from a shared mental
+model---only a specification rooted outside of C++ can.
 
 
 % ============================================================================

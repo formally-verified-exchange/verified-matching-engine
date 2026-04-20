@@ -1,0 +1,99 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  293
+
+  BUG   step 7170 [SUBMIT id=5887 SELL STP_LIM DAY px=102 q=2 sp=107] field=trades shadow=[{agg=5887 pas=5799 @107 q=2}] real=[{agg=5887 pas=5884 @107 q=2}]
+  BUG   step 7176 [SUBMIT id=5892 SELL LIMIT GTC px=102 q=20 stg=2] field=bestAsk shadow=0 real=102
+  BUG   step 7176 [SUBMIT id=5892 SELL LIMIT GTC px=102 q=20 stg=2] field=orderCount shadow=0 real=1
+  BUG   step 7177 [SUBMIT id=5893 BUY LIMIT DAY px=95 q=1] field=bestAsk shadow=0 real=102
+  BUG   step 7177 [SUBMIT id=5893 BUY LIMIT DAY px=95 q=1] field=orderCount shadow=1 real=2
+  BUG   step 7178 [SUBMIT id=5894 BUY STP_MKT IOC px=0 q=10 sp=102] field=trades shadow=[] real=[{agg=5894 pas=5892 @102 q=2}, {agg=5890 pas=5893 @95 q=1}]
+  BUG   step 7178 [SUBMIT id=5894 BUY STP_MKT IOC px=0 q=10 sp=102] field=cancelled shadow=[{5894:IOC_REMAINDER}] real=[{5894:IOC_REMAINDER}, {5890:IOC_REMAINDER}, {5891:FOK_NOT_SATISFIABLE}]
+  BUG   step 7178 [SUBMIT id=5894 BUY STP_MKT IOC px=0 q=10 sp=102] field=bestBid shadow=95 real=0
+  BUG   step 7178 [SUBMIT id=5894 BUY STP_MKT IOC px=0 q=10 sp=102] field=bestAsk shadow=0 real=100
+  BUG   step 7178 [SUBMIT id=5894 BUY STP_MKT IOC px=0 q=10 sp=102] field=lastTradePrice shadow=107 real=95
+  BUG   step 7178 [SUBMIT id=5894 BUY STP_MKT IOC px=0 q=10 sp=102] field=stopCount shadow=112 real=109
+  BUG   step 7179 [CANCEL id=5893] field=cancelled shadow=[{5893:USER_REQUESTED}] real=[]
+  BUG   step 7179 [CANCEL id=5893] field=bestAsk shadow=0 real=100
+  BUG   step 7179 [CANCEL id=5893] field=orderCount shadow=0 real=1
+  BUG   step 7179 [CANCEL id=5893] field=lastTradePrice shadow=107 real=95
+  BUG   step 7179 [CANCEL id=5893] field=stopCount shadow=112 real=109
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         7180
+  Submits:           5895
+  Cancels:           754
+  Amends:            531
+  Trades produced:   1419
+  Divergences total: 21  (BUG=21  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 7170 [SUBMIT id=5887 SELL STP_LIM DAY px=102 q=2 sp=107] trades:
+          shadow = [{agg=5887 pas=5799 @107 q=2}]
+          real   = [{agg=5887 pas=5884 @107 q=2}]
+    [BUG  ] step 7176 [SUBMIT id=5892 SELL LIMIT GTC px=102 q=20 stg=2] bestAsk:
+          shadow = 0
+          real   = 102
+    [BUG  ] step 7176 [SUBMIT id=5892 SELL LIMIT GTC px=102 q=20 stg=2] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 7177 [SUBMIT id=5893 BUY LIMIT DAY px=95 q=1] bestAsk:
+          shadow = 0
+          real   = 102
+    [BUG  ] step 7177 [SUBMIT id=5893 BUY LIMIT DAY px=95 q=1] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 7178 [SUBMIT id=5894 BUY STP_MKT IOC px=0 q=10 sp=102] trades:
+          shadow = []
+          real   = [{agg=5894 pas=5892 @102 q=2}, {agg=5890 pas=5893 @95 q=1}]
+    [BUG  ] step 7178 [SUBMIT id=5894 BUY STP_MKT IOC px=0 q=10 sp=102] cancelled:
+          shadow = [{5894:IOC_REMAINDER}]
+          real   = [{5894:IOC_REMAINDER}, {5890:IOC_REMAINDER}, {5891:FOK_NOT_SATISFIABLE}]
+    [BUG  ] step 7178 [SUBMIT id=5894 BUY STP_MKT IOC px=0 q=10 sp=102] bestBid:
+          shadow = 95
+          real   = 0
+    [BUG  ] step 7178 [SUBMIT id=5894 BUY STP_MKT IOC px=0 q=10 sp=102] bestAsk:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 7178 [SUBMIT id=5894 BUY STP_MKT IOC px=0 q=10 sp=102] lastTradePrice:
+          shadow = 107
+          real   = 95
+    [BUG  ] step 7178 [SUBMIT id=5894 BUY STP_MKT IOC px=0 q=10 sp=102] stopCount:
+          shadow = 112
+          real   = 109
+    [BUG  ] step 7179 [CANCEL id=5893] cancelled:
+          shadow = [{5893:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 7179 [CANCEL id=5893] bestAsk:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 7179 [CANCEL id=5893] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 7179 [CANCEL id=5893] lastTradePrice:
+          shadow = 107
+          real   = 95
+    [BUG  ] step 7179 [CANCEL id=5893] stopCount:
+          shadow = 112
+          real   = 109
+    [BUG  ] step 7180 [SUBMIT id=5895 BUY STP_MKT FOK px=0 q=15 sp=102] cancelled:
+          shadow = [{5895:FOK_NOT_SATISFIABLE}]
+          real   = []
+    [BUG  ] step 7180 [SUBMIT id=5895 BUY STP_MKT FOK px=0 q=15 sp=102] bestAsk:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 7180 [SUBMIT id=5895 BUY STP_MKT FOK px=0 q=15 sp=102] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 7180 [SUBMIT id=5895 BUY STP_MKT FOK px=0 q=15 sp=102] lastTradePrice:
+          shadow = 107
+          real   = 95
+    [BUG  ] step 7180 [SUBMIT id=5895 BUY STP_MKT FOK px=0 q=15 sp=102] stopCount:
+          shadow = 112
+          real   = 110
+
+  Result: FAIL
+=========================================================

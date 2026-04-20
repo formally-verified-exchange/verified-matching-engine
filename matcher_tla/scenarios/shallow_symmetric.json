@@ -1,0 +1,16 @@
+{
+  "name": "shallow_symmetric",
+  "description": "One bid, one ask, no cross. Cheapest non-empty starting shape.",
+  "seed_orders": [
+    {"id": 1, "side": "BUY",  "price": 1, "qty": 1, "orderType": "LIMIT", "tif": "GTC"},
+    {"id": 2, "side": "SELL", "price": 3, "qty": 1, "orderType": "LIMIT", "tif": "GTC"}
+  ],
+  "tlc": {
+    "prices": [1, 2, 3],
+    "tick_size": 1,
+    "max_qty": 2,
+    "next_relation": "NextNoAmend",
+    "bounds_fast": {"max_orders_extra": 2, "max_clock_extra": 4},
+    "bounds_deep": {"max_orders_extra": 4, "max_clock_extra": 8}
+  }
+}

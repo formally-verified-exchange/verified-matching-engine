@@ -1,0 +1,99 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  11
+
+  BUG   step 747 [SUBMIT id=633 SELL STP_LIM FOK px=103 q=10 sp=105 stg=2] field=trades shadow=[{agg=633 pas=549 @104 q=8}, {agg=633 pas=627 @104 q=2}] real=[{agg=633 pas=627 @104 q=10}]
+  BUG   step 748 [CANCEL id=627] field=cancelled shadow=[{627:USER_REQUESTED}] real=[]
+  BUG   step 748 [CANCEL id=627] field=bestBid shadow=100 real=104
+  BUG   step 748 [CANCEL id=627] field=orderCount shadow=2 real=3
+  BUG   step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] field=trades shadow=[{agg=634 pas=596 @100 q=3}, {agg=634 pas=625 @95 q=1}] real=[{agg=634 pas=549 @104 q=8}]
+  BUG   step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] field=cancelled shadow=[{507:IOC_REMAINDER}, {604:FOK_NOT_SATISFIABLE}, {605:FOK_NOT_SATISFIABLE}] real=[]
+  BUG   step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] field=bestBid shadow=0 real=100
+  BUG   step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] field=bestAsk shadow=95 real=0
+  BUG   step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] field=orderCount shadow=1 real=2
+  BUG   step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] field=lastTradePrice shadow=95 real=104
+  BUG   step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] field=stopCount shadow=33 real=36
+  BUG   step 750 [AMEND id=634 px=0 qty=5] field=bestBid shadow=0 real=100
+  BUG   step 750 [AMEND id=634 px=0 qty=5] field=bestAsk shadow=95 real=0
+  BUG   step 750 [AMEND id=634 px=0 qty=5] field=orderCount shadow=1 real=2
+  BUG   step 750 [AMEND id=634 px=0 qty=5] field=lastTradePrice shadow=95 real=104
+  BUG   step 750 [AMEND id=634 px=0 qty=5] field=stopCount shadow=33 real=36
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         751
+  Submits:           634
+  Cancels:           73
+  Amends:            44
+  Trades produced:   124
+  Divergences total: 21  (BUG=21  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 747 [SUBMIT id=633 SELL STP_LIM FOK px=103 q=10 sp=105 stg=2] trades:
+          shadow = [{agg=633 pas=549 @104 q=8}, {agg=633 pas=627 @104 q=2}]
+          real   = [{agg=633 pas=627 @104 q=10}]
+    [BUG  ] step 748 [CANCEL id=627] cancelled:
+          shadow = [{627:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 748 [CANCEL id=627] bestBid:
+          shadow = 100
+          real   = 104
+    [BUG  ] step 748 [CANCEL id=627] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] trades:
+          shadow = [{agg=634 pas=596 @100 q=3}, {agg=634 pas=625 @95 q=1}]
+          real   = [{agg=634 pas=549 @104 q=8}]
+    [BUG  ] step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] cancelled:
+          shadow = [{507:IOC_REMAINDER}, {604:FOK_NOT_SATISFIABLE}, {605:FOK_NOT_SATISFIABLE}]
+          real   = []
+    [BUG  ] step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] bestBid:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] bestAsk:
+          shadow = 95
+          real   = 0
+    [BUG  ] step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] lastTradePrice:
+          shadow = 95
+          real   = 104
+    [BUG  ] step 749 [SUBMIT id=634 SELL LIMIT GTC px=95 q=8] stopCount:
+          shadow = 33
+          real   = 36
+    [BUG  ] step 750 [AMEND id=634 px=0 qty=5] bestBid:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 750 [AMEND id=634 px=0 qty=5] bestAsk:
+          shadow = 95
+          real   = 0
+    [BUG  ] step 750 [AMEND id=634 px=0 qty=5] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 750 [AMEND id=634 px=0 qty=5] lastTradePrice:
+          shadow = 95
+          real   = 104
+    [BUG  ] step 750 [AMEND id=634 px=0 qty=5] stopCount:
+          shadow = 33
+          real   = 36
+    [BUG  ] step 751 [CANCEL id=634] cancelled:
+          shadow = [{634:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 751 [CANCEL id=634] bestBid:
+          shadow = 0
+          real   = 100
+    [BUG  ] step 751 [CANCEL id=634] orderCount:
+          shadow = 0
+          real   = 2
+    [BUG  ] step 751 [CANCEL id=634] lastTradePrice:
+          shadow = 95
+          real   = 104
+    [BUG  ] step 751 [CANCEL id=634] stopCount:
+          shadow = 33
+          real   = 36
+
+  Result: FAIL
+=========================================================

@@ -1,0 +1,13 @@
+{
+  "name": "empty",
+  "description": "Baseline — empty book. Matches the original un-seeded Init.",
+  "seed_orders": [],
+  "tlc": {
+    "prices": [1, 2, 3],
+    "tick_size": 1,
+    "max_qty": 2,
+    "next_relation": "NextNoAmend",
+    "bounds_fast": {"max_orders_extra": 2, "max_clock_extra": 4},
+    "bounds_deep": {"max_orders_extra": 4, "max_clock_extra": 8}
+  }
+}

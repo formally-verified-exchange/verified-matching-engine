@@ -1,0 +1,19 @@
+{
+  "name": "near_capacity",
+  "description": "Five seed orders with only one extra slot — boundary behaviour at MAX_ORDERS.",
+  "seed_orders": [
+    {"id": 1, "side": "BUY",  "price": 1, "qty": 1, "orderType": "LIMIT", "tif": "GTC"},
+    {"id": 2, "side": "BUY",  "price": 2, "qty": 1, "orderType": "LIMIT", "tif": "GTC"},
+    {"id": 3, "side": "BUY",  "price": 3, "qty": 1, "orderType": "LIMIT", "tif": "GTC"},
+    {"id": 4, "side": "SELL", "price": 5, "qty": 1, "orderType": "LIMIT", "tif": "GTC"},
+    {"id": 5, "side": "SELL", "price": 6, "qty": 1, "orderType": "LIMIT", "tif": "GTC"}
+  ],
+  "tlc": {
+    "prices": [1, 2, 3, 4, 5, 6],
+    "tick_size": 1,
+    "max_qty": 2,
+    "next_relation": "NextNoAmend",
+    "bounds_fast": {"max_orders_extra": 1, "max_clock_extra": 3},
+    "bounds_deep": {"max_orders_extra": 2, "max_clock_extra": 6}
+  }
+}

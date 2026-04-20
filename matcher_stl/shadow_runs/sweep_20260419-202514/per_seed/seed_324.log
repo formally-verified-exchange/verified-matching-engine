@@ -1,0 +1,102 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  324
+
+  BUG   step 4166 [SUBMIT id=3427 BUY LIMIT GTC px=108 q=20] field=trades shadow=[{agg=3427 pas=3414 @107 q=1}, {agg=3427 pas=3415 @107 q=5}] real=[{agg=3427 pas=3415 @107 q=5}, {agg=3427 pas=3414 @107 q=1}]
+  BUG   step 6947 [SUBMIT id=5701 BUY MARKET IOC px=0 q=20] field=trades shadow=[{agg=5701 pas=5697 @101 q=15}, {agg=5701 pas=5680 @102 q=5}] real=[{agg=5701 pas=5697 @101 q=15}, {agg=5701 pas=5693 @102 q=4}, {agg=5701 pas=5680 @102 q=1}]
+  BUG   step 6947 [SUBMIT id=5701 BUY MARKET IOC px=0 q=20] field=orderCount shadow=2 real=1
+  BUG   step 6948 [SUBMIT id=5702 SELL STP_LIM GTC px=102 q=1 sp=92] field=orderCount shadow=2 real=1
+  BUG   step 6949 [AMEND id=5680 px=0 qty=2] field=orderCount shadow=2 real=1
+  BUG   step 6950 [SUBMIT id=5703 BUY STP_MKT IOC px=0 q=8 sp=105 stg=1] field=orderCount shadow=2 real=1
+  BUG   step 6951 [SUBMIT id=5704 BUY STP_LIM IOC px=101 q=20 sp=101] field=orderCount shadow=2 real=1
+  BUG   step 6952 [SUBMIT id=5705 SELL LIMIT GTC px=103 q=3] field=orderCount shadow=3 real=2
+  BUG   step 6953 [SUBMIT id=5706 SELL LIMIT DAY px=102 q=5 stg=2] field=orderCount shadow=4 real=3
+  BUG   step 6954 [SUBMIT id=5707 BUY MARKET IOC px=0 q=2] field=orderCount shadow=3 real=2
+  BUG   step 6955 [SUBMIT id=5708 SELL STP_MKT FOK px=0 q=10 sp=102] field=orderCount shadow=3 real=2
+  BUG   step 6956 [SUBMIT id=5709 BUY STP_MKT IOC px=0 q=3 sp=105] field=orderCount shadow=3 real=2
+  BUG   step 6957 [SUBMIT id=5710 SELL STP_MKT FOK px=0 q=15 sp=102] field=orderCount shadow=3 real=2
+  BUG   step 6958 [SUBMIT id=5711 SELL STP_MKT IOC px=0 q=3 sp=103] field=orderCount shadow=3 real=2
+  BUG   step 6959 [SUBMIT id=5712 SELL STP_MKT IOC px=0 q=10 sp=92] field=orderCount shadow=3 real=2
+  BUG   step 6960 [SUBMIT id=5713 BUY LIMIT GTC px=103 q=15] field=trades shadow=[{agg=5713 pas=5693 @102 q=4}, {agg=5713 pas=5706 @102 q=5}, {agg=5713 pas=5705 @103 q=3}] real=[{agg=5713 pas=5706 @102 q=5}, {agg=5713 pas=5705 @103 q=3}]
+  BUG   step 6962 [SUBMIT id=5715 SELL LIMIT IOC px=103 q=15] field=trades shadow=[{agg=5715 pas=5713 @103 q=3}] real=[{agg=5715 pas=5713 @103 q=7}]
+  BUG   step 8361 [SUBMIT id=6877 SELL LIMIT IOC px=106 q=3] field=trades shadow=[{agg=6877 pas=6816 @107 q=3}] real=[{agg=6877 pas=6875 @107 q=3}]
+  BUG   step 8364 [SUBMIT id=6880 SELL MARKET FOK px=0 q=2] field=trades shadow=[{agg=6880 pas=6816 @107 q=2}] real=[{agg=6880 pas=6875 @107 q=2}]
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         8367
+  Submits:           6883
+  Cancels:           902
+  Amends:            582
+  Trades produced:   1665
+  Divergences total: 21  (BUG=21  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 4166 [SUBMIT id=3427 BUY LIMIT GTC px=108 q=20] trades:
+          shadow = [{agg=3427 pas=3414 @107 q=1}, {agg=3427 pas=3415 @107 q=5}]
+          real   = [{agg=3427 pas=3415 @107 q=5}, {agg=3427 pas=3414 @107 q=1}]
+    [BUG  ] step 6947 [SUBMIT id=5701 BUY MARKET IOC px=0 q=20] trades:
+          shadow = [{agg=5701 pas=5697 @101 q=15}, {agg=5701 pas=5680 @102 q=5}]
+          real   = [{agg=5701 pas=5697 @101 q=15}, {agg=5701 pas=5693 @102 q=4}, {agg=5701 pas=5680 @102 q=1}]
+    [BUG  ] step 6947 [SUBMIT id=5701 BUY MARKET IOC px=0 q=20] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 6948 [SUBMIT id=5702 SELL STP_LIM GTC px=102 q=1 sp=92] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 6949 [AMEND id=5680 px=0 qty=2] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 6950 [SUBMIT id=5703 BUY STP_MKT IOC px=0 q=8 sp=105 stg=1] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 6951 [SUBMIT id=5704 BUY STP_LIM IOC px=101 q=20 sp=101] orderCount:
+          shadow = 2
+          real   = 1
+    [BUG  ] step 6952 [SUBMIT id=5705 SELL LIMIT GTC px=103 q=3] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 6953 [SUBMIT id=5706 SELL LIMIT DAY px=102 q=5 stg=2] orderCount:
+          shadow = 4
+          real   = 3
+    [BUG  ] step 6954 [SUBMIT id=5707 BUY MARKET IOC px=0 q=2] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 6955 [SUBMIT id=5708 SELL STP_MKT FOK px=0 q=10 sp=102] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 6956 [SUBMIT id=5709 BUY STP_MKT IOC px=0 q=3 sp=105] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 6957 [SUBMIT id=5710 SELL STP_MKT FOK px=0 q=15 sp=102] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 6958 [SUBMIT id=5711 SELL STP_MKT IOC px=0 q=3 sp=103] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 6959 [SUBMIT id=5712 SELL STP_MKT IOC px=0 q=10 sp=92] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 6960 [SUBMIT id=5713 BUY LIMIT GTC px=103 q=15] trades:
+          shadow = [{agg=5713 pas=5693 @102 q=4}, {agg=5713 pas=5706 @102 q=5}, {agg=5713 pas=5705 @103 q=3}]
+          real   = [{agg=5713 pas=5706 @102 q=5}, {agg=5713 pas=5705 @103 q=3}]
+    [BUG  ] step 6962 [SUBMIT id=5715 SELL LIMIT IOC px=103 q=15] trades:
+          shadow = [{agg=5715 pas=5713 @103 q=3}]
+          real   = [{agg=5715 pas=5713 @103 q=7}]
+    [BUG  ] step 8361 [SUBMIT id=6877 SELL LIMIT IOC px=106 q=3] trades:
+          shadow = [{agg=6877 pas=6816 @107 q=3}]
+          real   = [{agg=6877 pas=6875 @107 q=3}]
+    [BUG  ] step 8364 [SUBMIT id=6880 SELL MARKET FOK px=0 q=2] trades:
+          shadow = [{agg=6880 pas=6816 @107 q=2}]
+          real   = [{agg=6880 pas=6875 @107 q=2}]
+    [BUG  ] step 8367 [SUBMIT id=6883 SELL LIMIT GTC px=96 q=2] trades:
+          shadow = [{agg=6883 pas=6816 @107 q=2}]
+          real   = [{agg=6883 pas=6875 @107 q=2}]
+    [BUG  ] step 8367 [SUBMIT id=6883 SELL LIMIT GTC px=96 q=2] orderCount:
+          shadow = 6
+          real   = 5
+
+  Result: FAIL
+=========================================================

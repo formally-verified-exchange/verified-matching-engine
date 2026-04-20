@@ -1,0 +1,17 @@
+{
+  "name": "one_sided_bids",
+  "description": "Three resting bids across three levels, no asks. Aggressive SELL should sweep.",
+  "seed_orders": [
+    {"id": 1, "side": "BUY", "price": 1, "qty": 1, "orderType": "LIMIT", "tif": "GTC"},
+    {"id": 2, "side": "BUY", "price": 2, "qty": 2, "orderType": "LIMIT", "tif": "GTC"},
+    {"id": 3, "side": "BUY", "price": 3, "qty": 1, "orderType": "LIMIT", "tif": "GTC"}
+  ],
+  "tlc": {
+    "prices": [1, 2, 3, 4],
+    "tick_size": 1,
+    "max_qty": 2,
+    "next_relation": "NextNoAmend",
+    "bounds_fast": {"max_orders_extra": 2, "max_clock_extra": 4},
+    "bounds_deep": {"max_orders_extra": 4, "max_clock_extra": 8}
+  }
+}

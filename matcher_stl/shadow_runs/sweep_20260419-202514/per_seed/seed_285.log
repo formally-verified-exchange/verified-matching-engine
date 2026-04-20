@@ -1,0 +1,102 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  285
+
+  BUG   step 1958 [SUBMIT id=1617 BUY LIMIT FOK px=106 q=15] field=trades shadow=[{agg=1617 pas=1605 @101 q=2}, {agg=1617 pas=1610 @101 q=3}, {agg=1617 pas=1613 @101 q=10}] real=[{agg=1617 pas=1610 @101 q=3}, {agg=1617 pas=1613 @101 q=12}]
+  BUG   step 1958 [SUBMIT id=1617 BUY LIMIT FOK px=106 q=15] field=orderCount shadow=1 real=2
+  BUG   step 1959 [SUBMIT id=1618 SELL STP_MKT IOC px=0 q=15 sp=105] field=orderCount shadow=1 real=2
+  BUG   step 1960 [AMEND id=1613 px=106 qty=10] field=bestAsk shadow=106 real=101
+  BUG   step 1960 [AMEND id=1613 px=106 qty=10] field=orderCount shadow=1 real=2
+  BUG   step 1961 [SUBMIT id=1619 SELL LIMIT IOC px=107 q=2 stg=1] field=bestAsk shadow=106 real=101
+  BUG   step 1961 [SUBMIT id=1619 SELL LIMIT IOC px=107 q=2 stg=1] field=orderCount shadow=1 real=2
+  BUG   step 1962 [SUBMIT id=1620 BUY MTL GTC px=106 q=20] field=bestAsk shadow=106 real=101
+  BUG   step 1962 [SUBMIT id=1620 BUY MTL GTC px=106 q=20] field=orderCount shadow=1 real=2
+  BUG   step 1963 [SUBMIT id=1621 BUY MARKET IOC px=0 q=10 stg=2] field=trades shadow=[{agg=1621 pas=1613 @106 q=10}] real=[{agg=1621 pas=1605 @101 q=2}, {agg=1621 pas=1613 @106 q=8}]
+  BUG   step 1963 [SUBMIT id=1621 BUY MARKET IOC px=0 q=10 stg=2] field=bestAsk shadow=0 real=106
+  BUG   step 1963 [SUBMIT id=1621 BUY MARKET IOC px=0 q=10 stg=2] field=orderCount shadow=0 real=1
+  BUG   step 1964 [SUBMIT id=1622 SELL STP_MKT FOK px=0 q=8 sp=103] field=bestAsk shadow=0 real=106
+  BUG   step 1964 [SUBMIT id=1622 SELL STP_MKT FOK px=0 q=8 sp=103] field=orderCount shadow=0 real=1
+  BUG   step 1965 [SUBMIT id=1623 SELL MTL GTC px=108 q=20] field=bestAsk shadow=0 real=106
+  BUG   step 1965 [SUBMIT id=1623 SELL MTL GTC px=108 q=20] field=orderCount shadow=0 real=1
+  BUG   step 1966 [SUBMIT id=1624 SELL STP_LIM DAY px=103 q=8 sp=106] field=orderCount shadow=1 real=2
+  BUG   step 1967 [SUBMIT id=1625 BUY STP_LIM IOC px=98 q=10 sp=105] field=orderCount shadow=1 real=2
+  BUG   step 1968 [SUBMIT id=1626 BUY STP_LIM GTC px=102 q=2 sp=109] field=orderCount shadow=1 real=2
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         1969
+  Submits:           1626
+  Cancels:           207
+  Amends:            136
+  Trades produced:   369
+  Divergences total: 21  (BUG=21  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 1958 [SUBMIT id=1617 BUY LIMIT FOK px=106 q=15] trades:
+          shadow = [{agg=1617 pas=1605 @101 q=2}, {agg=1617 pas=1610 @101 q=3}, {agg=1617 pas=1613 @101 q=10}]
+          real   = [{agg=1617 pas=1610 @101 q=3}, {agg=1617 pas=1613 @101 q=12}]
+    [BUG  ] step 1958 [SUBMIT id=1617 BUY LIMIT FOK px=106 q=15] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 1959 [SUBMIT id=1618 SELL STP_MKT IOC px=0 q=15 sp=105] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 1960 [AMEND id=1613 px=106 qty=10] bestAsk:
+          shadow = 106
+          real   = 101
+    [BUG  ] step 1960 [AMEND id=1613 px=106 qty=10] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 1961 [SUBMIT id=1619 SELL LIMIT IOC px=107 q=2 stg=1] bestAsk:
+          shadow = 106
+          real   = 101
+    [BUG  ] step 1961 [SUBMIT id=1619 SELL LIMIT IOC px=107 q=2 stg=1] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 1962 [SUBMIT id=1620 BUY MTL GTC px=106 q=20] bestAsk:
+          shadow = 106
+          real   = 101
+    [BUG  ] step 1962 [SUBMIT id=1620 BUY MTL GTC px=106 q=20] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 1963 [SUBMIT id=1621 BUY MARKET IOC px=0 q=10 stg=2] trades:
+          shadow = [{agg=1621 pas=1613 @106 q=10}]
+          real   = [{agg=1621 pas=1605 @101 q=2}, {agg=1621 pas=1613 @106 q=8}]
+    [BUG  ] step 1963 [SUBMIT id=1621 BUY MARKET IOC px=0 q=10 stg=2] bestAsk:
+          shadow = 0
+          real   = 106
+    [BUG  ] step 1963 [SUBMIT id=1621 BUY MARKET IOC px=0 q=10 stg=2] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 1964 [SUBMIT id=1622 SELL STP_MKT FOK px=0 q=8 sp=103] bestAsk:
+          shadow = 0
+          real   = 106
+    [BUG  ] step 1964 [SUBMIT id=1622 SELL STP_MKT FOK px=0 q=8 sp=103] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 1965 [SUBMIT id=1623 SELL MTL GTC px=108 q=20] bestAsk:
+          shadow = 0
+          real   = 106
+    [BUG  ] step 1965 [SUBMIT id=1623 SELL MTL GTC px=108 q=20] orderCount:
+          shadow = 0
+          real   = 1
+    [BUG  ] step 1966 [SUBMIT id=1624 SELL STP_LIM DAY px=103 q=8 sp=106] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 1967 [SUBMIT id=1625 BUY STP_LIM IOC px=98 q=10 sp=105] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 1968 [SUBMIT id=1626 BUY STP_LIM GTC px=102 q=2 sp=109] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 1969 [CANCEL id=1624] bestAsk:
+          shadow = 0
+          real   = 106
+    [BUG  ] step 1969 [CANCEL id=1624] orderCount:
+          shadow = 0
+          real   = 1
+
+  Result: FAIL
+=========================================================

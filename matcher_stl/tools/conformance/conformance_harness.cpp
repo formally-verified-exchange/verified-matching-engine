@@ -498,6 +498,25 @@ TraceResult replayTrace(const JVal& trace) {
     TrackingListener listener;
     Engine<TrackingListener> engine(listener, PostOnlyPolicy::REJECT, 1);
 
+    // If the trace has a seed (pre-fill) section, submit those orders first
+    // before replaying the TLC-generated steps. The TLC seeded Init produces
+    // state 1 already containing these orders; the C++ engine only gets there
+    // by executing the corresponding submits. Seed submits are not compared
+    // against TLA+ projections — they're fixture setup.
+    const JVal& seed = trace["metadata"]["seed"];
+    if (!seed.isNull() && seed.type == JVal::ARR) {
+        for (size_t i = 0; i < seed.size(); i++) {
+            OrderInput in = mapParams(seed[(int)i]);
+            listener.clearStep();
+            engine.submitOrder(in);
+            result.ordersSubmitted++;
+            // Sanity: a well-formed non-crossing seed should never reject.
+            // (If it does, the scenario is misconfigured — surface as a BUG.)
+            // We can't easily detect rejection without tracking it; leave as TODO
+            // and rely on the first step's state comparison to catch mismatches.
+        }
+    }
+
     auto& steps = trace["steps"];
     result.steps = (int)steps.size();
 

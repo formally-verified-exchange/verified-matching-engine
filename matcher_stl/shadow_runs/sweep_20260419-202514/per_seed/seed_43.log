@@ -1,0 +1,107 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  43
+
+  BUG   step 383 [SUBMIT id=316 SELL MARKET IOC px=0 q=1] field=trades shadow=[{agg=316 pas=297 @107 q=1}] real=[{agg=316 pas=306 @107 q=1}]
+  BUG   step 389 [SUBMIT id=319 SELL LIMIT IOC px=107 q=10] field=trades shadow=[{agg=319 pas=297 @107 q=10}] real=[{agg=319 pas=306 @107 q=6}, {agg=319 pas=297 @107 q=4}]
+  BUG   step 389 [SUBMIT id=319 SELL LIMIT IOC px=107 q=10] field=orderCount shadow=3 real=2
+  BUG   step 390 [SUBMIT id=320 SELL LIMIT IOC px=98 q=2 stg=1] field=orderCount shadow=3 real=2
+  BUG   step 391 [SUBMIT id=321 BUY LIMIT DAY px=108 q=1 stg=2] field=orderCount shadow=4 real=3
+  BUG   step 392 [SUBMIT id=322 BUY LIMIT DAY px=103 q=5] field=orderCount shadow=5 real=4
+  BUG   step 393 [SUBMIT id=323 BUY LIMIT FOK px=107 q=5] field=orderCount shadow=5 real=4
+  BUG   step 394 [CANCEL id=306] field=cancelled shadow=[{306:USER_REQUESTED}] real=[]
+  BUG   step 402 [SUBMIT id=328 SELL STP_MKT FOK px=0 q=3 sp=107] field=trades shadow=[{agg=328 pas=297 @107 q=2}, {agg=328 pas=322 @103 q=1}] real=[{agg=328 pas=297 @107 q=3}]
+  BUG   step 402 [SUBMIT id=328 SELL STP_MKT FOK px=0 q=3 sp=107] field=bestBid shadow=103 real=107
+  BUG   step 402 [SUBMIT id=328 SELL STP_MKT FOK px=0 q=3 sp=107] field=orderCount shadow=1 real=2
+  BUG   step 402 [SUBMIT id=328 SELL STP_MKT FOK px=0 q=3 sp=107] field=lastTradePrice shadow=103 real=107
+  BUG   step 403 [SUBMIT id=329 BUY STP_LIM DAY px=103 q=10 sp=102] field=bestBid shadow=103 real=107
+  BUG   step 403 [SUBMIT id=329 BUY STP_LIM DAY px=103 q=10 sp=102] field=orderCount shadow=2 real=3
+  BUG   step 403 [SUBMIT id=329 BUY STP_LIM DAY px=103 q=10 sp=102] field=lastTradePrice shadow=103 real=107
+  BUG   step 404 [SUBMIT id=330 BUY MARKET FOK px=0 q=5] field=bestBid shadow=103 real=107
+  BUG   step 404 [SUBMIT id=330 BUY MARKET FOK px=0 q=5] field=orderCount shadow=2 real=3
+  BUG   step 404 [SUBMIT id=330 BUY MARKET FOK px=0 q=5] field=lastTradePrice shadow=103 real=107
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         405
+  Submits:           331
+  Cancels:           41
+  Amends:            33
+  Trades produced:   83
+  Divergences total: 23  (BUG=23  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 383 [SUBMIT id=316 SELL MARKET IOC px=0 q=1] trades:
+          shadow = [{agg=316 pas=297 @107 q=1}]
+          real   = [{agg=316 pas=306 @107 q=1}]
+    [BUG  ] step 389 [SUBMIT id=319 SELL LIMIT IOC px=107 q=10] trades:
+          shadow = [{agg=319 pas=297 @107 q=10}]
+          real   = [{agg=319 pas=306 @107 q=6}, {agg=319 pas=297 @107 q=4}]
+    [BUG  ] step 389 [SUBMIT id=319 SELL LIMIT IOC px=107 q=10] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 390 [SUBMIT id=320 SELL LIMIT IOC px=98 q=2 stg=1] orderCount:
+          shadow = 3
+          real   = 2
+    [BUG  ] step 391 [SUBMIT id=321 BUY LIMIT DAY px=108 q=1 stg=2] orderCount:
+          shadow = 4
+          real   = 3
+    [BUG  ] step 392 [SUBMIT id=322 BUY LIMIT DAY px=103 q=5] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 393 [SUBMIT id=323 BUY LIMIT FOK px=107 q=5] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 394 [CANCEL id=306] cancelled:
+          shadow = [{306:USER_REQUESTED}]
+          real   = []
+    [BUG  ] step 402 [SUBMIT id=328 SELL STP_MKT FOK px=0 q=3 sp=107] trades:
+          shadow = [{agg=328 pas=297 @107 q=2}, {agg=328 pas=322 @103 q=1}]
+          real   = [{agg=328 pas=297 @107 q=3}]
+    [BUG  ] step 402 [SUBMIT id=328 SELL STP_MKT FOK px=0 q=3 sp=107] bestBid:
+          shadow = 103
+          real   = 107
+    [BUG  ] step 402 [SUBMIT id=328 SELL STP_MKT FOK px=0 q=3 sp=107] orderCount:
+          shadow = 1
+          real   = 2
+    [BUG  ] step 402 [SUBMIT id=328 SELL STP_MKT FOK px=0 q=3 sp=107] lastTradePrice:
+          shadow = 103
+          real   = 107
+    [BUG  ] step 403 [SUBMIT id=329 BUY STP_LIM DAY px=103 q=10 sp=102] bestBid:
+          shadow = 103
+          real   = 107
+    [BUG  ] step 403 [SUBMIT id=329 BUY STP_LIM DAY px=103 q=10 sp=102] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 403 [SUBMIT id=329 BUY STP_LIM DAY px=103 q=10 sp=102] lastTradePrice:
+          shadow = 103
+          real   = 107
+    [BUG  ] step 404 [SUBMIT id=330 BUY MARKET FOK px=0 q=5] bestBid:
+          shadow = 103
+          real   = 107
+    [BUG  ] step 404 [SUBMIT id=330 BUY MARKET FOK px=0 q=5] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 404 [SUBMIT id=330 BUY MARKET FOK px=0 q=5] lastTradePrice:
+          shadow = 103
+          real   = 107
+    [BUG  ] step 405 [SUBMIT id=331 BUY STP_MKT FOK px=0 q=3 sp=105 stg=1] cancelled:
+          shadow = []
+          real   = [{331:FOK_NOT_SATISFIABLE}]
+    [BUG  ] step 405 [SUBMIT id=331 BUY STP_MKT FOK px=0 q=3 sp=105 stg=1] bestBid:
+          shadow = 103
+          real   = 107
+    [BUG  ] step 405 [SUBMIT id=331 BUY STP_MKT FOK px=0 q=3 sp=105 stg=1] orderCount:
+          shadow = 2
+          real   = 3
+    [BUG  ] step 405 [SUBMIT id=331 BUY STP_MKT FOK px=0 q=3 sp=105 stg=1] lastTradePrice:
+          shadow = 103
+          real   = 107
+    [BUG  ] step 405 [SUBMIT id=331 BUY STP_MKT FOK px=0 q=3 sp=105 stg=1] stopCount:
+          shadow = 18
+          real   = 17
+
+  Result: FAIL
+=========================================================

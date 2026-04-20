@@ -5,3 +5,14 @@
 paper.aux
 paper.log
 paper.out
+
+# C++ build trees (regeneratable from CMakeLists.txt)
+matcher_stl/build/
+matcher_stl/build-coverage/
+matcher_stl/build-verify/
+
+# TLA+ pipeline experiment outputs (regeneratable; tens of GB of raw traces)
+matcher_tla/experiments/
+
+# Archive snapshots — keep ephemeral
+arxiv-submission.zip

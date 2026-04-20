@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  380
+
+  BUG   step 178 [SUBMIT id=151 SELL MARKET IOC px=0 q=8] field=trades shadow=[{agg=151 pas=148 @110 q=8}] real=[{agg=151 pas=149 @110 q=8}]
+  BUG   step 182 [SUBMIT id=155 SELL LIMIT GTC px=105 q=2] field=trades shadow=[{agg=155 pas=148 @110 q=2}] real=[{agg=155 pas=149 @110 q=2}]
+  BUG   step 192 [SUBMIT id=162 SELL LIMIT FOK px=95 q=20] field=trades shadow=[{agg=162 pas=148 @110 q=10}, {agg=162 pas=161 @105 q=10}] real=[{agg=162 pas=148 @110 q=20}]
+  BUG   step 192 [SUBMIT id=162 SELL LIMIT FOK px=95 q=20] field=cancelled shadow=[{160:FOK_NOT_SATISFIABLE}] real=[]
+  BUG   step 192 [SUBMIT id=162 SELL LIMIT FOK px=95 q=20] field=lastTradePrice shadow=105 real=110
+  BUG   step 192 [SUBMIT id=162 SELL LIMIT FOK px=95 q=20] field=stopCount shadow=8 real=9
+  BUG   step 193 [SUBMIT id=163 SELL STP_MKT IOC px=0 q=3 sp=105 stg=1] field=trades shadow=[{agg=163 pas=161 @105 q=3}] real=[]
+  BUG   step 193 [SUBMIT id=163 SELL STP_MKT IOC px=0 q=3 sp=105 stg=1] field=lastTradePrice shadow=105 real=110
+  BUG   step 193 [SUBMIT id=163 SELL STP_MKT IOC px=0 q=3 sp=105 stg=1] field=stopCount shadow=8 real=10
+  BUG   step 194 [CANCEL id=149] field=lastTradePrice shadow=105 real=110
+  BUG   step 194 [CANCEL id=149] field=stopCount shadow=8 real=10
+  BUG   step 195 [CANCEL id=161] field=lastTradePrice shadow=105 real=110
+  BUG   step 195 [CANCEL id=161] field=stopCount shadow=8 real=10
+  BUG   step 196 [SUBMIT id=164 BUY LIMIT GTC px=102 q=3] field=lastTradePrice shadow=105 real=110
+  BUG   step 196 [SUBMIT id=164 BUY LIMIT GTC px=102 q=3] field=stopCount shadow=8 real=10
+  BUG   step 197 [SUBMIT id=165 SELL LIMIT DAY px=98 q=2 mq=2] field=trades shadow=[{agg=165 pas=154 @103 q=2}] real=[{agg=165 pas=154 @103 q=2}, {agg=163 pas=154 @103 q=3}]
+  BUG   step 197 [SUBMIT id=165 SELL LIMIT DAY px=98 q=2 mq=2] field=cancelled shadow=[] real=[{160:FOK_NOT_SATISFIABLE}]
+  BUG   step 1465 [SUBMIT id=1196 SELL STP_MKT FOK px=0 q=20 sp=105 stg=2] field=trades shadow=[{agg=1196 pas=1184 @101 q=8}, {agg=1196 pas=1174 @100 q=10}, {agg=1196 pas=1107 @99 q=2}, {agg=1185 pas=1107 @99 q=1}, {agg=1185 pas=1119 @98 q=8}, {agg=1185 pas=1158 @98 q=6}] real=[{agg=1196 pas=1184 @101 q=8}, {agg=1196 pas=1174 @100 q=10}, {agg=1196 pas=1107 @99 q=2}, {agg=1185 pas=1107 @99 q=1}, {agg=1185 pas=1158 @98 q=14}]
+  BUG   step 1465 [SUBMIT id=1196 SELL STP_MKT FOK px=0 q=20 sp=105 stg=2] field=orderCount shadow=3 real=4
+  BUG   step 1466 [SUBMIT id=1197 SELL STP_LIM IOC px=98 q=2 sp=99] field=orderCount shadow=3 real=4
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         1466
+  Submits:           1197
+  Cancels:           163
+  Amends:            106
+  Trades produced:   342
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 178 [SUBMIT id=151 SELL MARKET IOC px=0 q=8] trades:
+          shadow = [{agg=151 pas=148 @110 q=8}]
+          real   = [{agg=151 pas=149 @110 q=8}]
+    [BUG  ] step 182 [SUBMIT id=155 SELL LIMIT GTC px=105 q=2] trades:
+          shadow = [{agg=155 pas=148 @110 q=2}]
+          real   = [{agg=155 pas=149 @110 q=2}]
+    [BUG  ] step 192 [SUBMIT id=162 SELL LIMIT FOK px=95 q=20] trades:
+          shadow = [{agg=162 pas=148 @110 q=10}, {agg=162 pas=161 @105 q=10}]
+          real   = [{agg=162 pas=148 @110 q=20}]
+    [BUG  ] step 192 [SUBMIT id=162 SELL LIMIT FOK px=95 q=20] cancelled:
+          shadow = [{160:FOK_NOT_SATISFIABLE}]
+          real   = []
+    [BUG  ] step 192 [SUBMIT id=162 SELL LIMIT FOK px=95 q=20] lastTradePrice:
+          shadow = 105
+          real   = 110
+    [BUG  ] step 192 [SUBMIT id=162 SELL LIMIT FOK px=95 q=20] stopCount:
+          shadow = 8
+          real   = 9
+    [BUG  ] step 193 [SUBMIT id=163 SELL STP_MKT IOC px=0 q=3 sp=105 stg=1] trades:
+          shadow = [{agg=163 pas=161 @105 q=3}]
+          real   = []
+    [BUG  ] step 193 [SUBMIT id=163 SELL STP_MKT IOC px=0 q=3 sp=105 stg=1] lastTradePrice:
+          shadow = 105
+          real   = 110
+    [BUG  ] step 193 [SUBMIT id=163 SELL STP_MKT IOC px=0 q=3 sp=105 stg=1] stopCount:
+          shadow = 8
+          real   = 10
+    [BUG  ] step 194 [CANCEL id=149] lastTradePrice:
+          shadow = 105
+          real   = 110
+    [BUG  ] step 194 [CANCEL id=149] stopCount:
+          shadow = 8
+          real   = 10
+    [BUG  ] step 195 [CANCEL id=161] lastTradePrice:
+          shadow = 105
+          real   = 110
+    [BUG  ] step 195 [CANCEL id=161] stopCount:
+          shadow = 8
+          real   = 10
+    [BUG  ] step 196 [SUBMIT id=164 BUY LIMIT GTC px=102 q=3] lastTradePrice:
+          shadow = 105
+          real   = 110
+    [BUG  ] step 196 [SUBMIT id=164 BUY LIMIT GTC px=102 q=3] stopCount:
+          shadow = 8
+          real   = 10
+    [BUG  ] step 197 [SUBMIT id=165 SELL LIMIT DAY px=98 q=2 mq=2] trades:
+          shadow = [{agg=165 pas=154 @103 q=2}]
+          real   = [{agg=165 pas=154 @103 q=2}, {agg=163 pas=154 @103 q=3}]
+    [BUG  ] step 197 [SUBMIT id=165 SELL LIMIT DAY px=98 q=2 mq=2] cancelled:
+          shadow = []
+          real   = [{160:FOK_NOT_SATISFIABLE}]
+    [BUG  ] step 1465 [SUBMIT id=1196 SELL STP_MKT FOK px=0 q=20 sp=105 stg=2] trades:
+          shadow = [{agg=1196 pas=1184 @101 q=8}, {agg=1196 pas=1174 @100 q=10}, {agg=1196 pas=1107 @99 q=2}, {agg=1185 pas=1107 @99 q=1}, {agg=1185 pas=1119 @98 q=8}, {agg=1185 pas=1158 @98 q=6}]
+          real   = [{agg=1196 pas=1184 @101 q=8}, {agg=1196 pas=1174 @100 q=10}, {agg=1196 pas=1107 @99 q=2}, {agg=1185 pas=1107 @99 q=1}, {agg=1185 pas=1158 @98 q=14}]
+    [BUG  ] step 1465 [SUBMIT id=1196 SELL STP_MKT FOK px=0 q=20 sp=105 stg=2] orderCount:
+          shadow = 3
+          real   = 4
+    [BUG  ] step 1466 [SUBMIT id=1197 SELL STP_LIM IOC px=98 q=2 sp=99] orderCount:
+          shadow = 3
+          real   = 4
+
+  Result: FAIL
+=========================================================

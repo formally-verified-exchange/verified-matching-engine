@@ -1,0 +1,100 @@
+Shadow Model Test
+  Steps: 5000000
+  Seed:  72
+
+  BUG   step 1961 [SUBMIT id=1623 BUY LIMIT DAY px=110 q=8 dq=4 stg=1] field=trades shadow=[{agg=1623 pas=1585 @109 q=8}] real=[{agg=1623 pas=1611 @109 q=4}, {agg=1623 pas=1585 @109 q=4}]
+  BUG   step 1961 [SUBMIT id=1623 BUY LIMIT DAY px=110 q=8 dq=4 stg=1] field=orderCount shadow=5 real=4
+  BUG   step 1962 [SUBMIT id=1624 BUY LIMIT DAY px=108 q=1 PO stg=1] field=orderCount shadow=6 real=5
+  BUG   step 1963 [SUBMIT id=1625 BUY LIMIT IOC px=109 q=10] field=orderCount shadow=6 real=5
+  BUG   step 1964 [SUBMIT id=1626 SELL STP_LIM FOK px=103 q=8 sp=108] field=orderCount shadow=6 real=5
+  BUG   step 1965 [SUBMIT id=1627 BUY STP_MKT IOC px=0 q=1 sp=108] field=orderCount shadow=6 real=5
+  BUG   step 1966 [SUBMIT id=1628 SELL STP_LIM GTC px=108 q=10 sp=109] field=orderCount shadow=6 real=5
+  BUG   step 1967 [SUBMIT id=1629 BUY MTL DAY px=109 q=3] field=orderCount shadow=6 real=5
+  BUG   step 1968 [SUBMIT id=1630 SELL MTL DAY px=107 q=20] field=orderCount shadow=6 real=5
+  BUG   step 1969 [AMEND id=1608 px=99 qty=3] field=orderCount shadow=6 real=5
+  BUG   step 1970 [SUBMIT id=1631 SELL MTL DAY px=99 q=3] field=orderCount shadow=6 real=5
+  BUG   step 1971 [AMEND id=1616 px=98 qty=0] field=orderCount shadow=6 real=5
+  BUG   step 1972 [SUBMIT id=1632 SELL STP_LIM FOK px=99 q=2 sp=105] field=orderCount shadow=6 real=5
+  BUG   step 1973 [SUBMIT id=1633 BUY LIMIT IOC px=109 q=5] field=orderCount shadow=6 real=5
+  BUG   step 1974 [CANCEL id=1585] field=orderCount shadow=5 real=4
+  BUG   step 1975 [SUBMIT id=1634 SELL STP_LIM FOK px=99 q=3 sp=102] field=orderCount shadow=5 real=4
+  BUG   step 1976 [SUBMIT id=1635 BUY LIMIT DAY px=98 q=1] field=orderCount shadow=5 real=4
+  BUG   step 1977 [SUBMIT id=1636 SELL STP_LIM IOC px=99 q=2 sp=88] field=orderCount shadow=5 real=4
+  BUG   step 1978 [SUBMIT id=1637 SELL MTL DAY px=99 q=15] field=orderCount shadow=5 real=4
+  BUG   step 1979 [CANCEL id=1628] field=orderCount shadow=4 real=3
+  (halting after 20 BUG divergences)
+
+=========================================================
+  Shadow Model Test Report
+=========================================================
+  Steps run:         1979
+  Submits:           1637
+  Cancels:           194
+  Amends:            148
+  Trades produced:   422
+  Divergences total: 20  (BUG=20  KNOWN=0)
+
+  Divergence details (first 30):
+    [BUG  ] step 1961 [SUBMIT id=1623 BUY LIMIT DAY px=110 q=8 dq=4 stg=1] trades:
+          shadow = [{agg=1623 pas=1585 @109 q=8}]
+          real   = [{agg=1623 pas=1611 @109 q=4}, {agg=1623 pas=1585 @109 q=4}]
+    [BUG  ] step 1961 [SUBMIT id=1623 BUY LIMIT DAY px=110 q=8 dq=4 stg=1] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 1962 [SUBMIT id=1624 BUY LIMIT DAY px=108 q=1 PO stg=1] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 1963 [SUBMIT id=1625 BUY LIMIT IOC px=109 q=10] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 1964 [SUBMIT id=1626 SELL STP_LIM FOK px=103 q=8 sp=108] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 1965 [SUBMIT id=1627 BUY STP_MKT IOC px=0 q=1 sp=108] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 1966 [SUBMIT id=1628 SELL STP_LIM GTC px=108 q=10 sp=109] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 1967 [SUBMIT id=1629 BUY MTL DAY px=109 q=3] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 1968 [SUBMIT id=1630 SELL MTL DAY px=107 q=20] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 1969 [AMEND id=1608 px=99 qty=3] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 1970 [SUBMIT id=1631 SELL MTL DAY px=99 q=3] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 1971 [AMEND id=1616 px=98 qty=0] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 1972 [SUBMIT id=1632 SELL STP_LIM FOK px=99 q=2 sp=105] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 1973 [SUBMIT id=1633 BUY LIMIT IOC px=109 q=5] orderCount:
+          shadow = 6
+          real   = 5
+    [BUG  ] step 1974 [CANCEL id=1585] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 1975 [SUBMIT id=1634 SELL STP_LIM FOK px=99 q=3 sp=102] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 1976 [SUBMIT id=1635 BUY LIMIT DAY px=98 q=1] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 1977 [SUBMIT id=1636 SELL STP_LIM IOC px=99 q=2 sp=88] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 1978 [SUBMIT id=1637 SELL MTL DAY px=99 q=15] orderCount:
+          shadow = 5
+          real   = 4
+    [BUG  ] step 1979 [CANCEL id=1628] orderCount:
+          shadow = 4
+          real   = 3
+
+  Result: FAIL
+=========================================================
