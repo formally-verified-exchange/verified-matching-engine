@@ -37,6 +37,12 @@ def statusConsistencyB (b : BookState) : Bool :=
   (b.asks.all fun l => l.orders.all fun o =>
     o.status == .new_ || o.status == .partiallyFilled)
 
+def StatusConsistency (b : BookState) : Prop :=
+  (∀ l ∈ b.bids, ∀ o ∈ l.orders,
+    o.status = .new_ ∨ o.status = .partiallyFilled) ∧
+  (∀ l ∈ b.asks, ∀ o ∈ l.orders,
+    o.status = .new_ ∨ o.status = .partiallyFilled)
+
 -- §13 INV-7: FIFO within price level (timestamps strictly increasing)
 def fifoLevelB (orders : List Order) : Bool :=
   match orders with
@@ -108,9 +114,15 @@ def stpGuaranteeB (trades : List Trade) : Bool :=
     | some g1, some g2 => g1 != g2
     | _, _ => true
 
+def STPGuarantee (trades : List Trade) : Prop :=
+  ∀ t ∈ trades, ∀ g1 g2, t.aggStpGroup = some g1 → t.pasStpGroup = some g2 → g1 ≠ g2
+
 -- INV-11: Post-only guarantee
 def postOnlyGuaranteeB (trades : List Trade) : Bool :=
   trades.all fun t => !t.aggPostOnly
+
+def PostOnlyGuarantee (trades : List Trade) : Prop :=
+  ∀ t ∈ trades, t.aggPostOnly = false
 
 -- Combined book invariant (Bool version for #eval)
 def bookInvariantB (b : BookState) : Bool :=
@@ -127,6 +139,7 @@ def bookInvariantB (b : BookState) : Bool :=
 def BookInvariant (b : BookState) : Prop :=
   BookUncrossed b ∧
   NoGhosts b ∧
+  StatusConsistency b ∧
   NoRestingMarkets b ∧
   NoRestingMTL b ∧
   NoRestingMinQty b ∧
