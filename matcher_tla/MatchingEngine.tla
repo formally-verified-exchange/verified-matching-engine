@@ -345,6 +345,38 @@ DoMatch(inc, bQ, aQ, tds, tm, fuel) ==
 (* Dispose: post-match handling of incoming order remainder (§5.2)         *)
 (* Returns [bQ, aQ] after possibly inserting remainder on book.            *)
 (***************************************************************************)
+(***************************************************************************)
+(* Guard on the price index used for a resting insertion.                  *)
+(*                                                                         *)
+(* Identity on PRICES; halts TLC with a trace otherwise. This closes a     *)
+(* modelling blind spot rather than an implementation bug. If an order     *)
+(* reaches the resting branch with price = NULL -- an unconverted MTL, or  *)
+(* a MARKET order that slipped the guard above -- then                     *)
+(*                                                                         *)
+(*     [bQ EXCEPT ![NULL] = Append(@, o)]                                  *)
+(*                                                                         *)
+(* is a *silent no-op*: TLC emits a warning and leaves the function        *)
+(* unchanged. The order does not rest, it disappears. Every §13 invariant  *)
+(* quantifies over p \in PRICES, so no invariant can observe the loss, and *)
+(* model checking reports success. That is exactly how the MTL + minQty    *)
+(* defect (see §12 Phase 3b) stayed invisible to TLC while being live in   *)
+(* the spec.                                                               *)
+(*                                                                         *)
+(* An INVARIANT cannot catch this: by the time a state predicate is        *)
+(* evaluated the order is already gone, leaving no residue to quantify     *)
+(* over. It has to be checked at the point of the action. Doing it here    *)
+(* also means every configuration checks it automatically, with no         *)
+(* INVARIANTS entry to keep in sync -- worth having, given that            *)
+(* NoEmptyLevels is defined below but listed in no .cfg at all.            *)
+(***************************************************************************)
+RestingPrice(p) ==
+    IF Assert(p \in PRICES,
+              "Dispose: resting insertion at a price outside PRICES. An "
+              \o "unconverted MTL/MARKET order would be silently lost rather "
+              \o "than rested, and no invariant could observe it.")
+    THEN p
+    ELSE p
+
 Dispose(inc, bQ, aQ, trades) ==
     IF inc.remainingQty = 0 \/ inc.status = "CANCELLED" THEN
         [bQ |-> bQ, aQ |-> aQ]
@@ -356,7 +388,7 @@ Dispose(inc, bQ, aQ, trades) ==
         [bQ |-> bQ, aQ |-> aQ]
     ELSE
         \* GTC/DAY: rest on book (§6.1)
-        LET p    == inc.price
+        LET p    == RestingPrice(inc.price)
             visQ == IF inc.displayQty /= NULL
                     THEN Min(inc.displayQty, inc.remainingQty)
                     ELSE inc.remainingQty
@@ -466,26 +498,20 @@ ProcessOrder(order, bQ, aQ, stps, lastTP, tm) ==
             stops  |-> cascade.stops, lastTP|-> cascade.lastTP,
             trades |-> ms.trades \o cascade.trades, tm |-> cascade.tm]
 
-    \* Phase 3b: MinQty pre-check (§5.4, §12 Phase 3)
-    ELSE IF order.minQty /= NULL THEN
-        IF ~MinQtyCheck(order, bQ, aQ) THEN
-            [bQ |-> bQ, aQ |-> aQ, stops |-> stps,
-             lastTP |-> lastTP, trades |-> <<>>, tm |-> tm]
-        ELSE
-        LET ms   == DoMatch(order, bQ, aQ, <<>>, tm, MAX_ORDERS * MAX_QTY * 3)
-            \* Phase 5a: clear minQty after matching (§12)
-            inc  == IF ms.trades /= <<>>
-                    THEN [ms.inc EXCEPT !.minQty = NULL]
-                    ELSE ms.inc
-            disp == Dispose(inc, ms.bQ, ms.aQ, ms.trades)
-            newLTP == IF ms.trades /= <<>>
-                      THEN ms.trades[Len(ms.trades)].price
-                      ELSE lastTP
-            cascade == ProcessCascade(ms.trades, disp.bQ, disp.aQ, stps,
-                                      newLTP, ms.tm)
-        IN [bQ     |-> cascade.bQ,    aQ    |-> cascade.aQ,
-            stops  |-> cascade.stops, lastTP|-> cascade.lastTP,
-            trades |-> ms.trades \o cascade.trades, tm |-> cascade.tm]
+    \* Phase 3b: MinQty pre-check (§5.4, §12 Phase 3).
+    \* This is a *guard*, not a branch: per spec §12 the quantity pre-checks run
+    \* "before any matching or routing", so an order that passes falls through to
+    \* MTL routing (Phase 4) or normal matching (Phase 5), both of which clear
+    \* minQty themselves. Handling the passing case here instead would route an
+    \* MTL order into Dispose while its orderType is still "MTL"; since Dispose
+    \* refuses only "MARKET", it would come to rest and break NoRestingMTL.
+    \* NOTE: TLC could not have caught that. Dispose binds p == inc.price, which
+    \* is NULL for an MTL order (WF-2b), and [bQ EXCEPT ![NULL] = ...] is a
+    \* silent no-op — the order vanishes rather than resting, and every invariant
+    \* quantifies over p \in PRICES, so nothing observes it.
+    ELSE IF order.minQty /= NULL /\ ~MinQtyCheck(order, bQ, aQ) THEN
+        [bQ |-> bQ, aQ |-> aQ, stops |-> stps,
+         lastTP |-> lastTP, trades |-> <<>>, tm |-> tm]
 
     \* Phase 4: Market-to-Limit (§7.7, §12 Phase 4)
     ELSE IF order.orderType = "MTL" THEN

@@ -3749,32 +3749,9 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
               · exact StopsNoPostOnly_of_same_stops b _ rfl hstops
               · exact AllInv.with_ltp _ _ hb'
           · split
-            · -- Phase 3b: MinQty
-              split
-              · -- !minQtyCheck: b unchanged
-                exact ⟨h, hstops⟩
-              · -- minQtyCheck: match + dispose + cascade
-                have hb' : AllInv { b with
-                  bids := (matchOrder (computeMatchFuel b o.side) b o).bids,
-                  asks := (matchOrder (computeMatchFuel b o.side) b o).asks,
-                  clock := (matchOrder (computeMatchFuel b o.side) b o).clock } := by
-                  unfold matchOrder
-                  exact doMatch_preserves_AllInv
-                    (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
-                apply ih_pc
-                · refine StopsNoPostOnly_of_same_stops b _ ?_ hstops
-                  show (dispose _ _ _).stops = b.stops
-                  exact dispose_preserves_stops _ _ _
-                · apply AllInv.with_ltp
-                  cases hte : (matchOrder (computeMatchFuel b o.side) b o).trades.isEmpty with
-                  | true =>
-                    simp only [Bool.not_true]
-                    exact dispose_preserves_AllInv _ _ _ hb' (matching_dispose_noCross o b h)
-                  | false =>
-                    simp only [Bool.not_false, if_true]
-                    apply dispose_preserves_AllInv _ _ _ hb'
-                    intro h_nt
-                    exact matching_dispose_noCross o b h h_nt
+            · -- Phase 3b: MinQty pre-check failed, order rejected, b unchanged.
+              -- A passing order falls through to Phase 4/5 (spec §12).
+              exact ⟨h, hstops⟩
             · split
               · -- Phase 4: MTL routing
                 have hb' : AllInv { b with
@@ -3827,18 +3804,20 @@ theorem process_all_preserve_AllInv : ∀ (fuel : Nat),
                   unfold matchOrder
                   exact doMatch_preserves_AllInv
                     (computeMatchFuel b o.side) o b (b.clock + 1) o.side rfl h
-                have h_minq_false : o.minQty.isSome = false := by
-                  rename_i h1 h2 h3 h4 h5
-                  cases hv : o.minQty.isSome with
-                  | true => exact absurd hv (by first | exact h1 | exact h2 | exact h3 | exact h4 | exact h5)
-                  | false => rfl
                 apply ih_pc
                 · refine StopsNoPostOnly_of_same_stops b _ ?_ hstops
                   show (dispose _ _ _).stops = b.stops
                   exact dispose_preserves_stops _ _ _
                 · apply AllInv.with_ltp
-                  simp only [h_minq_false, Bool.false_and, Bool.false_eq_true, if_false]
-                  exact dispose_preserves_AllInv _ _ _ hb' (matching_dispose_noCross o b h)
+                  -- A minQty order now reaches Phase 5 (the pre-check is a
+                  -- fall-through guard), so both arms of the minQty-clearing
+                  -- `if` are live. The non-crossing precondition only mentions
+                  -- fields that `minQty := none` leaves untouched, so one
+                  -- argument discharges both.
+                  split <;>
+                    (apply dispose_preserves_AllInv _ _ _ hb'
+                     intro h_nt
+                     exact matching_dispose_noCross o b h h_nt)
     · -- processCascade fuel'+1 preservation
       intro ts b hstops h
       unfold processCascade

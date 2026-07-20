@@ -281,6 +281,37 @@ def test_emptyBookInvariants : IO Unit := do
   assert! bookInvariantB BookState.empty
   IO.println "✓ Test 16: Empty book invariants"
 
+/-- BUG-3 regression: an MTL order carrying a `minQty` must still take the
+    Phase 4 MTL route. The MinQty pre-check (§12 Phase 3) is a fall-through
+    guard; when it was written as an exclusive branch, such an order reached
+    `dispose` with its type still MARKET_TO_LIMIT and came to rest as an MTL
+    order at price 0 (`price.getD 0`, since WF-2b forces MTL price to `none`),
+    violating INV-13. The order is well formed: WF-8a permits MTL with GTC and
+    WF-20 restricts `minQty` only on FOK. -/
+def test_bug3_mtlMinQty : IO Unit := do
+  let mtl : Order :=
+    { id := 0, side := .buy, orderType := .marketToLimit, tif := .gtc,
+      price := none, stopPrice := none, qty := 10, remainingQty := 10,
+      minQty := some 3, displayQty := none, visibleQty := 10,
+      postOnly := false, status := .new_, timestamp := 0,
+      stpGroup := none, stpPolicy := none }
+  assert! mtl.wellFormed
+  let book : BookState :=
+    { BookState.empty with
+      asks := [{ price := 100, orders := [mkLimit .sell 100 5] }], clock := 5 }
+  assert! bookInvariantB book
+  let r := process book mtl
+  -- Routed through Phase 4: converted to LIMIT at the trade price, minQty cleared.
+  match r.book.bids.head?.bind (·.orders.head?) with
+  | some o =>
+    assert! o.orderType == .limit
+    assert! o.price == some 100
+    assert! o.minQty.isNone
+  | none => assert! false
+  assert! noRestingMtlB r.book
+  assert! bookInvariantB r.book
+  IO.println "✓ Test 17: BUG-3 MTL with minQty routes to MTL phase"
+
 def runAllTests : IO Unit := do
   test_emptyBookInvariants
   test_appendixB
@@ -298,4 +329,5 @@ def runAllTests : IO Unit := do
   test_amendQtyDecrease
   test_stopCascade
   test_complexSequence
-  IO.println "\nAll 16 tests passed!"
+  test_bug3_mtlMinQty
+  IO.println "\nAll 17 tests passed!"

@@ -140,21 +140,16 @@ def processOrder (fuel : Nat) (order : Order) (b : BookState) : ProcessResult :=
         let b'' := { b' with lastTradePrice := newLTP.orElse (fun _ => b.lastTradePrice) }
         let cascade := processCascade fuel' mr.trades b''
         { book := cascade.book, trades := mr.trades ++ cascade.trades }
-    -- Phase 3b: MinQty pre-check
-    else if order.minQty.isSome then
-      if !minQtyCheck order b then
-        { book := b, trades := [] }
-      else
-        let mr := matchOrder (computeMatchFuel b order.side) b order
-        let inc := if !mr.trades.isEmpty then
-          { mr.incoming with minQty := none }
-        else mr.incoming
-        let b' := { b with bids := mr.bids, asks := mr.asks, clock := mr.clock }
-        let b'' := dispose inc b' mr.trades
-        let newLTP := mr.trades.getLast?.map (·.price)
-        let b''' := { b'' with lastTradePrice := newLTP.orElse (fun _ => b.lastTradePrice) }
-        let cascade := processCascade fuel' mr.trades b'''
-        { book := cascade.book, trades := mr.trades ++ cascade.trades }
+    -- Phase 3b: MinQty pre-check (§5.4).
+    -- This is a *guard*, not a branch: per spec §12 the quantity pre-checks run
+    -- "before any matching or routing", so a passing order falls through to MTL
+    -- routing (Phase 4) or normal matching (Phase 5), both of which clear
+    -- minQty themselves. Handling the passing case here instead would route an
+    -- MTL order into `dispose` while its orderType is still MARKET_TO_LIMIT;
+    -- since `dispose` refuses only MARKET, it would come to rest and break
+    -- INV-13 (NoRestingMTL). See TheoremsFull.lean.
+    else if order.minQty.isSome && !minQtyCheck order b then
+      { book := b, trades := [] }
     -- Phase 4: MTL routing
     else if order.orderType == .marketToLimit then
       let mr := matchOrder (computeMatchFuel b order.side) b order
