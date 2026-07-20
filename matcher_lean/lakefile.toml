@@ -1,6 +1,6 @@
 name = "MatchingEngine"
 version = "0.1.0"
-defaultTargets = ["matchingengine"]
+defaultTargets = ["MatchingEngine", "matchingengine"]
 
 [[lean_lib]]
 name = "MatchingEngine"

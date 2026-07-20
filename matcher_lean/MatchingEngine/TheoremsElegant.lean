@@ -124,9 +124,8 @@ theorem dispose_consumed_preserves
     AllInv (dispose inc b trades) := by
   -- `dispose` is driven entirely by the lazy precondition; when the
   -- incoming is terminal, the precondition is vacuously satisfied.
-  exact dispose_preserves_AllInv inc b trades h (fun hnt => by
-    exfalso; exact hnt (Or.inl hterm.elim (fun h => Or.inl h) (fun _ => Or.inr
-      (Or.inl (by cases hterm <;> assumption)))))
+  exact dispose_preserves_AllInv inc b trades h (fun hnt =>
+    absurd (hterm.elim Or.inl (fun hc => Or.inr (Or.inl hc))) hnt)
 
 /-- **Case 2 (Empty contra).** If the contra side is empty there is
     nothing to cross against. `dispose`'s non-crossing precondition
