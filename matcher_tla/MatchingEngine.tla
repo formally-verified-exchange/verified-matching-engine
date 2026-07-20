@@ -623,49 +623,92 @@ Init ==
 (***************************************************************************)
 
 \* Submit a new order — nondeterministically choose valid parameters
+(***************************************************************************)
+(* Well-formed order shapes, hoisted out of SubmitOrder.                   *)
+(*                                                                         *)
+(* WellFormed/1 inspects only qty, orderType, price, stopPrice, tif,       *)
+(* displayQty, postOnly, stpGroup, stpPolicy and minQty -- never id and    *)
+(* never timestamp. The set of well-formed field combinations therefore    *)
+(* does not vary from state to state, and TLC evaluates it once instead of *)
+(* re-filtering the whole cross product at every state where SubmitOrder   *)
+(* is enabled. Of 230,400 combinations at PRICES = {1,2,3}, 3,830 are well *)
+(* formed -- so the inner enumeration shrinks by a factor of 60.           *)
+(*                                                                         *)
+(* The reachable state graph is unchanged. ASSUME WFIndependentOfIdTs      *)
+(* discharges the side condition the hoist rests on, so a future WF clause *)
+(* that reads the id or the clock fails loudly at startup rather than      *)
+(* silently narrowing the explored input space.                            *)
+(***************************************************************************)
+OrderShapes ==
+    { <<sd, ot, tf, pr, sp, qt, dq, po, mq, sg, sl>> :
+        sd \in Sides,
+        ot \in OrderTypes,
+        tf \in TIFs,
+        pr \in PRICES \cup {NULL},
+        sp \in PRICES \cup {NULL},
+        qt \in 1..MAX_QTY,
+        dq \in (1..MAX_QTY) \cup {NULL},
+        po \in BOOLEAN,
+        mq \in (1..MAX_QTY) \cup {NULL},
+        sg \in {NULL, "G1"},
+        sl \in STPPolicies \cup {NULL} }
+
+ShapeToOrder(s, id, ts) ==
+    MakeOrder(id, s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8],
+              s[9], s[10], s[11], ts)
+
+WFShapes == { s \in OrderShapes : WellFormed(ShapeToOrder(s, 0, 0)) }
+
+WFIndependentOfIdTs ==
+    \A s \in OrderShapes, i \in 1..MAX_ORDERS, t \in 0..MAX_CLOCK :
+        WellFormed(ShapeToOrder(s, i, t)) = WellFormed(ShapeToOrder(s, 0, 0))
+
+ASSUME WFIndependentOfIdTs
+
 SubmitOrder ==
     /\ nextId <= MAX_ORDERS
     /\ clock < MAX_CLOCK
-    /\ \E side \in Sides,
-          otype \in OrderTypes,
-          tif \in TIFs,
-          price \in PRICES \cup {NULL},
-          stopPrice \in PRICES \cup {NULL},
-          qty \in 1..MAX_QTY,
-          displayQty \in (1..MAX_QTY) \cup {NULL},
-          po \in BOOLEAN,
-          minQty \in (1..MAX_QTY) \cup {NULL},
-          stpGrp \in {NULL, "G1"},
-          stpPol \in STPPolicies \cup {NULL} :
-        LET order == MakeOrder(nextId, side, otype, tif, price, stopPrice,
-                               qty, displayQty, po, minQty, stpGrp, stpPol,
-                               clock)
+    /\ \E s \in WFShapes :
+        LET side       == s[1]
+            otype      == s[2]
+            tif        == s[3]
+            price      == s[4]
+            stopPrice  == s[5]
+            qty        == s[6]
+            displayQty == s[7]
+            po         == s[8]
+            minQty     == s[9]
+            stpGrp     == s[10]
+            stpPol     == s[11]
+            order      == MakeOrder(nextId, side, otype, tif, price, stopPrice,
+                                    qty, displayQty, po, minQty, stpGrp, stpPol,
+                                    clock)
         IN
-        /\ WellFormed(order)
-        /\ LET result == ProcessOrder(order, bidQ, askQ, stops,
-                                       lastTradePrice, clock + 1)
-           IN
-           /\ bidQ'           = result.bQ
-           /\ askQ'           = result.aQ
-           /\ stops'          = result.stops
-           /\ lastTradePrice' = result.lastTP
-           /\ postOnlyOK'     = postOnlyOK /\ CheckTradesPostOnly(result.trades)
-           /\ stpOK'          = stpOK /\ CheckTradesSTP(result.trades)
-           /\ nextId'         = nextId + 1
-           /\ clock'          = result.tm
-           /\ lastAction'     = [type        |-> "SubmitOrder",
-                                  id          |-> nextId,
-                                  side        |-> side,
-                                  orderType   |-> otype,
-                                  tif         |-> tif,
-                                  price       |-> price,
-                                  stopPrice   |-> stopPrice,
-                                  qty         |-> qty,
-                                  displayQty  |-> displayQty,
-                                  postOnly    |-> po,
-                                  minQty      |-> minQty,
-                                  stpGroup    |-> stpGrp,
-                                  stpPolicy   |-> stpPol]
+        \* WellFormed(order) holds by construction of WFShapes.
+        LET result == ProcessOrder(order, bidQ, askQ, stops,
+                                    lastTradePrice, clock + 1)
+        IN
+        /\ bidQ'           = result.bQ
+        /\ askQ'           = result.aQ
+        /\ stops'          = result.stops
+        /\ lastTradePrice' = result.lastTP
+        /\ postOnlyOK'     = postOnlyOK /\ CheckTradesPostOnly(result.trades)
+        /\ stpOK'          = stpOK /\ CheckTradesSTP(result.trades)
+        /\ nextId'         = nextId + 1
+        /\ clock'          = result.tm
+        /\ lastAction'     = [type        |-> "SubmitOrder",
+                               id          |-> nextId,
+                               side        |-> side,
+                               orderType   |-> otype,
+                               tif         |-> tif,
+                               price       |-> price,
+                               stopPrice   |-> stopPrice,
+                               qty         |-> qty,
+                               displayQty  |-> displayQty,
+                               postOnly    |-> po,
+                               minQty      |-> minQty,
+                               stpGroup    |-> stpGrp,
+                               stpPolicy   |-> stpPol]
 
 \* Cancel a resting order (§9.1)
 CancelOrder ==
