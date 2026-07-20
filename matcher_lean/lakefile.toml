@@ -8,3 +8,9 @@ name = "MatchingEngine"
 [[lean_exe]]
 name = "matchingengine"
 root = "Main"
+
+# Cross-artifact well-formedness differential (see scripts/wf_differential.sh).
+# Deliberately not in defaultTargets: built on demand, not on every `lake build`.
+[[lean_exe]]
+name = "wfemit"
+root = "WFEmit"
