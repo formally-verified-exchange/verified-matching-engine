@@ -410,6 +410,41 @@ Finding & Tool & Description \\
 \end{tabular}
 \end{center}
 
+\subsection{What Each Layer Establishes}
+\label{sec:assurance-boundary}
+
+The three methods verify different objects and deliver different kinds
+of guarantee. Because ``verified'' and ``proved'' are easy to over-read,
+Table~\ref{tab:assurance} states precisely what is established, by which
+artifact, and---equally important---what is not.
+
+\begin{table}[H]
+\centering
+\caption{The assurance boundary. Each layer verifies a distinct object;
+the guarantees do not compose into an end-to-end machine-checked
+refinement from prose specification to C++.}
+\label{tab:assurance}
+\small
+\begin{tabular}{@{}lL{3.9cm}L{6.4cm}@{}}
+\toprule
+Layer & Object verified & Guarantee \\
+\midrule
+TLC (TLA+)          & The TLA+ model & Exhaustive, but only within the finite configurations of Table~\ref{tab:configs} (up to 2--3 orders, 2--3 prices). No claim beyond those bounds. \\
+\addlinespace
+Lean~4              & The Lean executable reference implementation & The full \S13 book-state invariant suite is preserved for \emph{arbitrary} finite books, under preconditions discharged by well-formedness. Machine-checked on every build. \\
+\addlinespace
+Conformance testing & The C++ implementation & Agreement with the TLA+ model on projected observables, for the traces actually replayed (\S\ref{sec:conformance-pipeline}). Testing, not proof. \\
+\addlinespace
+\emph{Not established} & Lean reference $\leftrightarrow$ C++ engine & No general refinement proof links the proved Lean reference to the shipped C++ engine; the two are connected only by conformance testing. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The Lean guarantee is unbounded but concerns the Lean reference; the C++
+guarantee concerns the shipped engine but is bounded by the traces
+replayed. Neither substitutes for the other, and no layer claims a
+machine-checked path from the prose specification all the way to C++.
+
 
 % ============================================================================
 \section{What Model Checking Found}
@@ -614,12 +649,12 @@ the book is still uncrossed and sorted on both sides. For any number of
 orders, any book size, forever.
 
 The formal statement defines the combined invariant
-\[
-\texttt{AllInv}(b) \;\equiv\;
-\texttt{BookUncrossed}(b) \land
-\texttt{bidsSortedDescB(b.bids) = true} \land
-\texttt{asksSortedAscB(b.asks) = true},
-\]
+\begin{align*}
+\texttt{AllInv}(b) \;\equiv\;{}
+  & \texttt{BookUncrossed}(b) \;\land\; {}\\
+  & \texttt{bidsSortedDescB(b.bids) = true} \;\land\; {}\\
+  & \texttt{asksSortedAscB(b.asks) = true},
+\end{align*}
 and the main theorem is:
 
 \begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
@@ -1346,6 +1381,72 @@ parameterize each lemma by a \texttt{Side} value and perform
 the inequality matters. After side-parameterization, the sell mirror of
 the fuel-sufficiency proof compiled on the first try.
 
+\subsection{The Capstone Theorem and Trusted Computing Base}
+\label{sec:capstone-tcb}
+
+The book-state guarantees combine into a single capstone theorem. In
+full Lean~4 syntax:
+
+\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
+theorem process_preserves_BookInvariant
+    (b : BookState) (o : Order)
+    (hall : AllInv b) (hpok : OrderProcOk o) (hsnp : StopsNoPostOnly b)
+    (hb : BookOk b) (hstops : StopsWF b) (hok : OrderRestOk o) :
+    BookInvariant (process b o).book
+\end{lstlisting}
+
+\noindent Here \texttt{BookInvariant} bundles uncrossedness, no empty
+levels, no ghost orders, status consistency, FIFO within each level, and
+the no-resting market/MTL/MinQty conditions (INV-1 and INV-4 through
+INV-8, INV-13, INV-14); the sortedness conjuncts (INV-2, INV-3) travel
+with \texttt{AllInv}. The two trade-event guarantees are proved
+separately and \emph{unconditionally}---an order reaches a matching
+phase only after failing the post-only pre-check, so every emitted trade
+satisfies them by construction:
+
+\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
+theorem process_PostOnlyGuarantee (b : BookState) (o : Order) :
+    PostOnlyGuarantee (process b o).trades      -- INV-11
+theorem process_STPGuarantee     (b : BookState) (o : Order) :
+    STPGuarantee     (process b o).trades       -- INV-12
+\end{lstlisting}
+
+\paragraph{Preconditions.} The hypotheses are logical preconditions of
+this preservation step, not domain restrictions smuggled in to make the
+theorem true; each is discharged from ordinary inputs.
+\texttt{OrderRestOk} and \texttt{OrderProcOk} follow from the
+specification's well-formedness predicate
+(\texttt{OrderRestOk\_of\_WellFormed}). \texttt{BookOk} and
+\texttt{StopsWF} hold of the empty book (\texttt{BookOk\_empty},
+\texttt{StopsWF\_empty}) and are preserved by \texttt{process}
+(\texttt{process\_preserves\_BookOk}), and \texttt{AllInv} is likewise
+inductive; so the whole precondition bundle holds of every book
+reachable from an empty start, and the invariant holds along every
+execution rather than at isolated states.
+
+\paragraph{Trusted computing base.} The proof rests on an unusually
+small base. The project builds with Lean~4 (toolchain \texttt{v4.26.0})
+and has \emph{no external dependencies}---in particular it does not use
+Mathlib; every module imports only other modules of the project. No
+proof file contains \texttt{sorry}, \texttt{admit},
+\texttt{native\_decide}, or any custom \texttt{axiom}. Printing the axiom
+footprint of the capstone confirms it:
+
+\begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
+'process_preserves_BookInvariant' depends on axioms:
+    [propext, Classical.choice, Quot.sound]
+'process_PostOnlyGuarantee' depends on axioms: [propext, Quot.sound]
+'process_STPGuarantee'      depends on axioms: [propext, Quot.sound]
+\end{lstlisting}
+
+\noindent These are the three standard axioms of Lean's classical core;
+the trade guarantees do not even require choice. Every accepted term is
+checked by the Lean kernel, and no external decision procedure or SMT
+solver participates in acceptance. The AI-assisted development described
+in \S\ref{sec:lessons-ai} therefore affects only the \emph{cost} of
+producing the proof, not the basis on which it is trusted: a proof the
+kernel rejects does not build.
+
 \subsection{Traceability}
 \label{sec:traceability}
 
@@ -1402,73 +1503,131 @@ bid and ask level lists and required to equal \texttt{true}).
 \label{sec:related}
 % ============================================================================
 
-The work we know of falls into three largely disjoint literatures:
-formal specification and model checking of distributed systems,
-mechanized proof of systems software, and economic analysis of exchange
-microstructure. Each addresses part of what this paper covers, but none
-combines a feature-rich limit-order-book specification with both bounded
-bug-finding and mechanized theorem-level assurance.
+This work sits at the intersection of several literatures: verified
+auction and matching algorithms, industrial model checking, mechanized
+systems verification, model-based conformance testing, and
+machine-checked termination. We survey each and locate our contribution
+relative to the closest prior art.
 
-\paragraph{TLA+ in industry.}
+\paragraph{Verified matching engines and auctions.}
+The closest prior art is a line of Coq formalizations of exchange
+matching by Sarswat, Singh, Natarajan, and Garg. They verify
+\emph{double-auction} matching: an early result proves fairness,
+uniformity, and individual rationality for single-round call
+auctions~\cite{Sarswat2020}, extended to multi-unit trade requests with
+uniqueness theorems that justify extracted regulatory
+checkers~\cite{Natarajan2021,Garg2025}, and most recently to an
+$O(n\log n)$ \emph{continuous} double-auction matcher with a matching
+lower bound~\cite{Garg2024}. In industry, Imandra has been used to
+verify the matching logic and FIX connectivity of real exchanges and
+dark pools~\cite{Passmore2017,Imandra2020,Passmore2021}. Our work is
+complementary on three axes. First, \emph{object}: we prove invariant
+preservation across a stateful order book over time, rather than the
+input/output correctness of one matching round, so time priority
+(FIFO), resting, and re-entry become first-class. Second,
+\emph{features}: our engine carries the interacting order-type suite
+that makes production matchers hard---icebergs, four STP policies,
+post-only, FOK, minimum quantity, and stop triggering---and the defects
+we report live precisely in their intersections. Third, \emph{method}:
+we cross-check a bounded TLA+ model, an unbounded Lean proof, and a C++
+implementation against one another, rather than extracting a single
+verified reference. Published accounts combining all of these---a
+continuous, feature-rich, price-time-priority engine with a mechanized
+arbitrary-size proof \emph{and} implementation conformance---remain, to
+our knowledge, rare. Adjacent threads---market-design analysis of
+frequent batch auctions~\cite{Budish2015} and smart-contract
+verification for decentralized exchanges~\cite{Bhargavan2016,%
+Grishchenko2018}---are orthogonal to the operational correctness of a
+central-limit-order-book engine.
+
+\paragraph{TLA+ and model checking in industry.}
 TLA+ has been applied at scale at Amazon Web
-Services~\cite{Newcombe2015}, where engineers used it to model DynamoDB,
-S3, and other distributed services and uncovered design-level bugs that
-would have been difficult to find through testing. Similar reports have
-come from Microsoft (Azure Cosmos DB), MongoDB, and Elastic. Our work
-follows the Newcombe et~al.\ template---use TLC to explore a
+Services~\cite{Newcombe2015,Newcombe2014}, at Microsoft (Azure Cosmos
+DB)~\cite{Hackett2023}, and at MongoDB~\cite{Davis2020}, with a recent
+survey cataloguing a decade of industrial practice~\cite{Bogli2024}. We
+follow the Newcombe et~al.\ template---use TLC to explore a
 specification's state space and find interaction bugs before
-coding---but differs in the target domain (a financial matching engine
-rather than a distributed storage protocol) and in the follow-through
-to a machine-checked proof in a different tool (Lean~4) rather than
-stopping at bounded model checking.
+coding---but differ in domain (a financial matching engine rather than a
+distributed storage protocol) and in the follow-through to a
+machine-checked proof in Lean~4. MongoDB's ``eXtreme
+Modelling''~\cite{Davis2020} is the closest methodological analogue to
+our conformance stage: it generates tests from a TLA+ model and checks
+an implementation's traces against it. We adopt the same spec-as-oracle
+idea and combine it with random differential testing.
+
+\paragraph{Model-based and conformance testing.}
+Testing an implementation against a formal model has a long theory, from
+Tretmans's \textsc{ioco} conformance relation on labelled transition
+systems~\cite{Tretmans2008} to the model-based-testing taxonomy and
+tooling of Utting, Pretschner, and Legeard~\cite{Utting2012,Utting2007}.
+Our conformance harness is a concrete offline-generation,
+online-execution instance: TLC counterexample and simulation traces
+become the tests, and the model-checked TLA+ specification is the
+oracle. We trade \textsc{ioco}'s generality for a mechanized reference
+model and a domain-specific projection of observables.
 
 \paragraph{Mechanized proof of systems software.}
-The largest-scale machine-checked software artifacts---the seL4
-microkernel~\cite{Klein2009}, CompCert~\cite{Leroy2009}, and
-CertiKOS~\cite{Gu2016}---prove functional correctness or refinement
-between a high-level specification and a C-level implementation, and
-consumed person-decades of effort. The present work is considerably
-narrower in both ambition and cost: we prove preservation of the
-specification's full \S13 book-state invariant suite for the Lean
-reference implementation of a feature-rich matching engine. The investment is correspondingly smaller (weeks rather than
-years), but the target is a different class of system---one whose
-complexity lives in feature composition rather than in concurrency or
-low-level memory semantics.
+The largest machine-checked software artifacts---seL4~\cite{Klein2009},
+CompCert~\cite{Leroy2009}, CertiKOS~\cite{Gu2016}, FSCQ~\cite{FSCQ2015},
+and CakeML~\cite{CakeML2014}---prove functional correctness or
+refinement and consumed person-decades of effort.
+IronFleet~\cite{IronFleet2015} is especially relevant: it pairs
+TLA-style state-machine refinement with Hoare-logic verification, much
+as we pair a TLA+ action model with a Lean invariant proof---though we
+keep the levels as independent cross-checks over a separately written
+C++ engine rather than a single refinement stack.
+Verdi~\cite{Verdi2015} and Iris~\cite{Iris2015} represent, respectively,
+verified distributed implementations and a general invariant-based
+concurrent program logic. The present work is narrower in ambition and
+cost (weeks, not years): we prove preservation of the full \S13
+book-state invariant suite for the Lean reference implementation, and
+its complexity lives in feature composition rather than in concurrency
+or low-level memory semantics.
 
-\paragraph{Formal methods for financial systems.}
-Prior formal work on financial infrastructure has focused mostly on
-auction-theoretic properties of matching
-algorithms~\cite{Budish2015} and on smart-contract verification
-for decentralized exchanges~\cite{Bhargavan2016,Grishchenko2018}.
-Property-based testing tools like QuickCheck~\cite{Claessen2000} are
-used at some trading firms for engine validation, but published accounts
-of end-to-end formal verification of a production-style limit-order-book
-engine with the full order-type suite (icebergs, stops, STP, post-only,
-FOK, MinQty) are, to our knowledge, absent from the literature. A TLA+
-specification of an order book has been circulated informally in the
-TLA+ user community, but with a substantially smaller feature set and no
-mechanized proof layer.
+\paragraph{Termination and well-founded recursion.}
+The device in \S\ref{sec:lean-fuel-fix}---replacing an arbitrary fuel
+bound with a state-derived measure and a progress lemma---is a standard
+pattern for defining general recursive functions and proving them total,
+studied extensively for HOL provers~\cite{Krauss2009,Bulwahn2007,%
+Krauss2011,Manolios2006} and surveyed across the partiality/recursion
+design space---domain predicates, fuel and step-indexing, sized types,
+well-founded recursion~\cite{Bove2016,Abel2013,Leino2013}. Automated
+methods search for lexicographic or size-based orders~\cite{Bulwahn2007};
+our measure is instead a single problem-specific function of book state
+whose decrease is also the load-bearing soundness argument for the
+matching loop---so proving termination and proving the fuel bound
+sufficient are the same step, pushed through a per-branch progress
+argument over 14 interacting branches.
 
-\paragraph{Termination proofs and well-founded recursion.}
-The core technical device in \S\ref{sec:lean-fuel-fix}---replacing an
-arbitrary fuel bound with a state-derived measure and a progress
-lemma---is a standard pattern in mechanized proofs of imperative
-programs~\cite{Manolios2006,Leino2013}. Our contribution is not the
-pattern itself but a concrete demonstration that an AI-augmented proof
-effort can be pushed through the per-branch progress argument for a
-matching-loop implementation with 14 interacting branches, closing
-the bug introduced by the arbitrary constant.
+\paragraph{Differential and property-based testing.}
+Differential testing---comparing independent implementations on random
+inputs~\cite{McKeeman1998}---underlies our shadow test, which
+cross-checks the engine against a vector-based reference. The technique
+is well established for compilers, from Csmith~\cite{Csmith2011} to
+equivalence modulo inputs~\cite{EMI2014}. Property-based
+testing~\cite{Claessen2000} and its foundational verified variant
+QuickChick~\cite{QuickChick2015} connect random testing to stated
+properties. The lesson of our C++ finding (\S\ref{sec:cpp005}) sharpens
+this literature: a differential test between two implementations cannot
+catch a semantic error both inherit from a shared mental model---only a
+spec-rooted oracle can.
 
 \paragraph{LLM-assisted formal verification.}
-A growing body of work explores the use of large language models to
-draft Lean, Coq, or Isabelle tactics~\cite{Yang2023,First2023}. These
-systems focus on automating tactic search. Our experience is
-complementary: the AI did not autonomously close the proof through
-tactic search; it wrote naturalistic Lean proofs under human strategic
+A growing body of work uses large language models to draft proofs and
+drive proof search: hammer integration~\cite{Thor2022},
+informal-to-formal sketching~\cite{DraftSketch2023}, growing lemma
+libraries~\cite{LEGOProver2024}, large-scale synthetic Lean
+data~\cite{DeepSeekProver2024}, retrieval-augmented premise
+selection~\cite{Yang2023}, whole-proof generation~\cite{First2023}, and
+in-context proof agents~\cite{COPRA2024}. These target \emph{autonomous}
+tactic search. Our experience is complementary: the model did not close
+the proof autonomously; it wrote naturalistic Lean under human strategic
 direction. The progress-lemma decomposition, the side-parameterization
-refactor, and the three-case trichotomy were human contributions. The
-$\sim$5{,}700 lines of case-splitting and omega invocations were the
-AI's contribution. Neither layer alone would have produced the artifact.
+refactor, and the three-case trichotomy were human contributions; the
+$\sim$5{,}700 lines of case-splitting and \texttt{omega} invocations
+were the model's. Neither layer alone would have produced the artifact,
+and---per \S\ref{sec:capstone-tcb}---the Lean kernel checks every
+accepted term regardless of who or what drafted it.
 
 \paragraph{Spec-to-implementation synthesis.}
 Program synthesis from formal specifications is a classical research
@@ -1548,8 +1707,9 @@ against each configuration. The complete artifacts are:
 \item \texttt{matching-engine-formal-spec.md}---the prose specification.
 \item \texttt{matcher\_tla/MatchingEngine.tla}---the TLA+ specification
       ($\sim$950 lines).
-\item \texttt{matcher\_tla/MatchingEngine.cfg} and the per-configuration files
-      \texttt{matcher\_tla/MatchingEngine\_*.cfg} for Table~\ref{tab:configs}.
+\item \texttt{matcher\_tla/MatchingEngine.cfg} and the
+      per-configuration files \texttt{MatchingEngine\_*.cfg} for
+      Table~\ref{tab:configs}.
 \item \texttt{matcher\_tla/REPORT.md}---model checking output and bug
       descriptions.
 \item \texttt{matcher\_lean/}---the self-contained Lean~4 project.
@@ -1728,6 +1888,184 @@ A Deductive Approach to Program Synthesis.
 N.~Jain et al.
 Jigsaw: Large Language Models Meet Program Synthesis.
 In \emph{Proc. ICSE}, 2022.
+
+\bibitem{Sarswat2020}
+S.~Sarswat and A.~K. Singh.
+Formally Verified Trades in Financial Markets.
+In \emph{Proc. ICFEM}, LNCS 12531, pages 217--232, 2020.
+
+\bibitem{Natarajan2021}
+R.~Natarajan, S.~Sarswat, and A.~K. Singh.
+Verified Double Sided Auctions for Financial Markets.
+In \emph{Proc. ITP}, LIPIcs 193, pages 28:1--28:18, 2021.
+
+\bibitem{Garg2024}
+M.~Garg and S.~Sarswat.
+Efficient and Verified Continuous Double Auctions.
+In \emph{LPAR-25 (Complementary Volume)}, 2024. Also arXiv:2412.08624.
+
+\bibitem{Garg2025}
+M.~Garg, N.~Raja, S.~Sarswat, and A.~K. Singh.
+Double Auctions: Formalization and Automated Checkers.
+\emph{Journal of Automated Reasoning}, 69:17, 2025.
+
+\bibitem{Passmore2017}
+G.~O. Passmore and D.~Ignatovich.
+Formal Verification of Financial Algorithms.
+In \emph{Proc. CADE}, LNCS 10395, pages 26--41, 2017.
+
+\bibitem{Imandra2020}
+G.~Passmore, S.~Cruanes, D.~Ignatovich, et al.
+The Imandra Automated Reasoning System (System Description).
+In \emph{Proc. IJCAR}, LNCS 12167, pages 464--471, 2020.
+
+\bibitem{Passmore2021}
+G.~O. Passmore.
+Some Lessons Learned in the Industrialization of Formal Methods for
+Financial Algorithms.
+In \emph{Proc. FM}, LNCS 13047, pages 717--721, 2021.
+
+\bibitem{Newcombe2014}
+C.~Newcombe.
+Why Amazon Chose TLA+.
+In \emph{Proc. ABZ}, LNCS 8477, pages 25--39, 2014.
+
+\bibitem{Davis2020}
+A.~J.~J. Davis, M.~Hirschhorn, and J.~Schvimer.
+eXtreme Modelling in Practice.
+\emph{Proc. VLDB Endowment}, 13(9):1346--1358, 2020.
+
+\bibitem{Hackett2023}
+F.~Hackett, J.~Rowe, and M.~A. Kuppe.
+Understanding Inconsistency in Azure Cosmos DB with TLA+.
+In \emph{Proc. ICSE-SEIP}, pages 1--12, 2023.
+
+\bibitem{Bogli2024}
+R.~B\"ogli, L.~Lerena, C.~Tsigkanos, and T.~Kehrer.
+A Systematic Literature Review on a Decade of Industrial TLA+ Practice.
+In \emph{Proc. iFM}, LNCS 15234, pages 24--34, 2024.
+
+\bibitem{Tretmans2008}
+J.~Tretmans.
+Model Based Testing with Labelled Transition Systems.
+In \emph{Formal Methods and Testing}, LNCS 4949, pages 1--38, 2008.
+
+\bibitem{Utting2012}
+M.~Utting, A.~Pretschner, and B.~Legeard.
+A Taxonomy of Model-Based Testing Approaches.
+\emph{Software Testing, Verification and Reliability}, 22(5):297--312, 2012.
+
+\bibitem{Utting2007}
+M.~Utting and B.~Legeard.
+\emph{Practical Model-Based Testing: A Tools Approach}.
+Morgan Kaufmann, 2007.
+
+\bibitem{Krauss2009}
+A.~Krauss.
+Automating Recursive Definitions and Termination Proofs in Higher-Order
+Logic.
+PhD thesis, Technische Universit\"at M\"unchen, 2009.
+
+\bibitem{Bulwahn2007}
+L.~Bulwahn, A.~Krauss, and T.~Nipkow.
+Finding Lexicographic Orders for Termination Proofs in Isabelle/HOL.
+In \emph{Proc. TPHOLs}, LNCS 4732, pages 38--53, 2007.
+
+\bibitem{Krauss2011}
+A.~Krauss, C.~Sternagel, R.~Thiemann, C.~Fuhs, and J.~Giesl.
+Termination of Isabelle Functions via Termination of Rewriting.
+In \emph{Proc. ITP}, LNCS 6898, pages 152--167, 2011.
+
+\bibitem{Bove2016}
+A.~Bove, A.~Krauss, and M.~Sozeau.
+Partiality and Recursion in Interactive Theorem Provers---An Overview.
+\emph{Mathematical Structures in Computer Science}, 26(1):38--88, 2016.
+
+\bibitem{Abel2013}
+A.~Abel and B.~Pientka.
+Wellfounded Recursion with Copatterns: A Unified Approach to Termination
+and Productivity.
+In \emph{Proc. ACM ICFP}, pages 185--196, 2013.
+
+\bibitem{IronFleet2015}
+C.~Hawblitzel, J.~Howell, M.~Kapritsos, J.~R. Lorch, B.~Parno,
+M.~L. Roberts, S.~Setty, and B.~Zill.
+IronFleet: Proving Practical Distributed Systems Correct.
+In \emph{Proc. ACM SOSP}, pages 1--17, 2015.
+
+\bibitem{Verdi2015}
+J.~R. Wilcox, D.~Woos, P.~Panchekha, Z.~Tatlock, X.~Wang, M.~D. Ernst,
+and T.~Anderson.
+Verdi: A Framework for Implementing and Formally Verifying Distributed
+Systems.
+In \emph{Proc. ACM PLDI}, pages 357--368, 2015.
+
+\bibitem{FSCQ2015}
+H.~Chen, D.~Ziegler, T.~Chajed, A.~Chlipala, M.~F. Kaashoek, and
+N.~Zeldovich.
+Using Crash Hoare Logic for Certifying the FSCQ File System.
+In \emph{Proc. ACM SOSP}, pages 18--37, 2015.
+
+\bibitem{Iris2015}
+R.~Jung, D.~Swasey, F.~Sieczkowski, K.~Svendsen, A.~Turon, L.~Birkedal,
+and D.~Dreyer.
+Iris: Monoids and Invariants as an Orthogonal Basis for Concurrent
+Reasoning.
+In \emph{Proc. ACM POPL}, pages 637--650, 2015.
+
+\bibitem{CakeML2014}
+R.~Kumar, M.~O. Myreen, M.~Norrish, and S.~Owens.
+CakeML: A Verified Implementation of ML.
+In \emph{Proc. ACM POPL}, pages 179--191, 2014.
+
+\bibitem{McKeeman1998}
+W.~M. McKeeman.
+Differential Testing for Software.
+\emph{Digital Technical Journal}, 10(1):100--107, 1998.
+
+\bibitem{Csmith2011}
+X.~Yang, Y.~Chen, E.~Eide, and J.~Regehr.
+Finding and Understanding Bugs in C Compilers.
+In \emph{Proc. ACM PLDI}, pages 283--294, 2011.
+
+\bibitem{EMI2014}
+V.~Le, M.~Afshari, and Z.~Su.
+Compiler Validation via Equivalence Modulo Inputs.
+In \emph{Proc. ACM PLDI}, pages 216--226, 2014.
+
+\bibitem{QuickChick2015}
+Z.~Paraskevopoulou, C.~Hri\c{t}cu, M.~D\'en\`es, L.~Lampropoulos, and
+B.~C. Pierce.
+Foundational Property-Based Testing.
+In \emph{Proc. ITP}, LNCS 9236, pages 325--343, 2015.
+
+\bibitem{Thor2022}
+A.~Q. Jiang, W.~Li, S.~Tworkowski, et al.
+Thor: Wielding Hammers to Integrate Language Models and Automated
+Theorem Provers.
+In \emph{Proc. NeurIPS}, 2022.
+
+\bibitem{DraftSketch2023}
+A.~Q. Jiang, S.~Welleck, J.~P. Zhou, et al.
+Draft, Sketch, and Prove: Guiding Formal Theorem Provers with Informal
+Proofs.
+In \emph{Proc. ICLR}, 2023.
+
+\bibitem{LEGOProver2024}
+H.~Wang, H.~Xin, C.~Zheng, et al.
+LEGO-Prover: Neural Theorem Proving with Growing Libraries.
+In \emph{Proc. ICLR}, 2024.
+
+\bibitem{DeepSeekProver2024}
+H.~Xin, D.~Guo, Z.~Shao, et al.
+DeepSeek-Prover: Advancing Theorem Proving in LLMs through Large-Scale
+Synthetic Data.
+arXiv:2405.14333, 2024.
+
+\bibitem{COPRA2024}
+A.~Thakur, G.~Tsoukalas, Y.~Wen, J.~Xin, and S.~Chaudhuri.
+An In-Context Learning Agent for Formal Theorem-Proving.
+In \emph{Proc. COLM}, 2024.
 
 \end{thebibliography}
 
