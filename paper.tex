@@ -99,22 +99,33 @@ supports five order types (\textsc{limit}, \textsc{market},
 iceberg display quantities, four self-trade prevention policies,
 post-only, fill-or-kill, and minimum-quantity semantics.
 
-The paper is structured around three findings, in the order they were
-discovered. Two were found by bounded model checking with TLC, which
-exhaustively explored 36 million reachable states: a FIFO violation
-caused by triggered stop orders retaining their original submission
-timestamp, and an iceberg stranding scenario caused by an interaction
-between STP DECREMENT and iceberg reload semantics. A third finding
-emerged only during theorem proving: the matching loop's original
-constant fuel bound of 100 steps made the key preservation theorem
-false for books with more than 100 contra-side orders.
+The paper is structured around the assurance layers and the defects they
+made visible. Bounded model checking with TLC, across configurations
+totaling 36 million reachable states, produced a concrete FIFO
+counterexample: triggered stop orders retained their original submission
+timestamp. The same modeling pass exposed a prose-specification gap in
+the interaction between STP DECREMENT and iceberg reload semantics.
+Mechanized proof found two unbounded/transcription issues: the matching
+loop's original constant fuel bound of 100 steps made the key
+preservation theorem false for books with more than 100 contra-side
+orders, and the full-invariant extension exposed an MTL/minimum-quantity
+routing error in the Lean and TLA+ transcriptions. Finally, replaying
+TLC-generated traces against a C++ implementation found a dispose defect:
+a triggered stop-market order with a persistent time-in-force could
+leave a market remainder resting on the book.
 
-We prove in Lean~4 that the processing pipeline preserves the combined
-book invariant \texttt{AllInv} (uncrossed plus sorted on both sides) for
-arbitrary book sizes, with a fuel bound computed from the book state and
-proved sufficient. The proof consists of a 3{,}986-line constructive
-artifact and a complementary 312-line structural proof via three-case
-analysis of the matching termination condition.
+We prove in Lean~4 that the processing pipeline preserves the full
+book-state invariant suite of the specification's \S13---not only that
+the book stays uncrossed and sorted on both sides (\texttt{AllInv}), but
+also no ghost orders, status consistency, FIFO within each price level,
+and no resting market, market-to-limit, or minimum-quantity orders,
+together with the post-only and self-trade-prevention guarantees on
+emitted trades---for arbitrary book sizes, with a fuel bound computed
+from the book state and proved sufficient. The proof spans three files
+totaling roughly 5{,}700 lines: a 3{,}965-line constructive core, a
+1{,}423-line extension lifting the remaining \S13 invariants, and a
+complementary 311-line structural proof via three-case analysis of the
+matching termination condition.
 
 The overarching lesson is that feature composition is where bugs hide.
 Each individual feature is correctly specified in isolation. The bugs
@@ -347,7 +358,8 @@ invariant is ever violated, TLC returns a concrete counterexample trace
 showing exactly which sequence of orders produced the violation.
 
 Within the configurations we explored, TLC generated 36 million
-distinct states. \textbf{This found two bugs.}
+distinct states. \textbf{This produced one concrete invariant
+counterexample and exposed one additional specification gap.}
 
 The limitation of this approach is its scope. Production matching
 engines hold millions of orders at prices across a continuous range. No
@@ -368,11 +380,13 @@ no ``trust me, I checked it carefully.'' Either the proof compiles or
 it does not. When it compiles, the guarantee is unconditional within
 the stated preconditions.
 
-\textbf{This process discovered a third bug}: the matching loop's
+\textbf{This process discovered two further issues}: the matching loop's
 original termination bound was an arbitrary constant, which made the
-key theorem false for large books. Discovering this required a
-universally quantified statement---bounded model checking had never
-reached configurations large enough for the constant to matter.
+key theorem false for large books, and the later full-invariant proof
+exposed an MTL/minimum-quantity routing error in the executable
+transcriptions. The fuel issue required a universally quantified
+statement---bounded model checking had never reached configurations
+large enough for the constant to matter.
 
 \subsection{What We Found}
 \label{sec:findings-summary}
@@ -385,9 +399,13 @@ Finding & Tool & Description \\
 \midrule
 1 & Bounded model checking (TLC) & FIFO violation: triggered stop orders retain their original submission timestamp, producing a non-monotonic queue when the triggered order rests \\
 \addlinespace
-2 & Bounded model checking (TLC) & Iceberg stranding: STP DECREMENT can drive visible quantity to zero without triggering iceberg reload, permanently stranding the order \\
+2 & TLA+ modeling / specification review & Iceberg stranding: STP DECREMENT can drive visible quantity to zero without triggering iceberg reload, permanently stranding the order; the checked TLA+ model includes the fix, so this is reported as a prose-specification gap rather than a TLC counterexample \\
 \addlinespace
 3 & Theorem proving (Lean~4) & Unsound fuel bound: the matching loop's constant limit of 100 steps makes the preservation theorem false for books with more than 100 contra-side orders \\
+\addlinespace
+4 & Full-invariant proof (Lean~4) & Transcription defect: a passing MinQty pre-check could route a \textsc{market-to-limit} order directly to dispose before conversion, allowing it to rest as \textsc{mtl}; the prose specification was correct, but both executable transcriptions diverged \\
+\addlinespace
+5 & TLA+-trace conformance testing & C++ dispose defect: a triggered \textsc{stop\_market} order retaining \textsc{day}/\textsc{gtd} time-in-force could rest a market remainder on the book, violating \textsc{NoRestingMarkets} \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -625,8 +643,8 @@ proof proceeded. The proof refined the invariant.
 
 Lean's termination checker requires every recursive function to be
 provably total. The matching loop \texttt{doMatch} is recursive, so the
-original implementation used an explicit \emph{fuel} argument with a
-constant bound:
+original implementation passed the same explicit \emph{fuel} argument into
+the matching loop, using a constant bound:
 
 \begin{lstlisting}[language={},basicstyle=\ttfamily\footnotesize]
 def defaultFuel : Nat := 100
@@ -636,7 +654,8 @@ def doMatch (fuel : Nat) ... : MatchResult :=
   | fuel'+1 => /* one step, recurse with fuel' */
 \end{lstlisting}
 
-This hides an assumption: matching always completes within 100 steps.
+Using this constant as the matching-loop bound hides an assumption:
+matching always completes within 100 steps.
 That assumption does not hold at arbitrary scale. Consider a book with
 200 resting asks at price~\$50 and one incoming buy at price~\$100.
 \texttt{doMatch} consumes the first 100 asks, exhausts its fuel, and
@@ -715,7 +734,7 @@ net decrease.
 
 Once the constructive proof of the full pipeline was complete, a second
 shorter proof was developed for the matching-and-dispose core, in the
-file \texttt{TheoremsElegant.lean} (312 lines, 6 theorems).
+file \texttt{TheoremsElegant.lean} (311 lines, 6 theorems).
 
 The matching loop continues as long as the incoming order's price is
 willing to cross the best price on the opposite side---a condition
@@ -750,7 +769,7 @@ the book unchanged, Case~2 inserts on an empty contra side (vacuously
 non-crossing), Case~3 inserts at a price strictly separated from the
 contra head.
 
-This 312-line proof treats \texttt{doMatch} as a black box
+This 311-line proof treats \texttt{doMatch} as a black box
 characterized by its termination condition. It reuses the constructive
 proof's fuel-sufficiency lemma as an imported fact. The contrast
 between the two proof styles is instructive:
@@ -762,7 +781,7 @@ between the two proof styles is instructive:
                         & Constructive              & Structural              \\
 \midrule
 File                    & \texttt{Theorems.lean}    & \texttt{TheoremsElegant.lean} \\
-Lines                   & 3{,}986                   & 312                     \\
+Lines                   & 3{,}965                   & 311                     \\
 Theorems/lemmas         & 74                        & 6                       \\
 Argument                & Branch-by-branch          & Three-case analysis     \\
 \bottomrule
@@ -833,7 +852,7 @@ feature interactions that TLC explores.
 We implemented this approach for a header-only C++ matching engine
 (\texttt{matcher\_stl/src/engine.h}, ${\sim}645$ source lines). The
 pipeline has three stages. First, TLC is invoked in simulation mode
-against seeded configurations of each of thirteen scenarios---empty,
+against seeded configurations of each of twelve scenarios---empty,
 shallow and deep book, iceberg-dominant, mixed time-in-force,
 stops-pending, self-trade-prevention, and so on---with a depth bound
 that keeps each random walk short enough to terminate. Second, a
@@ -845,7 +864,7 @@ conformance harness replays each action against the engine and
 compares the engine's observables field-by-field to the projection
 after every step.
 
-A sweep of approximately 232{,}000 traces across the thirteen
+A sweep of approximately 232{,}000 traces across the twelve
 scenarios yielded roughly $1.5\times 10^{6}$ per-step comparisons.
 Divergences point directly at the offending transition with a
 minimal repro that is typically fewer than ten actions long.
@@ -889,7 +908,7 @@ spec-required coverage for triggered stops, whose converted form
 retains the original time-in-force.
 
 \paragraph{Why conventional testing missed it.} The engine had
-passed sixty-two directed unit tests covering limit matching,
+passed sixty-five directed unit tests covering limit matching,
 iceberg reload, FOK feasibility, stop triggering, and partial
 fills in isolation, but none exercised a stop-triggers-on-amend
 path whose triggered market had leftover quantity. A second
@@ -964,7 +983,7 @@ question.
 
 The cost profiles differ dramatically. TLC returned its first
 counterexample in 102 seconds of wall time. The Lean proof accumulated
-several weeks of interactive development and produced a 4{,}298-line
+several weeks of interactive development and produced a 5{,}699-line
 artifact. The two are complementary rather than substitutable: TLC's
 speed is useful early in specification work; Lean's guarantees scale
 beyond any bounded configuration.
@@ -990,10 +1009,12 @@ the human-directed strategy required.
 \subsection{Cost and Value}
 \label{sec:lessons-cost}
 
-TLA+ and TLC took approximately two days of work and found two bugs.
+TLA+ and TLC took approximately two days of work and produced one
+concrete invariant counterexample plus one specification gap.
 The Lean proof took approximately four weeks and produced a universal
-guarantee plus discovered one additional bug. These have different
-return-on-investment profiles.
+guarantee plus discovered the fuel-bound defect and, during the later
+full-invariant extension, an MTL/minimum-quantity transcription defect.
+These have different return-on-investment profiles.
 
 For a specification that is still under active development, TLC's rapid
 feedback is most valuable: a two-day investment finds concrete
@@ -1016,7 +1037,7 @@ The object of study is an internal prose specification,
 generic asset-agnostic order matching engine with price-time priority.
 The specification is 979 lines of structured pseudocode covering
 primitive domains, order well-formedness constraints, the order book
-structure, a core matching algorithm, post-match disposition, six order
+structure, a core matching algorithm, post-match disposition, five order
 types, four STP policies, iceberg reload semantics, stop triggering with
 cascading evaluation, cancel, and amend. It was written with care:
 well-formedness constraints are enumerated, invariants are stated
@@ -1132,19 +1153,19 @@ INV-14  & Content    & No $\mathit{minQty}$ is set on any resting order \\
 \toprule
 ID & TLA+ Operator & Description & TLC & Lean \\
 \midrule
-INV-1  & \texttt{NoEmptyLevels}    & Every price level has a non-empty order queue & trivial & trivial \\
+INV-1  & \texttt{NoEmptyLevels}    & Every price level has a non-empty order queue & trivial & $\checkmark$ \\
 INV-2  & (sortedness)              & Bids strictly descending & by constr. & $\checkmark$ \\
 INV-3  & (sortedness)              & Asks strictly ascending & by constr. & $\checkmark$ \\
 INV-4  & \texttt{BookUncrossed}    & $\mathit{bestBid} < \mathit{bestAsk}$ or either side empty & $\checkmark$ & $\checkmark$ \\
-INV-5  & \texttt{NoGhosts}         & Every resting order has $\mathit{remainingQty} > 0$ & $\checkmark$ & --- \\
-INV-6  & \texttt{StatusConsistency}& Resting orders have status \textsc{new} or \textsc{partial} & $\checkmark$ & --- \\
-INV-7  & \texttt{FIFOWithinLevel}  & FIFO within level (strictly increasing timestamps) & fixed$^{\star}$ & --- \\
-INV-8  & \texttt{NoRestingMarkets} & \textsc{market} orders never appear on the book & $\checkmark$ & --- \\
+INV-5  & \texttt{NoGhosts}         & Every resting order has $\mathit{remainingQty} > 0$ & $\checkmark$ & $\checkmark$ \\
+INV-6  & \texttt{StatusConsistency}& Resting orders have status \textsc{new} or \textsc{partial} & $\checkmark$ & $\checkmark$ \\
+INV-7  & \texttt{FIFOWithinLevel}  & FIFO within level (strictly increasing timestamps) & fixed$^{\star}$ & $\checkmark$ \\
+INV-8  & \texttt{NoRestingMarkets} & \textsc{market} orders never appear on the book & $\checkmark$ & $\checkmark$ \\
 INV-9  & (construction)            & Trade price equals the passive order's price & by constr. & by constr. \\
-INV-11 & \texttt{PostOnlyGuarantee}& No trade where the aggressor was post-only & $\checkmark$ & --- \\
-INV-12 & \texttt{STPGuarantee}     & No trade between orders in the same STP group & $\checkmark$ & --- \\
-INV-13 & \texttt{NoRestingMTL}     & \textsc{mtl} orders are converted before resting & $\checkmark$ & --- \\
-INV-14 & \texttt{NoRestingMinQty}  & $\mathit{minQty}$ is cleared before an order rests & $\checkmark$ & --- \\
+INV-11 & \texttt{PostOnlyGuarantee}& No trade where the aggressor was post-only & $\checkmark$ & $\checkmark$ \\
+INV-12 & \texttt{STPGuarantee}     & No trade between orders in the same STP group & $\checkmark$ & $\checkmark$ \\
+INV-13 & \texttt{NoRestingMTL}     & \textsc{mtl} orders are converted before resting & $\checkmark$ & $\checkmark$ \\
+INV-14 & \texttt{NoRestingMinQty}  & $\mathit{minQty}$ is cleared before an order rests & $\checkmark$ & $\checkmark$ \\
 \bottomrule
 \end{tabular}
 
@@ -1153,9 +1174,12 @@ INV-14 & \texttt{NoRestingMinQty}  & $\mathit{minQty}$ is cleared before an orde
 IDs match the canonical \S13 summary of the prose specification.
 TLC column: $\checkmark$ means bounded exhaustive pass across all
 configurations in Table~\ref{tab:configs}. Lean column:
-$\checkmark$ means part of \texttt{AllInv} and mechanically proved
-for all book sizes by \texttt{process\_preserves\_AllInv}; ---
-means not yet lifted to Lean.
+$\checkmark$ means mechanically proved for all book sizes---INV-2/3/4
+as part of \texttt{AllInv}, the book-state invariants via the capstone
+\texttt{process\_preserves\_BookInvariant}, and INV-11/12 via
+\texttt{process\_PostOnlyGuarantee} and \texttt{process\_STPGuarantee}.
+INV-9 holds by construction; INV-10 (event ordering) is not modeled in
+Lean.
 $^{\star}$INV-7 was violated under the original specification and
 passes after the fix described in \S\ref{sec:bug1}.
 \end{table}
@@ -1254,13 +1278,28 @@ The Lean proof artifacts are summarized in Table~\ref{tab:lean-stats}.
 \toprule
 File & Lines & Theorems & Proof style \\
 \midrule
-\texttt{Theorems.lean}         & 3{,}986 & 74 & Constructive, branch-by-branch \\
-\texttt{TheoremsElegant.lean}  &    312  &  6 & Three-case trichotomy \\
+\texttt{Theorems.lean}         & 3{,}965 & 74 & Constructive, branch-by-branch \\
+\texttt{TheoremsFull.lean}     & 1{,}423 & 77 & \S13 book-state suite + trade guarantees \\
+\texttt{TheoremsElegant.lean}  &    311  &  6 & Three-case trichotomy \\
 \midrule
-\textbf{Total}                 & \textbf{4{,}298} & \textbf{80} & Complementary proof artifacts \\
+\textbf{Total}                 & \textbf{5{,}699} & \textbf{157} & Complementary proof artifacts \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\texttt{Theorems.lean} and \texttt{TheoremsElegant.lean} establish the
+\texttt{AllInv} core---uncrossed plus sorted on both sides.
+\texttt{TheoremsFull.lean} lifts the remaining \S13 book-state
+invariants (no empty levels, no ghosts, status consistency, FIFO, and
+no resting market/MTL/MinQty orders) together with the post-only and
+STP guarantees on emitted trades, culminating in the capstone
+\texttt{process\_preserves\_BookInvariant}. Lifting INV-13 also
+surfaced a transcription defect: a well-formed \textsc{mtl} order
+carrying a \texttt{minQty} could come to rest mistyped as \textsc{mtl}
+at price zero, because the minimum-quantity pre-check short-circuited
+the MTL routing phase. The prose specification was correct; the Lean
+and TLA+ transcriptions had both diverged from it, and both are now
+fixed.
 
 The mutual induction covers three functions---\texttt{processOrder},
 \texttt{processCascade}, and \texttt{processTriggeredStops}---which are
@@ -1318,7 +1357,8 @@ theorem.
 \centering
 \caption{Spec $\to$ TLA+ $\to$ Lean traceability for the clauses
 touched by the main theorem. The Lean column refers to
-\texttt{Theorems.lean} or \texttt{Invariants.lean}.}
+\texttt{Theorems.lean}, \texttt{TheoremsFull.lean}, or
+\texttt{Invariants.lean}.}
 \label{tab:trace}
 \small
 \begin{tabular}{@{}lL{3cm}L{3.2cm}L{4.3cm}@{}}
@@ -1329,14 +1369,14 @@ WF-13       & \texttt{WellFormed} guard & \texttt{OrderProcOk} field 1 & Main-th
 WF-13 (derived) & \texttt{WellFormed} guard & \texttt{OrderProcOk} field 2 & Main-theorem precondition \\
 INV-2/3     & not separately checked$^\dagger$ & \texttt{bidsSortedDescB}, \texttt{asksSortedAscB} & Discovered: needed for induction \\
 INV-4       & \texttt{BookUncrossed}    & \texttt{BookUncrossed}, part of \texttt{AllInv} & Main-theorem conclusion \\
-INV-5       & \texttt{NoGhosts}         & \texttt{NoGhosts} (definition only) & Not proved preserved \\
-INV-6       & \texttt{StatusConsistency}& \texttt{statusConsistencyB} (definition only) & Not proved preserved \\
-INV-7       & \texttt{FIFOWithinLevel}  & --- & TLC-only \\
-INV-8       & \texttt{NoRestingMarkets} & --- & TLC-only \\
-INV-11      & \texttt{PostOnlyGuarantee}& --- & TLC-only \\
-INV-12      & \texttt{STPGuarantee}     & --- & TLC-only \\
-INV-13      & \texttt{NoRestingMTL}     & --- & TLC-only \\
-INV-14      & \texttt{NoRestingMinQty}  & \texttt{NoRestingMinQty} & Invariants.lean definition \\
+INV-5       & \texttt{NoGhosts}         & \texttt{FullBookInv} & Proved preserved \\
+INV-6       & \texttt{StatusConsistency}& \texttt{FullBookInv} & Proved preserved \\
+INV-7       & \texttt{FIFOWithinLevel}  & \texttt{FullBookInv} & Proved preserved \\
+INV-8       & \texttt{NoRestingMarkets} & \texttt{FullBookInv} & Proved preserved \\
+INV-11      & \texttt{PostOnlyGuarantee}& \texttt{PostOnlyGuarantee} & Proved (no precond.) \\
+INV-12      & \texttt{STPGuarantee}     & \texttt{STPGuarantee} & Proved (no precond.) \\
+INV-13      & \texttt{NoRestingMTL}     & \texttt{FullBookInv} & Proved preserved \\
+INV-14      & \texttt{NoRestingMinQty}  & \texttt{FullBookInv} & Proved preserved \\
 \texttt{canMatch}
             & \texttt{CanMatchPrice}    & \texttt{canMatchPrice}   & Matching loop guard \\
 PROCESS \S12& \texttt{ProcessOrder} (11 phases) & \texttt{processOrder} (11 phases) & Mutual induction target \\
@@ -1388,9 +1428,9 @@ microkernel~\cite{Klein2009}, CompCert~\cite{Leroy2009}, and
 CertiKOS~\cite{Gu2016}---prove functional correctness or refinement
 between a high-level specification and a C-level implementation, and
 consumed person-decades of effort. The present work is considerably
-narrower in both ambition and cost: we prove preservation of a single
-book invariant (\texttt{AllInv}) for the Lean reference implementation
-of a feature-rich matching engine. The investment is correspondingly smaller (weeks rather than
+narrower in both ambition and cost: we prove preservation of the
+specification's full \S13 book-state invariant suite for the Lean
+reference implementation of a feature-rich matching engine. The investment is correspondingly smaller (weeks rather than
 years), but the target is a different class of system---one whose
 complexity lives in feature composition rather than in concurrency or
 low-level memory semantics.
@@ -1427,17 +1467,18 @@ complementary: the AI did not autonomously close the proof through
 tactic search; it wrote naturalistic Lean proofs under human strategic
 direction. The progress-lemma decomposition, the side-parameterization
 refactor, and the three-case trichotomy were human contributions. The
-$\sim$4{,}000 lines of case-splitting and omega invocations were the
+$\sim$5{,}700 lines of case-splitting and omega invocations were the
 AI's contribution. Neither layer alone would have produced the artifact.
 
 \paragraph{Spec-to-implementation synthesis.}
 Program synthesis from formal specifications is a classical research
 area~\cite{Manna1980}. Recent work on LLM-driven
 synthesis~\cite{Jain2022} has reached practical levels for small
-programs. The approach taken in this work stops at the Lean reference
-implementation. Carrying the specification forward to a
-systems-language implementation via conformance testing against TLC
-traces is planned future work.
+programs. The approach taken in this work stops short of synthesis or refinement
+proof. Instead, it carries the specification forward to a C++
+implementation through conformance testing against TLC traces, which is
+weaker than a proof but strong enough to expose semantic defects shared
+by ordinary unit tests and a sibling C++ reference.
 
 
 % ============================================================================
@@ -1463,18 +1504,19 @@ Specific gaps:
       model.
 \end{itemize}
 
-\paragraph{Lean closes the unbounded gap for \texttt{AllInv}, not for
-the full invariant suite.} The Lean proof establishes
-\texttt{process\_preserves\_AllInv} for arbitrary book sizes and
-arbitrary order counts, under the minimal preconditions
-\texttt{OrderProcOk} and \texttt{StopsNoPostOnly}. Among the broader
-TLC-checked invariants, only the \texttt{AllInv} portion (INV-2, INV-3,
-INV-4) has been lifted to Lean. The remaining invariants---no ghosts
-(INV-5), status consistency (INV-6), FIFO within level (INV-7), no
-resting markets (INV-8), post-only safety (INV-11), STP guarantee
-(INV-12), no resting MTL (INV-13), no resting MinQty (INV-14)---remain
-at the bounded level of assurance provided by TLC. Lifting them to Lean
-is future work.
+\paragraph{Lean closes the unbounded gap for the full \S13 book-state
+suite.} The Lean proof establishes
+\texttt{process\_preserves\_BookInvariant} for arbitrary book sizes and
+arbitrary order counts, under preconditions discharged by
+well-formedness and the empty-book base case. This covers the
+\texttt{AllInv} core (INV-2, INV-3, INV-4) together with no empty levels
+(INV-1), no ghosts (INV-5), status consistency (INV-6), FIFO within
+level (INV-7), no resting markets (INV-8), no resting MTL (INV-13), and
+no resting MinQty (INV-14); the post-only (INV-11) and STP (INV-12)
+guarantees on emitted trades are proved separately and unconditionally.
+Only INV-9 (trade price equals the passive price, which holds by
+construction) and INV-10 (event ordering, which is not modeled in Lean)
+lie outside the Lean development.
 
 \subsection{Specification vs.\ Implementation}
 
@@ -1483,16 +1525,19 @@ code that tests run is the same code the theorems reference---there is
 no separate model, no extraction layer, and no refinement obligation.
 The semantic gap between tested behavior and proved behavior is zero.
 
-For any future systems-language implementation, a gap would remain. The
-Lean proof does not transfer automatically to C or C++. The
+For the C++ implementation, a gap remains. The Lean proof does not
+transfer automatically to C++, and the TLA+-trace conformance pipeline
+compares projected observables rather than proving refinement. The
 conformance-testing approach described in \S\ref{sec:synthesis} narrows
-this gap but does not close it. A refinement proof connecting the Lean
-reference to a systems-language implementation is a natural next step.
+this gap and found a real implementation defect, but it does not close
+the gap. A refinement proof connecting the Lean reference to the C++
+implementation is a natural next step.
 
 \subsection{Reproducibility}
 
 All artifacts---the prose specification, the TLA+ model and
-configurations, the Lean~4 project, and the paper source---are available
+configurations, the Lean~4 project, the C++ implementation and
+conformance harness, and the paper source---are available
 in a public Git repository at
 \url{https://github.com/formally-verified-exchange/verified-matching-engine}.
 The top-level \texttt{README.md} lists prerequisites and gives
@@ -1508,12 +1553,17 @@ against each configuration. The complete artifacts are:
 \item \texttt{matcher\_tla/REPORT.md}---model checking output and bug
       descriptions.
 \item \texttt{matcher\_lean/}---the self-contained Lean~4 project.
-      The 11 source files live under \texttt{matcher\_lean/MatchingEngine/};
-      the two proof files are \texttt{Theorems.lean} (3{,}986 lines,
-      74 theorems) and \texttt{TheoremsElegant.lean} (312 lines,
-      6 theorems). Both are built and type-checked by running
+      The source files live under \texttt{matcher\_lean/MatchingEngine/};
+      the three proof files are \texttt{Theorems.lean} (3{,}965 lines,
+      74 theorems), \texttt{TheoremsFull.lean} (1{,}423 lines,
+      77 theorems), and \texttt{TheoremsElegant.lean} (311 lines,
+      6 theorems). All are built and type-checked by running
       \texttt{lake build} from inside \texttt{matcher\_lean/} and are
       imported from the library root \texttt{matcher\_lean/MatchingEngine.lean}.
+\item \texttt{matcher\_stl/}---the C++ implementation, directed tests,
+      shadow differential harness, TLA+ trace converter, conformance
+      replay harness, and \texttt{BUG\_LOG.md} documenting implementation
+      defects found by the testing pipeline.
 \end{itemize}
 
 To reproduce the FIFO counterexample:
@@ -1557,18 +1607,25 @@ finding: reading the stop, insertion, and FIFO sections of the prose
 specification individually does not expose it, but an operational model
 that composes all three does.
 
-We then proved in Lean~4 that the processing pipeline preserves the
-combined book invariant \texttt{AllInv} (uncrossed plus sorted on both
-sides) under a minimal well-formedness precondition, for arbitrary book
-sizes. \texttt{Theorems.lean} (3{,}986 lines, 74 theorems) proves the
-full preservation theorem branch-by-branch. \texttt{TheoremsElegant.lean}
-(312 lines, 6 theorems) adds a shorter structural argument for the
-matching-and-dispose core via a three-case analysis of the matching
-termination condition. Both files are type-checked by every build and
-contain no open obligations. One issue surfaced during the proof effort
-itself: the original arbitrary fuel bound made the preservation statement
-false for sufficiently populated books. Replacing it with a state-derived
-measure and a progress lemma restores soundness.
+We then proved in Lean~4 that the processing pipeline preserves the full
+\S13 book-state invariant suite---the \texttt{AllInv} core (uncrossed
+plus sorted on both sides) together with no empty levels, no ghosts,
+status consistency, FIFO within each level, and no resting
+market/MTL/MinQty orders, plus the post-only and self-trade-prevention
+guarantees on emitted trades---under preconditions discharged by
+well-formedness, for arbitrary book sizes. \texttt{Theorems.lean}
+(3{,}965 lines, 74 theorems) proves the \texttt{AllInv} preservation
+theorem branch-by-branch; \texttt{TheoremsFull.lean} (1{,}423 lines,
+77 theorems) lifts the remaining invariants to the capstone
+\texttt{process\_preserves\_BookInvariant}; and
+\texttt{TheoremsElegant.lean} (311 lines, 6 theorems) adds a shorter
+structural argument for the matching-and-dispose core via a three-case
+analysis of the matching termination condition. All three files are
+type-checked by every build and contain no open obligations. One issue
+surfaced during the proof effort itself: the original arbitrary fuel
+bound made the preservation statement false for sufficiently populated
+books. Replacing it with a state-derived measure and a progress lemma
+restores soundness.
 
 The broader takeaway is that bounded model checking and mechanized
 theorem proving play complementary roles on the same specification. TLC
@@ -1582,11 +1639,10 @@ tractable investment for systems where feature interactions can move
 real money in the wrong direction.
 
 All artifacts described in this paper---the prose specification, the
-TLA+ model and configurations, and the Lean~4 project including both
-proof files---are publicly available at the repository linked on the
-first page. A conformance-tested C++ implementation of the same
-specification, together with a TLA+-driven trace-replay testing
-pipeline, is in preparation as a companion publication.
+TLA+ model and configurations, the Lean~4 project including all proof
+files, and the conformance-tested C++ implementation with its
+TLA+-driven trace-replay harness---are publicly available at the
+repository linked on the first page.
 
 
 \section*{Acknowledgments}
