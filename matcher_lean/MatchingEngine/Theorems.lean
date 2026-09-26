@@ -3963,3 +3963,26 @@ theorem process_preserves_uncrossed (b : BookState) (o : Order)
   have hpok' : OrderProcOk { o with id := b.nextId, timestamp := b.clock } := hpok
   exact (BookUncrossed_with_meta _ _ _).mp
     (processOrder_preserves_uncrossed defaultFuel _ b hpok' hstops h)
+
+/-- `process` preserves the *full* `AllInv` (uncrossed plus both sides
+    sorted), not just `BookUncrossed`. -/
+theorem process_preserves_AllInv (b : BookState) (o : Order)
+    (hpok : OrderProcOk o) (hstops : StopsNoPostOnly b) (h : AllInv b) :
+    AllInv (process b o).book := by
+  show AllInv (process b o).book
+  unfold process
+  simp only
+  have hpok' : OrderProcOk { o with id := b.nextId, timestamp := b.clock } := hpok
+  exact AllInv.with_meta _ _ _
+    (processOrder_preserves_AllInv defaultFuel _ b hpok' hstops h)
+
+/-- `process` preserves `StopsNoPostOnly`. -/
+theorem process_preserves_StopsNoPostOnly (b : BookState) (o : Order)
+    (hpok : OrderProcOk o) (hstops : StopsNoPostOnly b) (h : AllInv b) :
+    StopsNoPostOnly (process b o).book := by
+  show StopsNoPostOnly (process b o).book
+  unfold process
+  simp only
+  have hpok' : OrderProcOk { o with id := b.nextId, timestamp := b.clock } := hpok
+  exact StopsNoPostOnly_of_same_stops _ _ rfl
+    ((process_all_preserve_AllInv defaultFuel).1 _ b hpok' hstops h).2
