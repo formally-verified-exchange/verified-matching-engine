@@ -5,6 +5,9 @@
 paper.aux
 paper.log
 paper.out
+paper-lncs/paper-lncs.aux
+paper-lncs/paper-lncs.log
+paper-lncs/paper-lncs.out
 
 # C++ build trees (regeneratable from CMakeLists.txt)
 matcher_stl/build/
