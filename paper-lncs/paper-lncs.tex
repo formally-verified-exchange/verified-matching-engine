@@ -265,10 +265,11 @@ preservation statement false for books with more than 100 matchable opposing
 orders: fuel could expire while a crossing book remained. The repair computes
 fuel from the opposing side and proves that every recursive step decreases the
 relevant order count or incoming quantity. This sufficiency result applies to
-the inner \texttt{doMatch} loop. The outer triggered-stop cascade is still
-called with \texttt{defaultFuel=100}; invariant preservation holds on its
-fuel-exhausted branch, but completion of arbitrarily long cascades is not
-proved.
+the inner \texttt{doMatch} loop. The outer order/stop-cascade worker likewise
+uses no fixed limit: \texttt{computeProcessFuel} derives its budget from both
+book sides, all dormant stops, and the incoming order. Thus neither executable
+processing layer contains an arbitrary constant cutoff. The safety theorems
+are additionally parametric in the internal worker budget.
 
 The constructive development proves preservation branch by branch. A shorter
 structural file gives a complementary uncrossedness proof using the matching
@@ -326,8 +327,8 @@ the others.
 The artifact has several explicit limits. TLC prices, quantities, submissions,
 and time are finite; only one non-null STP group identifier is used; GTD timing
 is simplified; and event ordering is absent. The Lean theorem is about the
-Lean executable and requires well-formed inputs and state. Its outer cascade
-has constant fuel. There is no Lean-to-C++ or TLA+-to-C++ refinement theorem.
+Lean executable and requires well-formed inputs and state. There is no
+Lean-to-C++ or TLA+-to-C++ refinement theorem.
 The prose-to-formal correspondence is reviewed and differentially tested but
 not proved. The MTL/MinQty episode itself demonstrates why this distinction
 matters: a passing precheck could take an erroneous disposal route in both

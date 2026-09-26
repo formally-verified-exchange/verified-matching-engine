@@ -8,12 +8,6 @@ MTL routing, matching, disposition, and stop cascade.
 Includes BUG-1 FIX: timestamp refresh on stop trigger.
 -/
 
--- Default fuel for the mutual processing recursion (stop cascade depth).
--- NOTE: This fuel bounds only the stop cascade depth, not matching itself.
--- Matching fuel is computed from the book state via `computeMatchFuel` and
--- is proven sufficient — see `doMatch_terminates_with_computed_fuel`.
-def defaultFuel : Nat := 100
-
 /-- Computed fuel for doMatch, derived from the contra side.
 
     Measure: `Σ remainingQty + orderCount + levelCount + 1`.
@@ -35,6 +29,31 @@ def computeMatchFuel (b : BookState) (side : Side) : Nat :=
   let orderCount := contra.foldl (fun acc lvl => acc + lvl.orders.length) 0
   let levelCount := contra.length
   sumQty + orderCount + levelCount + 1
+
+/-- Size of one side of the book for outer-pipeline termination accounting.
+    Quantities pay for quantity-decreasing interactions; order and level
+    counts pay for structural removal/skip steps. -/
+def sideProcessMeasure (levels : List PriceLevel) : Nat :=
+  levels.foldl (fun acc lvl =>
+    acc + 1 + lvl.orders.foldl (fun n o => n + o.remainingQty + 1) 0) 0
+
+/-- State-derived budget for the mutually recursive outer processing worker.
+
+    Unlike the former constant `defaultFuel = 100`, this value grows with the
+    complete finite input state: both book sides, every dormant stop, and the
+    incoming order. The square covers nesting between trade traversal,
+    triggered-stop traversal, and re-entry into order processing. No fixed
+    execution limit is used by `process`.
+
+    The invariant theorems below are parametric in worker fuel, so safety does
+    not depend on this bound. This definition is the executable termination
+    budget corresponding to the finite cascade state rather than an arbitrary
+    operational cutoff. -/
+def computeProcessFuel (b : BookState) (order : Order) : Nat :=
+  let stopMeasure := b.stops.foldl (fun n o => n + o.remainingQty + 1) 0
+  let m := sideProcessMeasure b.bids + sideProcessMeasure b.asks +
+    stopMeasure + order.remainingQty + 1
+  m * m + m + 1
 
 -- §5.3 FOK pre-check: sum available non-conflicting visible qty
 def availableQty (inc : Order) (levels : List PriceLevel) : Nat :=
@@ -222,7 +241,7 @@ end
 /-- Top-level process: creates order with next ID and timestamp. -/
 def process (b : BookState) (order : Order) : ProcessResult :=
   let o := { order with id := b.nextId, timestamp := b.clock }
-  let result := processOrder defaultFuel o b
+  let result := processOrder (computeProcessFuel b o) o b
   let newClock := Nat.max (result.book.clock) (b.clock + 1)
   let b' := { result.book with nextId := b.nextId + 1, clock := newClock }
   { book := b', trades := result.trades }

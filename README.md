@@ -199,13 +199,12 @@ Thus every book reached from the empty book by a finite sequence of
 orders satisfying those per-order hypotheses has `BookInvariant`.
 
 All of the above holds for arbitrary finite book sizes satisfying the
-stated hypotheses. The matching-loop fuel bound is derived from the
-book state via `computeMatchFuel` and is proved sufficient, not
-assumed — but this covers only `doMatch`'s inner loop. `process`
-itself still drives the outer stop-trigger cascade with a fixed
-`defaultFuel = 100` (see `Process.lean`); the theorems above hold even
-on an exhausted-fuel branch, but that outer bound is not itself
-state-derived.
+stated hypotheses. Neither processing layer uses a fixed fuel value.
+The matching-loop budget is derived from the contra book via
+`computeMatchFuel`; the outer order/stop-cascade worker budget is
+derived from the complete book, dormant stops, and incoming order via
+`computeProcessFuel`. The preservation theorems remain parametric in
+the internal worker budget.
 
 `matcher_lean/MatchingEngine/TheoremsElegant.lean` gives a
 complementary proof of `process_preserves_uncrossed` (the uncrossed
@@ -302,15 +301,13 @@ Remove the reload-after-DECREMENT clause from the STP path in
 
 ### Constant-fuel unsoundness (found during the Lean proof)
 
-`computeMatchFuel` (state-derived, proved sufficient) and `defaultFuel`
-(the constant `100`) already coexist in
-`matcher_lean/MatchingEngine/Process.lean` — `defaultFuel` bounds only
-the outer stop-cascade recursion. To reproduce the historical bug,
-change which one gates the inner matching loop: in `processOrder`,
+To reproduce the historical inner-loop bug, replace the state-derived
+fuel at the matching call sites with a local constant such as `100`.
+In `processOrder`,
 replace the fuel argument at each of the three `matchOrder
 (computeMatchFuel b order.side) ...` call sites, and the
 `doMatch (computeMatchFuel b' converted.side) ...` call in the MTL
-second-pass branch, with the constant `defaultFuel`. Then re-run (from
+second-pass branch, with that constant. Then re-run (from
 inside `matcher_lean/`):
 
 ```bash

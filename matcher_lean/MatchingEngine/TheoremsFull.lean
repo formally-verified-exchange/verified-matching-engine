@@ -1361,7 +1361,7 @@ theorem process_preserves_BookOk (b : BookState) (o : Order)
     (hb : BookOk b) (hstops : StopsWF b) (hok : OrderRestOk o) :
     BookOk (process b o).book ∧ StopsWF (process b o).book := by
   unfold process
-  obtain ⟨hbk, hst⟩ := (process_all_BookOk defaultFuel).1
+  obtain ⟨hbk, hst⟩ := (process_all_BookOk (computeProcessFuel b _)).1
     { o with id := b.nextId, timestamp := b.clock } b hb hstops hok
     (SideFresh_of_BookOk hb (Nat.le_refl _)) (Nat.le_refl _)
   exact ⟨BookOkAt_congr rfl rfl hbk, hst⟩
@@ -1375,7 +1375,7 @@ theorem process_preserves_FullBookInv (b : BookState) (o : Order)
 /-- **INV-11 and INV-12 for `process`**, unconditionally. -/
 theorem process_emits_safe_trades (b : BookState) (o : Order) :
     TradesOk (process b o).trades :=
-  (process_all_TradesOk defaultFuel).1 _ _
+  (process_all_TradesOk (computeProcessFuel b _)).1 _ _
 
 /-- INV-11 in the form stated in `Invariants.lean`. -/
 theorem process_PostOnlyGuarantee (b : BookState) (o : Order) :

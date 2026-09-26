@@ -261,6 +261,26 @@ def test_stopCascade : IO Unit := do
   assert! bookInvariantB s4.book
   IO.println "✓ Test 14: Stop cascade"
 
+/-- Regression for removal of the former fixed outer fuel of 100. A single
+    trade triggers 150 dormant stops; every stop must be processed rather than
+    silently dropped at an arbitrary cascade-depth cutoff. -/
+def test_largeStopCascade : IO Unit := do
+  let stops := (List.range 150).map (fun n =>
+    { (mkStopLimit .buy 10 10 1) with id := n + 1, timestamp := n + 1 })
+  let passive := { (mkLimit .sell 10 1) with id := 1000, timestamp := 0 }
+  let book : BookState :=
+    { BookState.empty with
+      asks := [{ price := 10, orders := [passive] }]
+      stops := stops
+      nextId := 1001
+      clock := 151 }
+  let r := process book (mkLimit .buy 10 1)
+  assert! r.trades.length == 1
+  assert! r.book.stops.isEmpty
+  assert! (r.book.bids.head?.map (·.orders.length)).getD 0 == 150
+  assert! bookInvariantB r.book
+  IO.println "✓ Test 15: State-derived outer cascade budget (>100 stops)"
+
 def test_complexSequence : IO Unit := do
   let orders := [
     mkLimit .buy 100 10,
@@ -275,11 +295,11 @@ def test_complexSequence : IO Unit := do
   let (b, _) := runOrders orders
   assert! bookInvariantB b
   assert! bookUncrossedB b
-  IO.println "✓ Test 15: Complex sequence invariants"
+  IO.println "✓ Test 16: Complex sequence invariants"
 
 def test_emptyBookInvariants : IO Unit := do
   assert! bookInvariantB BookState.empty
-  IO.println "✓ Test 16: Empty book invariants"
+  IO.println "✓ Test 17: Empty book invariants"
 
 /-- BUG-3 regression: an MTL order carrying a `minQty` must still take the
     Phase 4 MTL route. The MinQty pre-check (§12 Phase 3) is a fall-through
@@ -310,7 +330,7 @@ def test_bug3_mtlMinQty : IO Unit := do
   | none => assert! false
   assert! noRestingMtlB r.book
   assert! bookInvariantB r.book
-  IO.println "✓ Test 17: BUG-3 MTL with minQty routes to MTL phase"
+  IO.println "✓ Test 18: BUG-3 MTL with minQty routes to MTL phase"
 
 def runAllTests : IO Unit := do
   test_emptyBookInvariants
@@ -328,6 +348,7 @@ def runAllTests : IO Unit := do
   test_cancel
   test_amendQtyDecrease
   test_stopCascade
+  test_largeStopCascade
   test_complexSequence
   test_bug3_mtlMinQty
-  IO.println "\nAll 17 tests passed!"
+  IO.println "\nAll 18 tests passed!"
