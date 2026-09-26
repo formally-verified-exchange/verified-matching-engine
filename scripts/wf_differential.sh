@@ -37,9 +37,13 @@ fi
 echo "==> TLA+: enumerating well-formed order shapes"
 cp "$REPO/matcher_tla/MatchingEngine.tla" "$REPO/matcher_tla/WFEmit.tla" \
    "$REPO/matcher_tla/WFEmit.cfg" "$WORK/"
-( cd "$WORK" && java -cp "$TLA_JAR" tlc2.TLC \
+if ! ( cd "$WORK" && java -cp "$TLA_JAR" tlc2.TLC \
       -deadlock -workers 1 -metadir "$WORK/meta" \
-      -config WFEmit.cfg WFEmit.tla ) > "$WORK/emit.raw" 2>&1
+      -config WFEmit.cfg WFEmit.tla ) > "$WORK/emit.raw" 2>&1; then
+    echo "error: TLC failed while enumerating TLA+ well-formed shapes:" >&2
+    cat "$WORK/emit.raw" >&2
+    exit 2
+fi
 
 python3 - "$WORK" <<'PYEOF'
 import re, sys
@@ -56,8 +60,13 @@ print(f"    TLA+ accepts {len(lines)} shapes")
 PYEOF
 
 echo "==> Lean: enumerating well-formed order shapes"
-( cd "$REPO/matcher_lean" && lake exe wfemit ) > "$WORK/lean.raw"
-tail -n +2 "$WORK/lean.raw" | sort > "$WORK/lean_wf.txt"
+( cd "$REPO/matcher_lean" && lake build wfemit >/dev/null 2>&1 )
+if ! ( cd "$REPO/matcher_lean" && lake exe wfemit ) > "$WORK/lean.raw" 2>&1; then
+    echo "error: lake exe wfemit failed while enumerating Lean well-formed shapes:" >&2
+    cat "$WORK/lean.raw" >&2
+    exit 2
+fi
+grep '|' "$WORK/lean.raw" | sort > "$WORK/lean_wf.txt"
 echo "    Lean accepts $(wc -l < "$WORK/lean_wf.txt") shapes"
 
 only_tla="$(comm -23 "$WORK/tla_wf.txt" "$WORK/lean_wf.txt")"

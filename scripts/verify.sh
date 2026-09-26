@@ -12,8 +12,15 @@
 #   4. Cross-artifact-- do Lean and TLA+ agree on well-formedness?
 #
 # Usage:
-#   ./scripts/verify.sh              fast gate (smoke TLC config)
-#   ./scripts/verify.sh --full       adds the three deep TLC configs (~30+ min)
+#   ./scripts/verify.sh              fast gate (smoke TLC config, ~1 min)
+#   ./scripts/verify.sh --full       adds five deep TLC configs: tiny, small,
+#                                    medium, amend (~45 min total on a 24-core
+#                                    host; see matcher_tla/results/metadata.json
+#                                    for measured per-config times), plus a
+#                                    20-minute bounded attempt at the 3-order
+#                                    (noamend) config, which has never been
+#                                    observed to finish exhaustively and is
+#                                    expected to report SKIP, not PASS.
 #
 # TLA_JAR must point at tla2tools.jar for layers 2 and 4; if it is missing
 # those layers are reported SKIPPED, never PASSED.
@@ -67,6 +74,7 @@ import MatchingEngine
 #print axioms process_preserves_uncrossed
 #print axioms Elegant.process_preserves_uncrossed_elegant
 #print axioms processOrder_preserves_AllInv
+#print axioms process_all_preserves_BookInvariant
 EOF
 if ( cd "$REPO/matcher_lean" && lake env lean "$WORK/AxiomCheck.lean" ) > "$WORK/axioms.txt" 2>&1; then
     if grep -q "sorryAx" "$WORK/axioms.txt"; then
@@ -141,20 +149,30 @@ fi
 # with TLC_WORK.
 TLC_WORK="${TLC_WORK:-$HOME/.cache/matcher-tlc}"
 
-run_tlc() { # name cfg
-    local name="$1" cfg="$2" d="$TLC_WORK/$1"
+run_tlc() { # name cfg [timeout_seconds]
+    local name="$1" cfg="$2" budget="${3:-0}" d="$TLC_WORK/$1"
     rm -rf "$d"; mkdir -p "$d" || { fail "TLC $name (cannot create $d)"; return; }
     if [[ "$(df --output=fstype "$d" 2>/dev/null | tail -1)" == "tmpfs" ]]; then
         fail "TLC $name — TLC_WORK ($d) is on tmpfs; set TLC_WORK to disk-backed storage"
         return
     fi
     cp "$REPO/matcher_tla/MatchingEngine.tla" "$d/"
-    if ( cd "$d" && java "-Djava.io.tmpdir=$d" -cp "$TLA_JAR" tlc2.TLC \
+    local runner=()
+    [[ $budget -gt 0 ]] && runner=(timeout "$budget")
+    ( cd "$d" && "${runner[@]}" java "-Djava.io.tmpdir=$d" -cp "$TLA_JAR" tlc2.TLC \
             -deadlock -workers auto -metadir "$d/meta" \
             -config "$REPO/matcher_tla/$cfg" MatchingEngine.tla ) \
-            > "$d/out.txt" 2>&1 && grep -q "Model checking completed. No error" "$d/out.txt"; then
+            > "$d/out.txt" 2>&1
+    local rc=$?
+    if [[ $rc -eq 0 ]] && grep -q "Model checking completed. No error" "$d/out.txt"; then
         pass "TLC $name — $(grep -oE '[0-9]+ distinct states found' "$d/out.txt" | tail -1)"
         rm -rf "$d/meta" "$d/states"
+    elif [[ $rc -eq 124 ]]; then
+        # timeout(1)'s exit code: the run was still going, not wrong. Never
+        # report this as PASS or FAIL — it proves nothing either way.
+        local progress; progress="$(grep -oE '[0-9,]+ states generated' "$d/out.txt" | tail -1)"
+        skip "TLC $name — no result within ${budget}s budget (${progress:-exploration incomplete})"
+        printf '        (full log: %s)\n' "$d/out.txt"
     else
         fail "TLC $name"
         grep -E "No space left|Error|Assert|Invariant .* is violated" "$d/out.txt" \
@@ -168,9 +186,17 @@ if [[ ! -f "$TLA_JAR" ]]; then
 else
     run_tlc smoke MatchingEngine_smoke.cfg
     if [[ $FULL -eq 1 ]]; then
+        run_tlc tiny    MatchingEngine_tiny.cfg
+        run_tlc small   MatchingEngine_small.cfg
         run_tlc medium  MatchingEngine.cfg
         run_tlc amend   MatchingEngine_amend.cfg
-        run_tlc noamend MatchingEngine_noamend.cfg
+        # This config (fixed model, 3 orders) has never been observed to
+        # complete exhaustively — matcher_tla/REPORT.md's historical run was
+        # interrupted at 45M+ states / 10min+ with no violation found, and
+        # the state space has since grown ~1.4-1.75x (see
+        # matcher_tla/results/metadata.json). Bounded so --full terminates;
+        # a SKIP here means "inconclusive in the time budget", not a pass.
+        run_tlc noamend MatchingEngine_noamend.cfg 1200
     else
         skip "TLC deep configs (use --full)"
     fi
@@ -226,8 +252,12 @@ if [[ ! -f "$TLA_JAR" ]]; then
 elif TLA_JAR="$TLA_JAR" "$REPO/scripts/wf_differential.sh" > "$WORK/wf.log" 2>&1; then
     pass "WF differential — $(grep -oE 'TLA\+ accepts [0-9]+ shapes' "$WORK/wf.log") , identical sets"
 else
-    fail "WF divergence between Lean and TLA+"
-    grep -A6 "DIVERGENCE" "$WORK/wf.log" | head -12 | sed 's/^/        /'
+    fail "WF differential (Lean vs TLA+)"
+    if grep -q "DIVERGENCE" "$WORK/wf.log"; then
+        grep -A6 "DIVERGENCE" "$WORK/wf.log" | head -12 | sed 's/^/        /'
+    else
+        tail -20 "$WORK/wf.log" | sed 's/^/        /'
+    fi
 fi
 
 # ---------------------------------------------------------------------------

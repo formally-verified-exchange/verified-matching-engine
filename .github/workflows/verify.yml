@@ -1,0 +1,72 @@
+name: Verify (fast gate)
+
+# Runs the fast layer of scripts/verify.sh on every push/PR: Lean proof
+# closure (no sorry, standard-axioms-only, runtime tests), TLA+ invariant
+# coverage + smoke config, C++ correctness/conformance/shadow-differential,
+# and the Lean-vs-TLA+ well-formedness differential. Deep TLC exploration
+# (--full) is intentionally NOT run here — see verify_full.yml — because it
+# takes on the order of 45+ minutes even on a fast host.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install elan (Lean toolchain manager)
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Set up JDK (for TLC)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools
+        run: |
+          mkdir -p "$HOME/tla-plus"
+          curl -sSL -o "$HOME/tla-plus/tla2tools.jar" \
+            https://github.com/tlaplus/tlaplus/releases/latest/download/tla2tools.jar
+          echo "TLA_JAR=$HOME/tla-plus/tla2tools.jar" >> "$GITHUB_ENV"
+
+      - name: Cache Lean/Lake build artifacts
+        uses: actions/cache@v4
+        with:
+          path: matcher_lean/.lake
+          key: lake-${{ runner.os }}-${{ hashFiles('matcher_lean/lakefile.toml', 'matcher_lean/lean-toolchain') }}
+
+      - name: Cache CMake build tree
+        uses: actions/cache@v4
+        with:
+          path: matcher_stl/build
+          key: cmake-${{ runner.os }}-${{ hashFiles('matcher_stl/CMakeLists.txt') }}
+
+      - name: Run verification gate (fast)
+        run: ./scripts/verify.sh
+
+  paper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compile paper.tex
+        uses: dante-ev/latex-action@v2.3.0
+        with:
+          root_file: paper.tex
+          args: -interaction=nonstopmode -halt-on-error -file-line-error
+
+      - name: Fail on undefined references or citations
+        run: |
+          if grep -qE "(Reference|Citation).*undefined" paper.log; then
+            echo "::error::Undefined references or citations in paper.tex — see paper.log"
+            grep -E "(Reference|Citation).*undefined" paper.log
+            exit 1
+          fi
+          echo "No undefined references or citations."

@@ -1,0 +1,51 @@
+name: Verify (full — deep TLC configs)
+
+# The slow path: scripts/verify.sh --full, which runs TLC to (attempted)
+# completion on tiny/small/medium/amend, plus a 20-minute bounded attempt at
+# the 3-order (noamend) config. On the 24-core host used to produce
+# matcher_tla/results/metadata.json this took ~45 minutes total; standard
+# GitHub-hosted runners have far fewer cores, so budget considerably longer
+# here. Not run on every push — trigger manually before a release, or let
+# the weekly schedule catch drift.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 0'  # weekly, Sunday 06:00 UTC
+
+jobs:
+  verify-full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install elan (Lean toolchain manager)
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Set up JDK (for TLC)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TLA+ tools
+        run: |
+          mkdir -p "$HOME/tla-plus"
+          curl -sSL -o "$HOME/tla-plus/tla2tools.jar" \
+            https://github.com/tlaplus/tlaplus/releases/latest/download/tla2tools.jar
+          echo "TLA_JAR=$HOME/tla-plus/tla2tools.jar" >> "$GITHUB_ENV"
+
+      - name: Run verification gate (full)
+        run: ./scripts/verify.sh --full
+
+      - name: Archive raw TLC logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tlc-full-logs-${{ github.run_id }}
+          path: ~/.cache/matcher-tlc/**/out.txt
+          retention-days: 90
+          if-no-files-found: warn
