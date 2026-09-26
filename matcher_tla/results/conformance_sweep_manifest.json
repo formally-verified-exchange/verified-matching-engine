@@ -1,0 +1,41 @@
+{
+  "date": "2026-09-26",
+  "command": "./matcher_tla/run_experiments.sh fast --jobs 16 --timeout 120",
+  "note": "The paper previously claimed ~232,000 traces / ~1.5e6 per-step comparisons across twelve scenarios. That claim was not backed by any archived manifest, log, or intermediate artifact anywhere in the repository. This pipeline (matcher_tla/run_experiments.sh + scenarios/gen_seeded.py) is architecturally one TLC target-search run per (scenario, structural-target) pair -- it cannot reach anywhere near 232,000 traces by construction (13 scenarios x 9 target types = 117 runs at most). No other trace-generation pipeline was found in the repository. The 232k/1.5M numbers have been removed from the paper and replaced with these freshly reproduced, real, smaller numbers.",
+  "scenario_files": 13,
+  "scenario_list": ["amend_playground", "deep_book", "empty", "iceberg_resting", "mixed_tif", "near_capacity", "one_sided_asks", "one_sided_bids", "post_only_resting", "shallow_symmetric", "stacked_level", "stops_pending", "stp_both_sides"],
+  "target_types_per_scenario": 9,
+  "phase_A_safety_only": {
+    "scenarios_run": 13,
+    "pass": 4,
+    "violated": 0,
+    "error_timeout": 9,
+    "note": "The 9 timeouts are an artifact of this run's reduced --timeout 120 (vs. the script's 1800s default), chosen for a fast turnaround; they are not invariant violations (VIOLATED=0 confirms no safety-invariant failures were found in the states explored before timeout). Re-running with the default 1800s timeout would very likely clear these but was not done in this pass."
+  },
+  "phase_B_target_driven": {
+    "cfgs_run": 117,
+    "targets_reached_violated": 57,
+    "traces_json_converted": 94,
+    "harness_replay": {
+      "traces": 94,
+      "traces_passed": 94,
+      "traces_failed": 0,
+      "steps_replayed": 109,
+      "orders_submitted": 384,
+      "fills_produced": 40,
+      "book_comparisons_match": 109,
+      "fill_comparisons_match": 37,
+      "ltp_comparisons_match": 109,
+      "bug_divergences": 0,
+      "result": "PASS"
+    }
+  },
+  "tools": {
+    "tlc": "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)",
+    "java": "OpenJDK 21.0.12.1",
+    "converter": "matcher_stl/tools/conformance/convert_matching_traces.py",
+    "harness": "matcher_stl/build/conformance_harness"
+  },
+  "raw_output": "/tmp/run_experiments_fast.log (not committed; this manifest is the durable record)",
+  "artifacts_dir": "matcher_tla/experiments/fast/ (raw TLC logs, JSON traces, harness report -- generated, not committed by default per repo .gitignore conventions; regenerate with the command above)"
+}

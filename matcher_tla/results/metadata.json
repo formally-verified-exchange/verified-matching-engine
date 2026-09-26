@@ -1,0 +1,93 @@
+{
+  "audited_revision_note": "Freshly reproduced 2026-09-26 against the current checked-in matcher_tla/MatchingEngine.tla. State counts differ from the historical figures in matcher_tla/REPORT.md (recorded at an earlier revision); the discrepancy is real and attributed below, not a measurement artifact.",
+  "tlc_version": "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)",
+  "java_version": "OpenJDK 21.0.12.1 (build 21.0.12.1+1-1-24.04.4-Ubuntu)",
+  "host": "Linux 7.0.0-30-generic x86_64 (Ubuntu 24.04), 24 cores",
+  "workers": 1,
+  "model_sha256": "365af55630100d2cac9658f6661c2bd2e4ea2e6c8ae85938464c88f0a522eeaf",
+  "model_file": "matcher_tla/MatchingEngine.tla",
+  "discrepancy_note": "All four completed configurations now generate/find substantially more states than the historical REPORT.md figures (roughly 1.4x-1.6x more distinct states, and 1.3x-1.75x longer wall time). The most plausible cause is the well-formedness-filter hoist into MatchingEngine.tla (WFShapes, ~line 660) and/or other model changes made after REPORT.md's numbers were recorded; this was not root-caused further as it is outside this pass's scope. Both the old and new numbers are preserved here for the record; the paper now cites the freshly archived numbers.",
+  "runs": [
+    {
+      "label": "Tiny",
+      "config_file": "matcher_tla/MatchingEngine_tiny.cfg",
+      "config_sha256": "09a7d5d23c2ebc5dee990ec320de1ca65cd40fa1975ad8f673c73a182f1f06d9",
+      "command": "java -cp /home/aaslyan/tla-plus/tla2tools.jar tlc2.TLC -deadlock -config matcher_tla/MatchingEngine_tiny.cfg matcher_tla/MatchingEngine.tla",
+      "note": "-deadlock (CHECK_DEADLOCK=FALSE) is required: every action in the model is guarded by clock < MAX_CLOCK, so exhausting the clock budget is an expected terminal state, not a real deadlock. Without this flag TLC reports 'Deadlock reached' as an error on all four configs below.",
+      "params": {"MAX_ORDERS": 2, "MAX_QTY": 1, "PRICES": "{1,2}", "MAX_CLOCK": 4, "amend": false},
+      "seed": 873137730062421285,
+      "fp": 85,
+      "result": "PASS (Model checking completed. No error has been found.)",
+      "states_generated": 2463194,
+      "distinct_states": 1427827,
+      "states_left_on_queue": 0,
+      "elapsed": "32s",
+      "raw_log": "matcher_tla/results/tiny_raw.log",
+      "historical_report_md": {"states_generated": 2979719, "distinct_states": 1123333, "elapsed": "20s"}
+    },
+    {
+      "label": "Small",
+      "config_file": "matcher_tla/MatchingEngine_small.cfg",
+      "config_sha256": "6d3ef3b1f4870a8474a6c4b0c76e93669d99602bc8b7e34f9e5a761b76c3863b",
+      "command": "java -cp /home/aaslyan/tla-plus/tla2tools.jar tlc2.TLC -deadlock -config matcher_tla/MatchingEngine_small.cfg matcher_tla/MatchingEngine.tla",
+      "params": {"MAX_ORDERS": 2, "MAX_QTY": 2, "PRICES": "{1,2}", "MAX_CLOCK": 4, "amend": false},
+      "result": "PASS (Model checking completed. No error has been found.)",
+      "states_generated": 16920722,
+      "distinct_states": 9230323,
+      "states_left_on_queue": 0,
+      "elapsed": "4m12s",
+      "raw_log": "matcher_tla/results/small_raw.log",
+      "historical_report_md": {"states_generated": 11528343, "distinct_states": 6037674, "elapsed": "1m42s"}
+    },
+    {
+      "label": "Medium",
+      "config_file": "matcher_tla/MatchingEngine.cfg",
+      "config_sha256": "3e6ecc1df41d812980cf8fb7930246f79bd2c16e836fc3d59765ba3bace1b672",
+      "command": "java -cp /home/aaslyan/tla-plus/tla2tools.jar tlc2.TLC -deadlock -config matcher_tla/MatchingEngine.cfg matcher_tla/MatchingEngine.tla",
+      "params": {"MAX_ORDERS": 2, "MAX_QTY": 2, "PRICES": "{1,2,3}", "MAX_CLOCK": 4, "amend": false},
+      "result": "PASS (Model checking completed. No error has been found.)",
+      "states_generated": 49656516,
+      "distinct_states": 29622636,
+      "states_left_on_queue": 0,
+      "elapsed": "14m24s",
+      "raw_log": "matcher_tla/results/medium_raw.log",
+      "historical_report_md": {"states_generated": 36700016, "distinct_states": 21261901, "elapsed": "5m34s"}
+    },
+    {
+      "label": "With Amend",
+      "config_file": "matcher_tla/MatchingEngine_amend.cfg",
+      "config_sha256": "55cf2b14872f55ff7fb97b0bfe864ee93d83faf551579948f59240c59a523618",
+      "command": "java -cp /home/aaslyan/tla-plus/tla2tools.jar tlc2.TLC -deadlock -config matcher_tla/MatchingEngine_amend.cfg matcher_tla/MatchingEngine.tla",
+      "params": {"MAX_ORDERS": 2, "MAX_QTY": 2, "PRICES": "{1,2}", "MAX_CLOCK": 4, "amend": true},
+      "result": "PASS (Model checking completed. No error has been found.)",
+      "states_generated": 37321458,
+      "distinct_states": 15158339,
+      "states_left_on_queue": 0,
+      "elapsed": "25m45s",
+      "raw_log": "matcher_tla/results/amend_raw.log",
+      "historical_report_md": {"states_generated": 25209607, "distinct_states": 9104902, "elapsed": "3m33s"}
+    },
+    {
+      "label": "3-order FIFO counterexample",
+      "config_file": "matcher_tla/MatchingEngine_noamend.cfg",
+      "config_sha256": "a646530bf24f59d36c5864aaf5e1bfaab18dd5ab02836d96b1b29081f7b34934",
+      "command": "java -cp /home/aaslyan/tla-plus/tla2tools.jar tlc2.TLC -config matcher_tla/MatchingEngine_noamend.cfg matcher_tla/MatchingEngine.tla",
+      "note": "Run against the bug-reverted model (ProcessTriggeredStops timestamp-refresh line temporarily reverted: 'converted == ConvertStop(s)' instead of 'converted == [ConvertStop(s) EXCEPT !.timestamp = tm]'). Not an exhaustive run -- terminates at the first invariant violation, so states_left_on_queue > 0 is expected. No -deadlock flag needed since an invariant violation is found before the clock ceiling.",
+      "params": {"MAX_ORDERS": 3, "MAX_QTY": 2, "PRICES": "{1,2}", "MAX_CLOCK": 6, "amend": false},
+      "seed": -8424286553263673453,
+      "fp": 111,
+      "result": "VIOLATED (Error: Invariant FIFOWithinLevel is violated.)",
+      "states_generated": 9160154,
+      "distinct_states": 4980329,
+      "states_left_on_queue": 4976295,
+      "elapsed": "2m41s",
+      "raw_log": "matcher_tla/results/fifo_counterexample_noamend_raw.log",
+      "historical_report_md": {"note": "REPORT.md's own '3-order (partial)' row reports 45M+ generated / 26M+ distinct / 10min+ with 'No violation in explored states' for this same config WITH the bug present -- i.e. an earlier attempt at this exact repro did not find a violation in the time it ran. The trace previously printed in paper.tex/REPORT.md was never backed by an archived TLC run consistent with that partial-run entry; it has been replaced by this freshly reproduced and archived trace."}
+    }
+  ],
+  "aggregate_of_four_completed_configs": {
+    "states_generated_sum": 106361890,
+    "distinct_states_sum": 55439125,
+    "note": "Sum of per-run distinct/generated counts across Tiny+Small+Medium+With Amend. This measures aggregate exploration workload, not the cardinality of a deduplicated union across configurations (the same abstract state can recur across different configs)."
+  }
+}

@@ -14,14 +14,28 @@ The formal specification (matching-engine-formal-spec.md v1.2.0) was translated 
 
 **Issue:** When a stop order triggers (§10.1), it converts to a LIMIT/MARKET order and enters the PROCESS pipeline. However, the spec does not update the stop order's timestamp. The stop keeps its *original submission timestamp* from when it was first placed. When the triggered order rests on the book after partial matching, it is appended to the back of the price level queue (§6.1) but has an *earlier* timestamp than orders already in that queue.
 
-**Counterexample trace (found by TLC):**
-1. SELL LIMIT qty=1 @1 → rests on ask (id=1, timestamp=1)
-2. BUY STOP_LIMIT stopPrice=1, price=1, qty=1 → added to stops (id=2, timestamp=2)
-3. BUY LIMIT qty=2 @1 → fills against SELL @1 (trade at price=1), triggers the stop
-   - Trade triggers stop order 2 (lastTradePrice=1 ≥ stopPrice=1)
-   - Stop converts to BUY LIMIT @1 and rests on bid
-   - Incoming order 3 (timestamp=3) also rests on bid @1 (partially filled, remainingQty=1)
-   - **Result:** bidQ[1] = [order3(ts=3), order2(ts=2)] — FIFO violated!
+**Counterexample trace (freshly reproduced and archived 2026-09-26 against
+`MatchingEngine_noamend.cfg` with the timestamp-refresh line reverted; raw
+TLC log and full provenance in `results/fifo_counterexample_noamend_raw.log`
+and `results/metadata.json`. An earlier version of this section described a
+different trace attributed to a "Small" configuration with `MAX_ORDERS=2`,
+which cannot admit a third order and could not have produced any 3-order
+trace; that attribution was unverifiable — this table's own "3-order
+(partial)" row below already recorded *no violation found* under this same
+config with the bug present, contradicting the old claim — and has been
+withdrawn in favor of this archived reproduction):**
+1. BUY LIMIT qty=1 @1 → rests on bid (id=1, timestamp=1)
+2. SELL STOP_LIMIT stopPrice=1, price=1, qty=1 → added to stops (id=2, timestamp=2)
+3. SELL LIMIT qty=2 @1 → fills against BUY @1 (trade at price=1), triggers the stop
+   - Trade triggers stop order 2 (lastTradePrice=1 ≤ stopPrice=1)
+   - Stop converts to SELL LIMIT @1 and rests on ask
+   - Incoming order 3 (timestamp=3) also rests on ask @1 (partially filled, remainingQty=1)
+   - **Result:** askQ[1] = [order3(ts=3), order2(ts=2)] — FIFO violated!
+   - TLC2 2.19 (rev 5a47802), OpenJDK 21.0.12.1, 1 worker: 9,160,154 states
+     generated / 4,980,329 distinct states, 2m41s wall time (this is a
+     violation-hit, not an exhaustive run; hardware/JVM-dependent, not a
+     universal constant). This is a three-order counterexample; no
+     minimization procedure was run, so it is not claimed to be minimal.
 
 **Fix applied in TLA+ model:** When a stop triggers, assign it a new timestamp from the current logical clock. This ensures triggered stops have the correct priority relative to orders already on the book.
 
@@ -79,13 +93,29 @@ The spec handles minQty clearing in two places: Phase 4 (MTL) and Phase 5a (norm
 
 ## Model Checking Statistics
 
+All rows below are freshly reproduced and archived 2026-09-26 (raw logs,
+exact commands, and TLC/Java/host provenance in `results/metadata.json`;
+regenerable via `../matcher_tla/tools/generate_stats_summary.py`). The four
+completed configurations now generate substantially more states than the
+figures previously recorded here (roughly 1.4-1.75x more distinct states
+and wall time) — most plausibly due to model changes made after those
+figures were recorded (e.g. the well-formedness-filter hoist), not
+re-root-caused further. Both old and new numbers are preserved in
+`results/metadata.json` for the record.
+
 | Configuration | Orders | Qty | Prices | Amend | States Gen | Distinct | Time | Result |
 |---|---|---|---|---|---|---|---|---|
-| Tiny | 2 | 1 | {1,2} | No | 2,979,719 | 1,123,333 | 20s | PASS |
-| Small | 2 | 2 | {1,2} | No | 11,528,343 | 6,037,674 | 1:42 | PASS |
-| Medium | 2 | 2 | {1,2,3} | No | 36,700,016 | 21,261,901 | 5:34 | PASS |
-| With Amend | 2 | 2 | {1,2} | Yes | 25,209,607 | 9,104,902 | 3:33 | PASS |
-| 3-order (partial) | 3 | 2 | {1,2} | No | 45M+ | 26M+ | 10min+ | No violation in explored states |
+| Tiny | 2 | 1 | {1,2} | No | 2,463,194 | 1,427,827 | 32s | PASS |
+| Small | 2 | 2 | {1,2} | No | 16,920,722 | 9,230,323 | 4:12 | PASS |
+| Medium | 2 | 2 | {1,2,3} | No | 49,656,516 | 29,622,636 | 14:24 | PASS |
+| With Amend | 2 | 2 | {1,2} | Yes | 37,321,458 | 15,158,339 | 25:45 | PASS |
+| 3-order (violation) | 3 | 2 | {1,2} | No | 9,160,154 | 4,980,329 | 2:41 | FIFOWithinLevel violated (bug reverted) |
+
+Note: TLC's default deadlock checking must be disabled (`-deadlock`, i.e.
+`CHECK_DEADLOCK FALSE`) for the four completed rows above — every action in
+the model is guarded by `clock < MAX_CLOCK`, so exhausting the clock budget
+is an expected terminal state under this bounded model, not a real deadlock.
+Without `-deadlock`, TLC reports "Deadlock reached" as an error on all four.
 
 All configurations include full order type suite (LIMIT, MARKET, MTL, STOP_LIMIT, STOP_MARKET), all TimeInForce variants (GTC, IOC, FOK, DAY), iceberg orders, post-only, STP with all 4 policies (CANCEL_NEWEST, CANCEL_OLDEST, CANCEL_BOTH, DECREMENT), and minQty.
 

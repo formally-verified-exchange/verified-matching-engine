@@ -1,0 +1,106 @@
+  PASS  amend_playground__TargetNoDepth           1 steps, 0 fills
+  PASS  amend_playground__TargetNoIceberg         1 steps, 0 fills
+  PASS  amend_playground__TargetNoPartialFill     1 steps, 2 fills
+  PASS  amend_playground__TargetNoPostOnly        1 steps, 0 fills
+  PASS  amend_playground__TargetNoStops           1 steps, 0 fills
+  PASS  amend_playground__TargetNoStopTrigger     2 steps, 0 fills
+  PASS  amend_playground__TargetNoTrade           1 steps, 1 fills
+  PASS  deep_book__TargetNoDepth                  1 steps, 0 fills
+  PASS  deep_book__TargetNoIceberg                1 steps, 0 fills
+  PASS  deep_book__TargetNoPartialFill            1 steps, 1 fills
+  PASS  deep_book__TargetNoPostOnly               1 steps, 0 fills
+  PASS  deep_book__TargetNoStops                  1 steps, 0 fills
+  PASS  deep_book__TargetNoStopTrigger            2 steps, 1 fills
+  PASS  deep_book__TargetNoTrade                  1 steps, 1 fills
+  PASS  empty__TargetNoDepth                      2 steps, 0 fills
+  PASS  empty__TargetNoIceberg                    1 steps, 0 fills
+  PASS  empty__TargetNoPartialFill                2 steps, 1 fills
+  PASS  empty__TargetNoPostOnly                   1 steps, 0 fills
+  PASS  empty__TargetNoStops                      1 steps, 0 fills
+  PASS  empty__TargetNoTrade                      2 steps, 1 fills
+  PASS  empty__TargetOneSide                      2 steps, 0 fills
+  PASS  empty__TargetSingleLevel                  2 steps, 0 fills
+  PASS  iceberg_resting__TargetNoDepth            1 steps, 0 fills
+  PASS  iceberg_resting__TargetNoPartialFill      1 steps, 1 fills
+  PASS  iceberg_resting__TargetNoPostOnly         1 steps, 0 fills
+  PASS  iceberg_resting__TargetNoStops            1 steps, 0 fills
+  PASS  iceberg_resting__TargetNoStopTrigger      2 steps, 1 fills
+  PASS  iceberg_resting__TargetNoTrade            1 steps, 1 fills
+  PASS  mixed_tif__TargetNoDepth                  1 steps, 0 fills
+  PASS  mixed_tif__TargetNoIceberg                1 steps, 0 fills
+  PASS  mixed_tif__TargetNoPartialFill            1 steps, 1 fills
+  PASS  mixed_tif__TargetNoPostOnly               1 steps, 0 fills
+  PASS  mixed_tif__TargetNoStops                  1 steps, 0 fills
+  PASS  mixed_tif__TargetNoStopTrigger            2 steps, 1 fills
+  PASS  mixed_tif__TargetNoTrade                  1 steps, 1 fills
+  PASS  near_capacity__TargetNoDepth              1 steps, 0 fills
+  PASS  near_capacity__TargetNoIceberg            1 steps, 0 fills
+  PASS  near_capacity__TargetNoPartialFill        1 steps, 1 fills
+  PASS  near_capacity__TargetNoPostOnly           1 steps, 0 fills
+  PASS  near_capacity__TargetNoStops              1 steps, 0 fills
+  PASS  near_capacity__TargetNoTrade              1 steps, 1 fills
+  PASS  one_sided_asks__TargetNoDepth             1 steps, 0 fills
+  PASS  one_sided_asks__TargetNoIceberg           1 steps, 0 fills
+  PASS  one_sided_asks__TargetNoPartialFill       1 steps, 2 fills
+  PASS  one_sided_asks__TargetNoPostOnly          1 steps, 0 fills
+  PASS  one_sided_asks__TargetNoStops             1 steps, 0 fills
+  PASS  one_sided_asks__TargetNoStopTrigger       2 steps, 1 fills
+  PASS  one_sided_asks__TargetNoTrade             1 steps, 1 fills
+  PASS  one_sided_asks__TargetOneSide             1 steps, 0 fills
+  PASS  one_sided_bids__TargetNoDepth             1 steps, 0 fills
+  PASS  one_sided_bids__TargetNoIceberg           1 steps, 0 fills
+  PASS  one_sided_bids__TargetNoPartialFill       1 steps, 2 fills
+  PASS  one_sided_bids__TargetNoPostOnly          1 steps, 0 fills
+  PASS  one_sided_bids__TargetNoStops             1 steps, 0 fills
+  PASS  one_sided_bids__TargetNoStopTrigger       2 steps, 1 fills
+  PASS  one_sided_bids__TargetNoTrade             1 steps, 1 fills
+  PASS  one_sided_bids__TargetOneSide             1 steps, 0 fills
+  PASS  post_only_resting__TargetNoDepth          1 steps, 0 fills
+  PASS  post_only_resting__TargetNoIceberg        1 steps, 0 fills
+  PASS  post_only_resting__TargetNoPartialFill    1 steps, 1 fills
+  PASS  post_only_resting__TargetNoStops          1 steps, 0 fills
+  PASS  post_only_resting__TargetNoStopTrigger    2 steps, 1 fills
+  PASS  post_only_resting__TargetNoTrade          1 steps, 1 fills
+  PASS  post_only_resting__TargetSingleLevel      1 steps, 0 fills
+  PASS  shallow_symmetric__TargetNoDepth          1 steps, 0 fills
+  PASS  shallow_symmetric__TargetNoIceberg        1 steps, 0 fills
+  PASS  shallow_symmetric__TargetNoPartialFill    1 steps, 1 fills
+  PASS  shallow_symmetric__TargetNoPostOnly       1 steps, 0 fills
+  PASS  shallow_symmetric__TargetNoStops          1 steps, 0 fills
+  PASS  shallow_symmetric__TargetNoStopTrigger    2 steps, 1 fills
+  PASS  shallow_symmetric__TargetNoTrade          1 steps, 1 fills
+  PASS  shallow_symmetric__TargetSingleLevel      1 steps, 0 fills
+  PASS  stacked_level__TargetNoIceberg            1 steps, 0 fills
+  PASS  stacked_level__TargetNoPartialFill        1 steps, 1 fills
+  PASS  stacked_level__TargetNoPostOnly           1 steps, 0 fills
+  PASS  stacked_level__TargetNoStops              1 steps, 0 fills
+  PASS  stacked_level__TargetNoStopTrigger        2 steps, 1 fills
+  PASS  stacked_level__TargetNoTrade              1 steps, 1 fills
+  PASS  stacked_level__TargetSingleLevel          1 steps, 0 fills
+  PASS  stops_pending__TargetNoDepth              1 steps, 0 fills
+  PASS  stops_pending__TargetNoIceberg            1 steps, 0 fills
+  PASS  stops_pending__TargetNoPartialFill        1 steps, 1 fills
+  PASS  stops_pending__TargetNoPostOnly           1 steps, 0 fills
+  PASS  stops_pending__TargetNoStopTrigger        1 steps, 1 fills
+  PASS  stops_pending__TargetNoTrade              1 steps, 1 fills
+  PASS  stops_pending__TargetSingleLevel          1 steps, 1 fills
+  PASS  stp_both_sides__TargetNoDepth             1 steps, 0 fills
+  PASS  stp_both_sides__TargetNoIceberg           1 steps, 0 fills
+  PASS  stp_both_sides__TargetNoPartialFill       1 steps, 1 fills
+  PASS  stp_both_sides__TargetNoPostOnly          1 steps, 0 fills
+  PASS  stp_both_sides__TargetNoStops             1 steps, 0 fills
+  PASS  stp_both_sides__TargetNoStopTrigger       2 steps, 1 fills
+  PASS  stp_both_sides__TargetNoTrade             1 steps, 1 fills
+  PASS  stp_both_sides__TargetSingleLevel         1 steps, 0 fills
+
+========== Matching Engine Conformance Report ==========
+  Traces:            94 (94 passed, 0 failed)
+  Steps replayed:    109
+  Orders submitted:  384
+  Fills produced:    40
+  Book comparisons:  109 match
+  Fill comparisons:  37 match
+  LTP comparisons:   109 match
+  BUG divergences:   0
+  Result:            PASS
+========================================================
